@@ -1,4 +1,5 @@
 use std::alloc;
+use std::cmp;
 use std::fmt::{self, Debug, Formatter};
 use std::mem::{self, MaybeUninit};
 use std::ops::{Deref, DerefMut};
@@ -37,33 +38,49 @@ impl<T> Vector<T> {
             len: 0
         }
     }
-    
-    fn grow(&mut self) {
-        let ptr = self.arr.ptr;
-        let cap = self.cap();
-        let new_cap = if cap == 0 { 1 } else { cap * 2 };
-        
-        let layout = Array::<MaybeUninit<T>>::make_layout(cap);
 
-        let new_ptr = NonNull::new(unsafe {
-            if cap == 0 {
-                // If the vec previously had a capacity of zero, we need a new allocation.
-                alloc::alloc(layout) as *mut MaybeUninit<T>
-            } else {
-                // Otherwise, use realloc to handle moving or in-place size changing.
-                alloc::realloc(
-                    ptr.as_ptr() as *mut u8,
-                    layout,
-                    new_cap
-                ) as *mut MaybeUninit<T>
+    pub(crate) fn realloc_with_cap(
+        &mut self,
+        ptr: NonNull<MaybeUninit<T>>,
+        old_cap: usize,
+        new_cap: usize
+    ) {
+        if old_cap == new_cap { return; }
+
+        let layout = Array::<MaybeUninit<T>>::make_layout(old_cap);
+
+        let new_ptr = NonNull::new(
+            unsafe {
+                if old_cap == 0 {
+                    // If the vec previously had a capacity of zero, we need a new allocation.
+                    alloc::alloc(layout) as *mut MaybeUninit<T>
+                } else {
+                    // Otherwise, use realloc to handle moving or in-place size changing.
+                    alloc::realloc(
+                        ptr.as_ptr() as *mut u8,
+                        layout,
+                        new_cap
+                    ) as *mut MaybeUninit<T>
+                }
             }
-        }).unwrap();
+        ).unwrap_or_else(|| alloc::handle_alloc_error(layout));
 
         // Prevent a double free by forgetting the old value of self.arr.
         mem::forget(mem::replace(
             &mut self.arr,
             unsafe { Array::from_parts(new_ptr, new_cap) }
         ));
+    }
+
+    pub(crate) fn grow(&mut self) {
+        // Because we can't take the value from arr (invalidating it in the event of a panic), we
+        // just clone the pointer and capacity. (Essentially two usizes)
+        let Array { ptr, size: old_cap, .. } = self.arr;
+        
+        // SAFETY: old_cap < isize::MAX, so old_cap * 2 can't overflow. Can still exceed isize::MAX.
+        let new_cap = cmp::max(old_cap * 2, 1);
+
+        self.realloc_with_cap(ptr, old_cap, new_cap);
     }
 
     pub fn push(&mut self, value: T) {
@@ -89,10 +106,11 @@ impl<T> Vector<T> {
         }
     }
 
-    fn check_index(&self, index: usize) {
-        if index >= self.len {
-            panic!("Index {} out of bounds for Vector with len {}", index, self.len);
-        }
+    pub(crate) fn check_index(&self, index: usize) {
+        assert!(
+            index <= self.len,
+            "Index {} out of bounds for Vector with len {}", index, self.len
+        );
     }
 
     pub fn insert(&mut self, index: usize, value: T) {
@@ -111,7 +129,7 @@ impl<T> Vector<T> {
 
     pub fn remove(&mut self, index: usize) -> T {
         self.check_index(index);
-        
+
         let mut next = MaybeUninit::uninit();
         for i in (index..self.len).rev() {
             next = mem::replace(&mut self.arr[i], next);
@@ -121,37 +139,51 @@ impl<T> Vector<T> {
         unsafe { next.assume_init() }
     }
 
-    pub fn swap_value(&mut self, index: usize, new_value: T) -> T {
+    pub fn replace(&mut self, index: usize, new_value: T) -> T {
         self.check_index(index);
 
-        unsafe { mem::replace(
-            &mut self.arr[index],
-            MaybeUninit::new(new_value)
-        ).assume_init() }
+        unsafe {
+            mem::replace(
+                &mut self.arr[index],
+                MaybeUninit::new(new_value)
+            ).assume_init()
+        }
     }
 
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.len == 0
     }
 
     pub fn reserve(&mut self, extra: usize) {
-        todo!()
-    }
+        let Array { ptr, size: old_cap, .. } = self.arr;
 
-    pub fn grow_to(&mut self, size: usize) {
-        todo!()
-    }
+        let new_cap = old_cap.strict_add(extra);
 
-    pub fn as_array(&self) -> Array<T> {
-        todo!()
+        self.realloc_with_cap(ptr, old_cap, new_cap);
     }
 
     pub fn shrink_to_fit(&mut self) {
-        todo!()
+        let Array { ptr, size: old_cap, .. } = self.arr;
+
+        self.realloc_with_cap(ptr, old_cap, self.len);
     }
 
-    pub fn shrink_to(&mut self, size: usize) {
-        todo!()
+    pub fn adjust_cap(&mut self, new_cap: usize) {
+        let Array { ptr, size: old_cap, .. } = self.arr;
+
+        if new_cap < self.cap() {
+            // Drop the values that are about to be deallocated.
+            for i in new_cap..self.cap() {
+                drop(
+                    // SAFETY: count > isize::MAX is already guarded against and all possible values are
+                    // within the allocated range of the Array.
+                    unsafe { ptr.add(i).read() }
+                );
+                self.len -= 1;
+            }
+        }
+
+        self.realloc_with_cap(ptr, old_cap, new_cap);
     }
 }
 
@@ -218,6 +250,31 @@ impl<T: Debug> Debug for Vector<T> {
         f.debug_struct("Vector")
             .field("contents", &&**self)
             .field("len", &self.len)
-            .field("cap", &self.cap()).finish()
+            .field("cap", &self.cap())
+            .finish()
+    }
+}
+
+impl<T> From<Vector<T>> for Array<T> {
+    fn from(mut value: Vector<T>) -> Self {
+        // Dealloc all uninit values > len.
+        value.shrink_to_fit();
+
+        // SAFETY: A Vector contains len initialized values with the same layout and alignment as an
+        // Array.
+        let arr = unsafe { mem::transmute_copy(&value.arr) };
+        mem::forget(value);
+        arr
+    }
+}
+
+impl<T: Debug + Clone> From<Array<T>> for Vector<T> {
+    fn from(value: Array<T>) -> Self {
+        let len = value.size();
+        Vector {
+            // SAFETY: Array<MaybeUninit<T>> has the same layout as Array<T>.
+            arr: unsafe { mem::transmute(value) },
+            len
+        }
     }
 }
