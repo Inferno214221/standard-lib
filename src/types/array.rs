@@ -19,10 +19,10 @@ unsafe impl<T: Sync> Sync for Array<T> {}
 impl<T> Array<T> {
     /// A helper function to create a [`Layout`] for use during allocation, containing `size` number
     /// of elements of type `T`.
-    /// 
+    ///
     /// # Panics
-    /// Panics if `size` > [`isize::MAX`].
-    /// 
+    /// Panics if layout size exceeds [`isize::MAX`].
+    ///
     /// # Example
     /// ```should_panic
     /// # use rust_basic_types::array::Array;
@@ -34,8 +34,8 @@ impl<T> Array<T> {
 
     /// A helper function to create a [`NonNull`] for the provided [`Layout`]. Returns
     /// [`NonNull::dangling()`] for a zero-sized layout.
-    /// 
-    /// # Allocation Error
+    ///
+    /// # Errors
     /// In the event of an allocation error, this method calls [`alloc::handle_alloc_error`] as
     /// recommended, to avoid new allocations rather than panicking.
     pub(crate) fn make_ptr(layout: Layout) -> NonNull<T> {
@@ -50,7 +50,7 @@ impl<T> Array<T> {
     }
 
     /// Returns the size of the Array.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use rust_basic_types::array::Array;
@@ -62,11 +62,11 @@ impl<T> Array<T> {
     }
 
     /// Creates a new Array with size 0.
-    /// 
+    ///
     /// This method isn't very helpful in most cases because the size remains zero after
     /// initialization. See [`Array::new_uninit`] or [`Array::from`] for preferred methods of
     /// initialization.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use rust_basic_types::array::Array;
@@ -81,10 +81,10 @@ impl<T> Array<T> {
 
     /// Creates a new Array of [`MaybeUninit<T>`] with the provided `size`. All values are
     /// uninitialized.
-    /// 
+    ///
     /// # Panics
-    /// Panics if `size` > [`isize::MAX`].
-    /// 
+    /// Panics if layout size exceeds [`isize::MAX`].
+    ///
     /// # Examples
     /// ```
     /// # use rust_basic_types::array::Array;
@@ -95,7 +95,7 @@ impl<T> Array<T> {
     pub fn new_uninit(size: usize) -> Array<MaybeUninit<T>> {
         let layout = Array::<MaybeUninit<T>>::make_layout(size);
         let ptr = Array::<MaybeUninit<T>>::make_ptr(layout);
-        
+
         Array {
             ptr,
             size,
@@ -103,6 +103,17 @@ impl<T> Array<T> {
         }
     }
 
+    /// Creates an `Array<T>` from its raw components, a [`NonNull<T>`] pointer to the contained
+    /// data and a [`usize`] representing the size.
+    /// 
+    /// # Safety
+    /// 
+    /// This is extremely unsafe, nothing is checked during construction.
+    /// 
+    /// For the produced value to be valid:
+    /// - `ptr` needs to be a currently and correctly allocated pointer within the global allocator.
+    /// - `ptr` needs to refer to `size` properly initialized values of `T`.
+    /// - `size` needs to be less than [`isize::MAX`].
     pub unsafe fn from_parts(ptr: NonNull<T>, size: usize) -> Array<T> {
         Array {
             ptr,
@@ -111,17 +122,27 @@ impl<T> Array<T> {
         }
     }
 
-    pub unsafe fn into_parts(self) -> (NonNull<T>, usize) {
+    /// Decomposes an `Array<T>` into its raw components, a [`NonNull<T>`] pointer to the contained
+    /// data and a [`usize`] representing the size.
+    /// 
+    /// Returns the pointer to the underlying data and the number of elements in the Array.
+    /// 
+    /// # Safety
+    /// 
+    /// After calling this function, the caller is responsible for the safety of the allocated data.
+    /// The parts can be used to reconstruct an Array with [`Array::from_parts`], allowing it to be
+    /// used again and dropped normally.
+    pub fn into_parts(self) -> (NonNull<T>, usize) {
         (self.ptr, self.size)
     }
 }
 
 impl<T: Copy> Array<T> {
     /// Creates a new `Array<T>` with `count` copies of `item`.
-    /// 
+    ///
     /// # Panics
-    /// Panics if `size` > [`isize::MAX`].
-    /// 
+    /// Panics if layout size exceeds [`isize::MAX`].
+    ///
     /// # Examples
     /// ```
     /// # use rust_basic_types::array::Array;
@@ -131,7 +152,7 @@ impl<T: Copy> Array<T> {
     /// ```
     pub fn repeat(item: T, count: usize) -> Array<T> {
         let arr = Self::new_uninit(count);
-        
+
         for i in 0..count {
             // SAFETY: size > isize::MAX is already guarded against and all possible values are
             // within the allocated range of the Array.
@@ -139,7 +160,7 @@ impl<T: Copy> Array<T> {
                 arr.ptr.add(i).write(MaybeUninit::new(item))
             }
         }
-        
+
         // SAFETY: All values are initialized.
         unsafe { arr.assume_init() }
     }
@@ -153,11 +174,11 @@ impl<T> Array<MaybeUninit<T>> {
     }
 
     /// Assume that all values of an `Array<MaybeUninit<T>>` are initialized.
-    /// 
+    ///
     /// # Safety
     /// It is up to the caller to guarantee that the Array is properly initialized. Failing to do so
     /// is undefined behavior.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use rust_basic_types::array::Array;
@@ -187,10 +208,10 @@ impl<T> Default for Array<T> {
 impl<T, I> From<I> for Array<T> where I: IntoIterator<Item = T>, I::IntoIter: ExactSizeIterator {
     /// Creates an Array from a type which implements [`IntoIterator`] and creates an
     /// [`ExactSizeIterator`].
-    /// 
+    ///
     /// # Panics
-    /// Panics if `size` > [`isize::MAX`].
-    /// 
+    /// Panics if layout size exceeds [`isize::MAX`].
+    ///
     /// # Examples
     /// ```
     /// # use rust_basic_types::array::Array;
@@ -201,7 +222,7 @@ impl<T, I> From<I> for Array<T> where I: IntoIterator<Item = T>, I::IntoIter: Ex
         let iter = value.into_iter();
         let size = iter.len();
         let arr = Self::new_uninit(size);
-        
+
         for (index, item) in iter.enumerate() {
             // SAFETY: size > isize::MAX is already guarded against and all possible values are
             // within the allocated range of the Array.
@@ -272,6 +293,9 @@ impl<T: Clone> Clone for Array<T> {
 
 impl<T: Debug> Debug for Array<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Array").field("contents", &&**self).field("size", &self.size).finish()
+        f.debug_struct("Array")
+            .field("contents", &&**self)
+            .field("size", &self.size)
+            .finish()
     }
 }
