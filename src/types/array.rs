@@ -6,15 +6,117 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 use std::slice;
 
-/// An implementation of an array that is sized at runtime. Very similar to a [`Box<[T]>`](Box).
+/// An implementation of an array that is sized at runtime. Similar to a [`Box<[T]>`](Box<T>).
 pub struct Array<T> {
     pub(crate) ptr: NonNull<T>,
     pub(crate) size: usize,
     _phantom: PhantomData<T>
 }
 
-unsafe impl<T: Send> Send for Array<T> {}
-unsafe impl<T: Sync> Sync for Array<T> {}
+impl<T> Array<T> {
+    /// Returns the size of the Array.
+    ///
+    /// # Examples
+    /// ```
+    /// # use rust_basic_types::Array;
+    /// let arr = Array::from([1, 2, 3]);
+    /// assert_eq!(arr.size(), 3);
+    /// ```
+    pub const fn size(&self) -> usize {
+        self.size
+    }
+
+    /// Creates a new Array with size 0.
+    ///
+    /// This method isn't very helpful in most cases because the size remains zero after
+    /// initialization. See [`Array::new_uninit`] or [`Array::from`] for preferred methods of
+    /// initialization.
+    ///
+    /// # Examples
+    /// ```
+    /// # use rust_basic_types::Array;
+    /// let arr: Array<u8> = Array::new();
+    /// assert_eq!(arr.size(), 0);
+    /// assert_eq!(&*arr, &[]);
+    /// ```
+    pub fn new() -> Array<T> {
+        // SAFETY: There are no values, so they are all initialized.
+        unsafe { Self::new_uninit(0).assume_init() }
+    }
+
+    /// Creates a new Array of [`MaybeUninit<T>`] with the provided `size`. All values are
+    /// uninitialized.
+    ///
+    /// # Panics
+    /// Panics if layout size exceeds [`isize::MAX`].
+    ///
+    /// # Examples
+    /// ```
+    /// # use rust_basic_types::Array;
+    /// # use std::mem::MaybeUninit;
+    /// let arr: Array<MaybeUninit<u8>> = Array::new_uninit(5);
+    /// assert_eq!(arr.size(), 5);
+    /// ```
+    pub fn new_uninit(size: usize) -> Array<MaybeUninit<T>> {
+        let layout = Array::<MaybeUninit<T>>::make_layout(size);
+        let ptr = Array::<MaybeUninit<T>>::make_ptr(layout);
+
+        Array {
+            ptr,
+            size,
+            _phantom: PhantomData
+        }
+    }
+
+    /// Decomposes an `Array<T>` into its raw components, a [`NonNull<T>`] pointer to the contained
+    /// data and a [`usize`] representing the size.
+    /// 
+    /// Returns the pointer to the underlying data and the number of elements in the Array.
+    /// 
+    /// # Safety
+    /// 
+    /// After calling this function, the caller is responsible for the safety of the allocated data.
+    /// The parts can be used to reconstruct an Array with [`Array::from_parts`], allowing it to be
+    /// used again and dropped normally.
+    /// 
+    /// # Examples
+    /// See [`Array::from_parts`].
+    pub fn into_parts(self) -> (NonNull<T>, usize) {
+        let ret = (self.ptr, self.size);
+        mem::forget(self);
+        ret
+    }
+
+    /// Creates an `Array<T>` from its raw components, a [`NonNull<T>`] pointer to the contained
+    /// data and a [`usize`] representing the size.
+    /// 
+    /// # Safety
+    /// 
+    /// This is extremely unsafe, nothing is checked during construction.
+    /// 
+    /// For the produced value to be valid:
+    /// - `ptr` needs to be a currently and correctly allocated pointer within the global allocator.
+    /// - `ptr` needs to refer to `size` properly initialized values of `T`.
+    /// - `size` needs to be less than [`isize::MAX`].
+    /// 
+    /// # Examples
+    /// ```
+    /// # use rust_basic_types::Array;
+    /// let arr = Array::from([1, 2, 3]);
+    /// let (ptr, size) = arr.into_parts();
+    /// assert_eq!(
+    ///     unsafe { Array::from_parts(ptr, size) },
+    ///     Array::from([1, 2, 3])
+    /// );
+    /// ```
+    pub unsafe fn from_parts(ptr: NonNull<T>, size: usize) -> Array<T> {
+        Array {
+            ptr,
+            size,
+            _phantom: PhantomData
+        }
+    }
+}
 
 impl<T> Array<T> {
     /// A helper function to create a [`Layout`] for use during allocation, containing `size` number
@@ -22,12 +124,6 @@ impl<T> Array<T> {
     ///
     /// # Panics
     /// Panics if layout size exceeds [`isize::MAX`].
-    ///
-    /// # Example
-    /// ```should_panic
-    /// # use rust_basic_types::array::Array;
-    /// Array::<u8>::make_layout(usize::MAX);
-    /// ```
     pub(crate) fn make_layout(size: usize) -> Layout {
         Layout::array::<T>(size).expect("Capacity overflow!")
     }
@@ -48,93 +144,6 @@ impl<T> Array<T> {
             ).unwrap_or_else(|| alloc::handle_alloc_error(layout))
         }
     }
-
-    /// Returns the size of the Array.
-    ///
-    /// # Examples
-    /// ```
-    /// # use rust_basic_types::array::Array;
-    /// let arr = Array::from([1, 2, 3]);
-    /// assert_eq!(arr.size(), 3);
-    /// ```
-    pub const fn size(&self) -> usize {
-        self.size
-    }
-
-    /// Creates a new Array with size 0.
-    ///
-    /// This method isn't very helpful in most cases because the size remains zero after
-    /// initialization. See [`Array::new_uninit`] or [`Array::from`] for preferred methods of
-    /// initialization.
-    ///
-    /// # Examples
-    /// ```
-    /// # use rust_basic_types::array::Array;
-    /// let arr: Array<u8> = Array::new();
-    /// assert_eq!(arr.size(), 0);
-    /// assert_eq!(&*arr, &[]);
-    /// ```
-    pub fn new() -> Array<T> {
-        // SAFETY: There are no values, so they are all initialized.
-        unsafe { Self::new_uninit(0).assume_init() }
-    }
-
-    /// Creates a new Array of [`MaybeUninit<T>`] with the provided `size`. All values are
-    /// uninitialized.
-    ///
-    /// # Panics
-    /// Panics if layout size exceeds [`isize::MAX`].
-    ///
-    /// # Examples
-    /// ```
-    /// # use rust_basic_types::array::Array;
-    /// # use std::mem::MaybeUninit;
-    /// let arr: Array<MaybeUninit<u8>> = Array::new_uninit(5);
-    /// assert_eq!(arr.size(), 5);
-    /// ```
-    pub fn new_uninit(size: usize) -> Array<MaybeUninit<T>> {
-        let layout = Array::<MaybeUninit<T>>::make_layout(size);
-        let ptr = Array::<MaybeUninit<T>>::make_ptr(layout);
-
-        Array {
-            ptr,
-            size,
-            _phantom: PhantomData
-        }
-    }
-
-    /// Creates an `Array<T>` from its raw components, a [`NonNull<T>`] pointer to the contained
-    /// data and a [`usize`] representing the size.
-    /// 
-    /// # Safety
-    /// 
-    /// This is extremely unsafe, nothing is checked during construction.
-    /// 
-    /// For the produced value to be valid:
-    /// - `ptr` needs to be a currently and correctly allocated pointer within the global allocator.
-    /// - `ptr` needs to refer to `size` properly initialized values of `T`.
-    /// - `size` needs to be less than [`isize::MAX`].
-    pub unsafe fn from_parts(ptr: NonNull<T>, size: usize) -> Array<T> {
-        Array {
-            ptr,
-            size,
-            _phantom: PhantomData
-        }
-    }
-
-    /// Decomposes an `Array<T>` into its raw components, a [`NonNull<T>`] pointer to the contained
-    /// data and a [`usize`] representing the size.
-    /// 
-    /// Returns the pointer to the underlying data and the number of elements in the Array.
-    /// 
-    /// # Safety
-    /// 
-    /// After calling this function, the caller is responsible for the safety of the allocated data.
-    /// The parts can be used to reconstruct an Array with [`Array::from_parts`], allowing it to be
-    /// used again and dropped normally.
-    pub fn into_parts(self) -> (NonNull<T>, usize) {
-        (self.ptr, self.size)
-    }
 }
 
 impl<T: Copy> Array<T> {
@@ -145,7 +154,7 @@ impl<T: Copy> Array<T> {
     ///
     /// # Examples
     /// ```
-    /// # use rust_basic_types::array::Array;
+    /// # use rust_basic_types::Array;
     /// let arr = Array::repeat(5, 3);
     /// assert_eq!(arr.size(), 3);
     /// assert_eq!(&*arr, &[5, 5, 5]);
@@ -158,6 +167,37 @@ impl<T: Copy> Array<T> {
             // within the allocated range of the Array.
             unsafe {
                 arr.ptr.add(i).write(MaybeUninit::new(item))
+            }
+        }
+
+        // SAFETY: All values are initialized.
+        unsafe { arr.assume_init() }
+    }
+}
+
+impl<T, I> From<I> for Array<T> where I: IntoIterator<Item = T>, I::IntoIter: ExactSizeIterator {
+    /// Creates an Array from a type which implements [`IntoIterator`] and creates an
+    /// [`ExactSizeIterator`].
+    ///
+    /// # Panics
+    /// Panics if layout size exceeds [`isize::MAX`].
+    ///
+    /// # Examples
+    /// ```
+    /// # use rust_basic_types::Array;
+    /// let arr = Array::from([1, 2, 3]);
+    /// assert_eq!(&*arr, [1, 2, 3]);
+    /// ```
+    fn from(value: I) -> Self {
+        let iter = value.into_iter();
+        let size = iter.len();
+        let arr = Self::new_uninit(size);
+
+        for (index, item) in iter.enumerate() {
+            // SAFETY: size > isize::MAX is already guarded against and all possible values are
+            // within the allocated range of the Array.
+            unsafe {
+                arr.ptr.add(index).write(MaybeUninit::new(item))
             }
         }
 
@@ -181,10 +221,11 @@ impl<T> Array<MaybeUninit<T>> {
     ///
     /// # Examples
     /// ```
-    /// # use rust_basic_types::array::Array;
+    /// # use rust_basic_types::Array;
+    /// # use std::mem::MaybeUninit;
     /// let mut arr = Array::new_uninit(5);
     /// for i in 0..5 {
-    ///     arr[i] = i;
+    ///     arr[i] = MaybeUninit::new(i);
     /// }
     /// assert_eq!(&*unsafe { arr.assume_init() }, &[0, 1, 2, 3, 4]);
     /// ```
@@ -196,43 +237,6 @@ impl<T> Array<MaybeUninit<T>> {
 impl<T> Default for Array<T> {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-// impl<T> Array<Option<T>> {
-//     pub fn transpose(self) -> Option<Array<T>> {
-//         todo!()
-//     }
-// }
-
-impl<T, I> From<I> for Array<T> where I: IntoIterator<Item = T>, I::IntoIter: ExactSizeIterator {
-    /// Creates an Array from a type which implements [`IntoIterator`] and creates an
-    /// [`ExactSizeIterator`].
-    ///
-    /// # Panics
-    /// Panics if layout size exceeds [`isize::MAX`].
-    ///
-    /// # Examples
-    /// ```
-    /// # use rust_basic_types::array::Array;
-    /// let arr = Array::from([1, 2, 3]);
-    /// assert_eq!(&*arr, [1, 2, 3]);
-    /// ```
-    fn from(value: I) -> Self {
-        let iter = value.into_iter();
-        let size = iter.len();
-        let arr = Self::new_uninit(size);
-
-        for (index, item) in iter.enumerate() {
-            // SAFETY: size > isize::MAX is already guarded against and all possible values are
-            // within the allocated range of the Array.
-            unsafe {
-                arr.ptr.add(index).write(MaybeUninit::new(item))
-            }
-        }
-
-        // SAFETY: All values are initialized.
-        unsafe { arr.assume_init() }
     }
 }
 
@@ -285,12 +289,6 @@ impl<T> DerefMut for Array<T> {
     }
 }
 
-impl<T: Clone> Clone for Array<T> {
-    fn clone(&self) -> Self {
-        Array::from(self.iter().map(|i| i.clone()))
-    }
-}
-
 impl<T: Debug> Debug for Array<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Array")
@@ -299,3 +297,20 @@ impl<T: Debug> Debug for Array<T> {
             .finish()
     }
 }
+
+unsafe impl<T: Send> Send for Array<T> {}
+unsafe impl<T: Sync> Sync for Array<T> {}
+
+impl<T: Clone> Clone for Array<T> {
+    fn clone(&self) -> Self {
+        Array::from(self.iter().map(|i| i.clone()))
+    }
+}
+
+impl<T: PartialEq> PartialEq for Array<T> {
+    fn eq(&self, other: &Self) -> bool {
+        &**self == &**other
+    }
+}
+
+impl<T: Eq> Eq for Array<T> {}
