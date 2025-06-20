@@ -8,6 +8,7 @@ use std::slice;
 
 use super::Array;
 
+/// A variable size contiguous collection, based on [`Array<T>`].
 pub struct Vector<T> {
     pub(crate) arr: Array<MaybeUninit<T>>,
     pub(crate) len: usize
@@ -17,14 +18,41 @@ unsafe impl<T: Send> Send for Vector<T> {}
 unsafe impl<T: Sync> Sync for Vector<T> {}
 
 impl<T> Vector<T> {
+    /// Returns the length of the Vector.
+    /// 
+    /// # Examples
+    /// ```
+    /// # use rust_basic_types::Vector;
+    /// let vec = Vector::from([1_u8, 2, 3]);
+    /// assert_eq!(vec.len(), 3);
+    /// ```
     pub const fn len(&self) -> usize {
         self.len
     }
 
+    /// Returns the current capacity of the Vector. Unlike [`Vec`], the capacity is guaranteed to be
+    /// exactly the value provided to any of the various capacity manipulation functions.
+    /// 
+    /// # Examples
+    /// ```
+    /// # use rust_basic_types::Vector;
+    /// let vec: Vector<u8> = Vector::with_cap(5);
+    /// assert_eq!(vec.cap(), 5);
+    /// ```
     pub const fn cap(&self) -> usize {
         self.arr.size()
     }
 
+    /// Creates a new Vector with length and capacity 0. Memory will be allocated when the capacity
+    /// changes.
+    /// 
+    /// # Examples
+    /// ```
+    /// # use rust_basic_types::Vector;
+    /// let vec: Vector<u8> = Vector::new();
+    /// assert_eq!(vec.len(), 0);
+    /// assert_eq!(vec.cap(), 0);
+    /// ```
     pub fn new() -> Vector<T> {
         Vector {
             arr: Array::new(),
@@ -32,6 +60,17 @@ impl<T> Vector<T> {
         }
     }
 
+    /// Creates a new Vector with capacity exactly equal to the provided value, allowing values to
+    /// be added without reallocation.
+    /// 
+    /// # Examples
+    /// ```
+    /// # use rust_basic_types::Vector;
+    /// let mut vec: Vector<u8> = Vector::with_cap(5);
+    /// assert_eq!(vec.cap(), 5);
+    /// vec.extend([1_u8, 2, 3, 4, 5]);
+    /// assert_eq!(vec.cap(), 5);
+    /// ```
     pub fn with_cap(cap: usize) -> Vector<T> {
         Vector {
             arr: Array::new_uninit(cap),
@@ -88,7 +127,7 @@ impl<T> Vector<T> {
             self.grow()
         }
         self.arr[self.len] = MaybeUninit::new(value);
-        self.len += 1
+        self.len += 1;
     }
 
     pub fn pop(&mut self) -> Option<T> {
@@ -154,10 +193,12 @@ impl<T> Vector<T> {
         self.len == 0
     }
 
+    // new_cap >= len + extra
     pub fn reserve(&mut self, extra: usize) {
         let Array { ptr, size: old_cap, .. } = self.arr;
 
-        let new_cap = old_cap.strict_add(extra);
+        let new_cap = self.len.strict_add(extra);
+        if new_cap <= old_cap { return; }
 
         self.realloc_with_cap(ptr, old_cap, new_cap);
     }
@@ -184,6 +225,53 @@ impl<T> Vector<T> {
         }
 
         self.realloc_with_cap(ptr, old_cap, new_cap);
+    }
+}
+
+impl<T> Extend<T> for Vector<T> {
+    fn extend<A: IntoIterator<Item = T>>(&mut self, iter: A) {
+        for item in iter.into_iter() {
+            self.push(item);
+        }
+    }
+
+    fn extend_one(&mut self, item: T) {
+        self.push(item);
+    }
+
+    fn extend_reserve(&mut self, additional: usize) {
+        self.reserve(additional);
+    }
+
+    unsafe fn extend_one_unchecked(&mut self, item: T) where Self: Sized {
+        self.arr[self.len] = MaybeUninit::new(item);
+        self.len += 1;
+    }
+}
+
+impl<T, I> From<I> for Vector<T> where I: IntoIterator<Item = T>, I::IntoIter: ExactSizeIterator {
+    fn from(value: I) -> Self {
+        let iter = value.into_iter();
+        let mut vec = Vector::with_cap(iter.len());
+
+        for item in iter {
+            // SAFETY: Vec has been created with the right capacity.
+            unsafe { vec.extend_one_unchecked(item) };
+        }
+
+        vec
+    }
+}
+
+impl<T> FromIterator<T> for Vector<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut vec = Vector::new();
+
+        for item in iter {
+            vec.push(item);
+        }
+
+        vec
     }
 }
 
