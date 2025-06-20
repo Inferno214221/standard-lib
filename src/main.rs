@@ -5,7 +5,7 @@
 
 pub mod types;
 
-use types::{Array, Vector};
+use types::{Array, Vector, linked_list::DLinkedList};
 
 #[derive(Debug, Clone)]
 struct MyZST;
@@ -19,23 +19,6 @@ impl Drop for MyZST {
 fn main() {
     println!("\n[Array]\n");
 
-    // let mut arr = Array::repeat("ea", 10);
-    // arr[0] = "a";
-    // let e = &mut *arr;
-    // e[1] = "f";
-
-    // println!("{:?}", arr.get(0));
-    // println!("{:?}", &*arr);
-    // println!("{:?}", Array::from([1_u32, 2, 3]));
-    // println!("{:?}", Array::<u32>::from([]).get(0));
-
-    // let mut b = Box::new_uninit_slice(10);
-    // b.fill(MaybeUninit::new("ea"));
-    // let a = unsafe { b.assume_init() };
-    // println!("{:?}", a);
-    // dbg!(size_of::<Box<[u8]>>());
-    // dbg!(size_of::<Array<u8>>());
-
     let mut vec = Vector::<u8>::new();
     println!("{:?}", vec);
 
@@ -46,22 +29,59 @@ fn main() {
 
     vec.insert(2, 100);
 
-    // for _ in 0..=10 {
-    //     println!("{:?}", vec.pop());
-    // }
-    
-    println!("{:?}", vec);
     println!("{:?}, {:?}", vec.remove(3), vec);
-    // println!("{:?}", Vector::<u8>::with_cap(14));
 
-    println!("ZST Testing");
-
-    let mut vec = Vector::<MyZST>::new();
-    println!("{:?}", vec);
-
-    for _ in 0..10 {
-        vec.push(MyZST);
+    for _ in 0..=10 {
+        println!("{:?}", vec.pop());
     }
 
     println!("{:?}", vec);
+    // println!("{:?}", Vector::<u8>::with_cap(14));
+
+    // println!("ZST Testing");
+
+    // // let mut vec = Vector::<MyZST>::new();
+    // // println!("{:?}", vec);
+
+    // // for _ in 0..10 {
+    // //     vec.push(MyZST);
+    // // }
+
+    // // println!("{:?}", vec);
+
+    println!("{:?}", Array::from([&1, &2, &3]));
+
+    let v = Vector::from(Array::from([1, 2, 3]));
+
+    println!("{:?}", v);
+
+    println!("{:?}", Array::from(v));
+
+    let mut ll = DLinkedList::<u8>::new();
+
+    println!("{:?}", ll);
+
+    for i in 0..8 {
+        ll.push_back(i);
+        println!("{:?}", ll);
+    }
+    println!("{:?}", ll);
+
+    println!("{:?}", ll.get(4));
+
+    // println!("{:?}", ll.pop_back());
+    println!("{:?}", ll);
+
+    // let mut ll = DLinkedList::<MyZST>::new();
+    // println!("{:?}", ll);
+
+    // for _ in 0..10 {
+    //     ll.push_back(MyZST);
+    // }
+
+    println!("{:?}", ll.seek(3).value);
+
+    (&ll).into_iter();
+
+    println!("{:?}", ll);
 }
