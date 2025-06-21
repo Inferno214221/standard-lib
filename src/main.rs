@@ -5,7 +5,7 @@
 
 pub mod types;
 
-use types::{Array, Vector, linked_list::DLinkedList};
+use types::{contiguous::{Array, Vector}, linked::DLinkedList};
 
 #[derive(Debug, Clone)]
 struct MyZST;

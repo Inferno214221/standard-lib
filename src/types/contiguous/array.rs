@@ -3,7 +3,7 @@ use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::mem::{self, MaybeUninit};
 use std::ops::{Deref, DerefMut};
-use std::ptr::NonNull;
+use std::ptr::{self, NonNull};
 use std::slice;
 
 /// An implementation of an array that is sized at runtime. Similar to a [`Box<[T]>`](Box<T>).
@@ -245,11 +245,15 @@ impl<T> Drop for Array<T> {
         let layout = Array::<T>::make_layout(self.size);
 
         for i in 0..self.size {
-            drop(
-                // SAFETY: count > isize::MAX is already guarded against and all possible values are
-                // within the allocated range of the Array.
-                unsafe { self.ptr.add(i).read() }
-            );
+            unsafe {
+                // SAFETY: The pointer is nonnull, as well as properly aligned, initialized and
+                // ready to drop.
+                ptr::drop_in_place(
+                    // SAFETY: count > isize::MAX is already guarded against and all possible values
+                    // are within the allocated range of the Array.
+                    self.ptr.add(i).as_ptr()
+                );
+            }
         }
 
         if layout.size() != 0 {

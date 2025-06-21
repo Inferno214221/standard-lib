@@ -3,6 +3,7 @@ use std::cmp;
 use std::fmt::{self, Debug, Formatter};
 use std::mem::{self, MaybeUninit};
 use std::ops::{Deref, DerefMut};
+use std::ptr;
 use std::ptr::NonNull;
 use std::slice;
 
@@ -78,55 +79,11 @@ impl<T> Vector<T> {
         }
     }
 
-    pub(crate) fn realloc_with_cap(
-        &mut self,
-        ptr: NonNull<MaybeUninit<T>>,
-        old_cap: usize,
-        new_cap: usize
-    ) {
-        if old_cap == new_cap { return; }
-
-        let layout = Array::<MaybeUninit<T>>::make_layout(old_cap);
-
-        let new_ptr = NonNull::new(
-            unsafe {
-                if old_cap == 0 {
-                    // If the vec previously had a capacity of zero, we need a new allocation.
-                    alloc::alloc(layout) as *mut MaybeUninit<T>
-                } else {
-                    // Otherwise, use realloc to handle moving or in-place size changing.
-                    alloc::realloc(
-                        ptr.as_ptr() as *mut u8,
-                        layout,
-                        new_cap
-                    ) as *mut MaybeUninit<T>
-                }
-            }
-        ).unwrap_or_else(|| alloc::handle_alloc_error(layout));
-
-        // Prevent a double free by forgetting the old value of self.arr.
-        mem::forget(mem::replace(
-            &mut self.arr,
-            unsafe { Array::from_parts(new_ptr, new_cap) }
-        ));
-    }
-
-    pub(crate) fn grow(&mut self) {
-        // Because we can't take the value from arr (invalidating it in the event of a panic), we
-        // just clone the pointer and capacity. (Essentially two usizes)
-        let Array { ptr, size: old_cap, .. } = self.arr;
-        
-        // SAFETY: old_cap < isize::MAX, so old_cap * 2 can't overflow. Can still exceed isize::MAX.
-        let new_cap = cmp::max(old_cap * 2, 1);
-
-        self.realloc_with_cap(ptr, old_cap, new_cap);
-    }
-
     pub fn push(&mut self, value: T) {
         if self.len == self.cap() {
             self.grow()
         }
-        self.arr[self.len] = MaybeUninit::new(value);
+        unsafe { self.arr.ptr.add(self.len).write(MaybeUninit::new(value)) }
         self.len += 1;
     }
 
@@ -134,22 +91,13 @@ impl<T> Vector<T> {
         if self.len == 0 {
             None
         } else {
-            let value = unsafe {
-                mem::replace(
-                    &mut self.arr[self.len - 1],
-                    MaybeUninit::uninit()
-                ).assume_init()
-            };
+            // Decrement len before getting.
             self.len -= 1;
+            let value = unsafe {
+                self.arr.ptr.add(self.len).read().assume_init()
+            };
             Some(value)
         }
-    }
-
-    pub(crate) fn check_index(&self, index: usize) {
-        assert!(
-            index <= self.len,
-            "Index {} out of bounds for Vector with len {}", index, self.len
-        );
     }
 
     pub fn insert(&mut self, index: usize, value: T) {
@@ -215,16 +163,80 @@ impl<T> Vector<T> {
         if new_cap < self.cap() {
             // Drop the values that are about to be deallocated.
             for i in new_cap..self.cap() {
-                drop(
-                    // SAFETY: count > isize::MAX is already guarded against and all possible values are
-                    // within the allocated range of the Array.
-                    unsafe { ptr.add(i).read() }
-                );
+                unsafe {
+                    // SAFETY: The pointer is nonnull, as well as properly aligned, initialized and
+                    // ready to drop.
+                    ptr::drop_in_place(
+                        // SAFETY: count > isize::MAX is already guarded against and all possible
+                        // values are within the allocated range of the Array.
+                        ptr.add(i).as_ptr()
+                    );
+                }
                 self.len -= 1;
             }
         }
 
         self.realloc_with_cap(ptr, old_cap, new_cap);
+    }
+
+    pub fn append(&mut self, other: Vector<T>) {
+        self.extend_reserve(other.len);
+        for item in other.into_iter() {
+            self.extend_one(item);
+        }
+    }
+}
+
+impl<T> Vector<T> {
+    pub(crate) fn realloc_with_cap(
+        &mut self,
+        ptr: NonNull<MaybeUninit<T>>,
+        old_cap: usize,
+        new_cap: usize
+    ) {
+        if old_cap == new_cap { return; }
+
+        let layout = Array::<MaybeUninit<T>>::make_layout(old_cap);
+
+        let new_ptr = NonNull::new(
+            unsafe {
+                if old_cap == 0 {
+                    // If the vec previously had a capacity of zero, we need a new allocation.
+                    alloc::alloc(layout) as *mut MaybeUninit<T>
+                } else {
+                    // Otherwise, use realloc to handle moving or in-place size changing.
+                    alloc::realloc(
+                        ptr.as_ptr() as *mut u8,
+                        layout,
+                        new_cap
+                    ) as *mut MaybeUninit<T>
+                }
+            }
+        ).unwrap_or_else(|| alloc::handle_alloc_error(layout));
+
+        // Prevent a double free by forgetting the old value of self.arr.
+        mem::forget(mem::replace(
+            &mut self.arr,
+            unsafe { Array::from_parts(new_ptr, new_cap) }
+        ));
+    }
+
+    pub(crate) fn grow(&mut self) {
+        // Because we can't take the value from arr (invalidating it in the event of a panic), we
+        // just clone the pointer and capacity. (Essentially two usizes)
+        let Array { ptr, size: old_cap, .. } = self.arr;
+        
+        // SAFETY: old_cap < isize::MAX, so old_cap * 2 can't overflow. Can still exceed isize::MAX.
+        let new_cap = cmp::max(old_cap * 2, 1);
+
+        self.realloc_with_cap(ptr, old_cap, new_cap);
+    }
+
+    pub(crate) fn check_index(&self, index: usize) {
+        assert!(
+            index <= self.len,
+            "Index {} out of bounds for Vector with len {}", index, self.len
+        );
     }
 }
 
@@ -244,7 +256,7 @@ impl<T> Extend<T> for Vector<T> {
     }
 
     unsafe fn extend_one_unchecked(&mut self, item: T) where Self: Sized {
-        self.arr[self.len] = MaybeUninit::new(item);
+        unsafe { self.arr.ptr.add(self.len).write(MaybeUninit::new(item)); }
         self.len += 1;
     }
 }
@@ -256,7 +268,7 @@ impl<T, I> From<I> for Vector<T> where I: IntoIterator<Item = T>, I::IntoIter: E
 
         for item in iter {
             // SAFETY: Vec has been created with the right capacity.
-            unsafe { vec.extend_one_unchecked(item) };
+            unsafe { vec.extend_one_unchecked(item); }
         }
 
         vec
@@ -283,15 +295,13 @@ impl<T> Default for Vector<T> {
 
 impl<T> Drop for Vector<T> {
     fn drop(&mut self) {
-        // Call drop on all initialized values.
+        // Call drop on all initialized values in place.
         for i in 0..self.len {
-            drop(unsafe {
-                self.arr.ptr.add(i).read().assume_init()
-            });
+            unsafe { self.arr.ptr.add(i).as_mut().assume_init_drop(); }
         }
-
-        // Then replace the array with an empty one to drop normally.
-        drop(mem::take(&mut self.arr))
+        
+        // We don't need to handle the Array, because it contains only MaybeUninit values, which
+        // do nothing when dropped. We know that everything important has already been dropped.
     }
 }
 
