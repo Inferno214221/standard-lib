@@ -3,9 +3,11 @@
 #![feature(extend_one)]
 #![feature(extend_one_unchecked)]
 
-pub mod types;
+pub mod contiguous;
+pub mod linked;
 
-use types::{contiguous::{Array, Vector}, linked::DLinkedList};
+use contiguous::{Array, Vector};
+use linked::DLinkedList;
 
 #[derive(Debug, Clone)]
 struct MyZST;

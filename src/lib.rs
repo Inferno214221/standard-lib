@@ -3,5 +3,5 @@
 #![feature(extend_one)]
 #![feature(extend_one_unchecked)]
 
-mod types;
-pub use types::*;
+pub mod contiguous;
+pub mod linked;
