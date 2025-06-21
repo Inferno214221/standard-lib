@@ -70,7 +70,6 @@ fn main() {
     println!("{:?}", ll.get(4));
 
     // println!("{:?}", ll.pop_back());
-    println!("{:?}", ll);
 
     // let mut ll = DLinkedList::<MyZST>::new();
     // println!("{:?}", ll);
@@ -79,9 +78,5 @@ fn main() {
     //     ll.push_back(MyZST);
     // }
 
-    println!("{:?}", ll.seek(3).value);
-
-    (&ll).into_iter();
-
-    println!("{:?}", ll);
+    println!("{:?}", ll.get(3));
 }
