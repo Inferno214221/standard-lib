@@ -194,25 +194,57 @@ impl<T> Vector<T> {
         old_cap: usize,
         new_cap: usize
     ) {
-        if old_cap == new_cap { return; }
+        // I didn't think that handling zero-sized types would be quite so easy. Turns out the
+        // solution is: just don't allocate anything. **tada**
+        // ptr::read (and functions which rely on it) handle zero sized types for us, so as long as
+        // we ensure that alloc and realloc are being used properly, we don't need to worry about
+        // allocations at all.
+        if size_of::<T>() == 0 { return; }
 
-        let layout = Array::<MaybeUninit<T>>::make_layout(old_cap);
+        let new_ptr = match (old_cap, new_cap) {
+            (old, new) if old == new => {
+                // The capacities are equal, do nothing there is no need to reallocate.
+                return;
+            },
+            (0, _) => {
+                // If the vec previously had a capacity of zero, we need a new allocation.
+                let layout = Array::<MaybeUninit<T>>::make_layout(new_cap);
+                
+                let raw_ptr: *mut MaybeUninit<T> = unsafe {
+                    // SAFETY: Layout will have non-zero size because both 0 capacity and zero-sized
+                    // types are guarded against.
+                    alloc::alloc(layout).cast()
+                };
 
-        let new_ptr = NonNull::new(
-            unsafe {
-                if old_cap == 0 {
-                    // If the vec previously had a capacity of zero, we need a new allocation.
-                    alloc::alloc(layout) as *mut MaybeUninit<T>
-                } else {
-                    // Otherwise, use realloc to handle moving or in-place size changing.
+                NonNull::new(raw_ptr).unwrap_or_else(
+                    || alloc::handle_alloc_error(layout)
+                )
+            },
+            (_, 0) => {
+                // If the new capacity is zero, we just need a dangling pointer.
+                NonNull::dangling()
+            },
+            (_, _) => {
+                // Otherwise, use realloc to handle moving or in-place size changing.
+                let layout = Array::<MaybeUninit<T>>::make_layout(old_cap);
+                
+                // TODO: handle isize::MAX stuff everywhere
+                let raw_ptr: *mut MaybeUninit<T> = unsafe {
+                    // SAFETY: The same layout and allocator are used for the allocation, and the
+                    // new size is > 0 and <= isize::MAX.
                     alloc::realloc(
-                        ptr.as_ptr() as *mut u8,
+                        ptr.as_ptr().cast(),
                         layout,
-                        new_cap
-                    ) as *mut MaybeUninit<T>
-                }
-            }
-        ).unwrap_or_else(|| alloc::handle_alloc_error(layout));
+                        new_cap * size_of::<T>()
+                    ).cast()
+                };
+
+                NonNull::new(raw_ptr).unwrap_or_else(
+                    || alloc::handle_alloc_error(layout)
+                )
+            },
+        };
+        
 
         // Prevent a double free by forgetting the old value of self.arr.
         mem::forget(mem::replace(
@@ -234,8 +266,10 @@ impl<T> Vector<T> {
 
     pub(crate) fn check_index(&self, index: usize) {
         assert!(
-            index <= self.len,
-            "Index {} out of bounds for Vector with len {}", index, self.len
+            index < self.len,
+            "index {} out of bounds for collection with {} elements",
+            index,
+            self.len
         );
     }
 }
@@ -312,7 +346,7 @@ impl<T> Deref for Vector<T> {
         unsafe {
             slice::from_raw_parts(
                 // Reinterpret *mut MaybeUninit<T> as *mut T for all values < len.
-                self.arr.ptr.as_ptr() as *mut T,
+                self.arr.ptr.as_ptr().cast(),
                 self.len
             )
         }
@@ -324,7 +358,7 @@ impl<T> DerefMut for Vector<T> {
         unsafe {
             slice::from_raw_parts_mut(
                 // Reinterpret *mut MaybeUninit<T> as *mut T for all values < len.
-                self.arr.ptr.as_ptr() as *mut T,
+                self.arr.ptr.as_ptr().cast(),
                 self.len
             )
         }
