@@ -23,8 +23,8 @@ impl<T> Vector<T> {
     /// 
     /// # Examples
     /// ```
-    /// # use rust_basic_types::Vector;
-    /// let vec = Vector::from([1_u8, 2, 3]);
+    /// # use rust_basic_types::contiguous::Vector;
+    /// let vec = Vector::from(1_u8..=3);
     /// assert_eq!(vec.len(), 3);
     /// ```
     pub const fn len(&self) -> usize {
@@ -36,7 +36,7 @@ impl<T> Vector<T> {
     /// 
     /// # Examples
     /// ```
-    /// # use rust_basic_types::Vector;
+    /// # use rust_basic_types::contiguous::Vector;
     /// let vec: Vector<u8> = Vector::with_cap(5);
     /// assert_eq!(vec.cap(), 5);
     /// ```
@@ -44,12 +44,26 @@ impl<T> Vector<T> {
         self.arr.size()
     }
 
+    /// Returns true if the Vector contains no elements.
+    ///  
+    /// # Examples
+    /// ```
+    /// # use rust_basic_types::contiguous::Vector;
+    /// let mut vec: Vector<u8> = Vector::new();
+    /// assert!(vec.is_empty());
+    /// vec.push(1);
+    /// assert!(!vec.is_empty())
+    /// ```
+    pub const fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
     /// Creates a new Vector with length and capacity 0. Memory will be allocated when the capacity
     /// changes.
     /// 
     /// # Examples
     /// ```
-    /// # use rust_basic_types::Vector;
+    /// # use rust_basic_types::contiguous::Vector;
     /// let vec: Vector<u8> = Vector::new();
     /// assert_eq!(vec.len(), 0);
     /// assert_eq!(vec.cap(), 0);
@@ -66,7 +80,7 @@ impl<T> Vector<T> {
     /// 
     /// # Examples
     /// ```
-    /// # use rust_basic_types::Vector;
+    /// # use rust_basic_types::contiguous::Vector;
     /// let mut vec: Vector<u8> = Vector::with_cap(5);
     /// assert_eq!(vec.cap(), 5);
     /// vec.extend([1_u8, 2, 3, 4, 5]);
@@ -79,14 +93,65 @@ impl<T> Vector<T> {
         }
     }
 
+    /// Push the provided value onto the end of the Vector, increasing the capacity if required.
+    /// 
+    /// # Examples
+    /// ```
+    /// # use rust_basic_types::contiguous::Vector;
+    /// let mut vec = Vector::<u8>::new();
+    /// for i in 0..=5 {
+    ///     vec.push(i);
+    /// }
+    /// assert_eq!(&*vec, &[0, 1, 2, 3, 4, 5]);
+    /// ```
     pub fn push(&mut self, value: T) {
         if self.len == self.cap() {
-            self.grow()
+            self.grow();
         }
-        unsafe { self.arr.ptr.add(self.len).write(MaybeUninit::new(value)) }
+        // SAFETY: The capacity has just been adjusted to support the addition of the new item.
+        unsafe { self.push_unchecked(value) }
+    }
+
+    /// Push the provided value onto the end of the Vector, assuming that there is enough capacity
+    /// to do so.
+    /// 
+    /// # Safety
+    /// It is up to the caller to ensure that the Vector has enough capacity to add the provided
+    /// value, using methods like [`reserve`](Vector::reserve), [`adjust_cap`](Vector::adjust_cap)
+    /// or [`with_cap`](Vector::with_cap) to do so. Using this method on a Vector without enough
+    /// capacity is undefined behavior.
+    /// 
+    /// # Examples
+    /// ```
+    /// # use rust_basic_types::contiguous::{Array, Vector};
+    /// let arr = Array::from(1_u8..=3);
+    /// let mut vec = Vector::with_cap(arr.size());
+    /// for i in arr.into_iter() {
+    ///     // SAFETY: We know that vec has enough capacity to store all elements in arr.
+    ///     unsafe { vec.push_unchecked(i); }
+    /// }
+    /// assert_eq!(&*vec, &[1, 2, 3]);
+    /// ```
+    pub unsafe fn push_unchecked(&mut self, value: T) {
+        // SAFETY: It is up to the caller to ensure that the Vector has enough capacity for this
+        // push, leading to the pointer read being in bounds of the object.
+        // TODO: ensure that size_of::<T>() * self.len can't overflow isize::MAX. Should wrap len+=1
+        unsafe { self.arr.ptr.add(self.len).write(MaybeUninit::new(value)); }
         self.len += 1;
     }
 
+    /// Pops the last value off the end of the Vector, returning an owned value if the Vector has
+    /// length greater than 0.
+    /// 
+    /// # Examples
+    /// ```
+    /// # use rust_basic_types::contiguous::Vector;
+    /// let mut vec = Vector::from(0..5);
+    /// for i in (0..vec.len()).rev() {
+    ///     assert_eq!(vec.pop(), Some(i));
+    /// }
+    /// assert_eq!(vec.pop(), None);
+    /// ```
     pub fn pop(&mut self) -> Option<T> {
         if self.len == 0 {
             None
@@ -94,14 +159,35 @@ impl<T> Vector<T> {
             // Decrement len before getting.
             self.len -= 1;
             let value = unsafe {
+                // SAFETY: len has just been decremented and is within the capacity of the Vector.
+                // size_of::<T>() * self.len can't overflow isize::MAX, and all values < len are
+                // initialized.
+                // We are making a bitwise copy of the value on the heap and then forgetting that
+                // the version on the heap exists, which is as close as we can get to moving the
+                // value off of the heap.
                 self.arr.ptr.add(self.len).read().assume_init()
             };
             Some(value)
         }
     }
 
+    /// Inserts the provided value at the given index, growing and moving items as nessecary.
+    /// 
+    /// # Panics
+    /// Panics if the provided index is out of bounds.
+    /// 
+    /// # Examples
+    /// ```
+    /// # use rust_basic_types::contiguous::Vector;
+    /// let mut vec = Vector::from(0..3);
+    /// vec.insert(1, 100);
+    /// vec.insert(1, 200);
+    /// vec.insert(3, 300);
+    /// assert_eq!(&*vec, &[0, 200, 100, 300, 1, 2]);
+    /// ```
     pub fn insert(&mut self, index: usize, value: T) {
         self.check_index(index);
+        
         if self.len == self.cap() {
             self.grow()
         }
@@ -114,15 +200,31 @@ impl<T> Vector<T> {
         self.len += 1;
     }
 
+    /// Removes the element at the provided index, moving all following values to fill in the gap.
+    /// 
+    /// # Panics
+    /// Panics if the provided index is out of bounds.
+    /// 
+    /// # Examples
+    /// ```
+    /// # use rust_basic_types::contiguous::Vector;
+    /// let mut vec: Vector<_> = "Hello world!".chars().collect();
+    /// assert_eq!(vec.remove(1), 'e');
+    /// assert_eq!(vec.remove(4), ' ');
+    /// assert_eq!(vec, dbg!("Hlloworld!".chars()).collect());
+    /// ```
     pub fn remove(&mut self, index: usize) -> T {
         self.check_index(index);
 
         let mut next = MaybeUninit::uninit();
+        // Iterate backwards to index.
         for i in (index..self.len).rev() {
             next = mem::replace(&mut self.arr[i], next);
         }
 
         self.len -= 1;
+        // SAFETY: next contains the value which was previously located at index, which we've
+        // already checked to be less than len and therefore initialised.
         unsafe { next.assume_init() }
     }
 
@@ -137,11 +239,7 @@ impl<T> Vector<T> {
         }
     }
 
-    pub const fn is_empty(&self) -> bool {
-        self.len == 0
-    }
-
-    // new_cap >= len + extra
+    // new_cap = len + extra
     pub fn reserve(&mut self, extra: usize) {
         let Array { ptr, size: old_cap, .. } = self.arr;
 
@@ -290,19 +388,22 @@ impl<T> Extend<T> for Vector<T> {
     }
 
     unsafe fn extend_one_unchecked(&mut self, item: T) where Self: Sized {
-        unsafe { self.arr.ptr.add(self.len).write(MaybeUninit::new(item)); }
-        self.len += 1;
+        unsafe { self.push_unchecked(item) }
     }
 }
 
-impl<T, I> From<I> for Vector<T> where I: IntoIterator<Item = T>, I::IntoIter: ExactSizeIterator {
+impl<T, I> From<I> for Vector<T>
+where
+    I: IntoIterator<Item = T>,
+    I::IntoIter: ExactSizeIterator
+{
     fn from(value: I) -> Self {
         let iter = value.into_iter();
         let mut vec = Vector::with_cap(iter.len());
 
         for item in iter {
             // SAFETY: Vec has been created with the right capacity.
-            unsafe { vec.extend_one_unchecked(item); }
+            unsafe { vec.push_unchecked(item); }
         }
 
         vec
@@ -400,7 +501,7 @@ impl<T> From<Vector<T>> for Array<T> {
     }
 }
 
-impl<T: Debug + Clone> From<Array<T>> for Vector<T> {
+impl<T> From<Array<T>> for Vector<T> {
     fn from(value: Array<T>) -> Self {
         let len = value.size();
         Vector {
@@ -410,3 +511,11 @@ impl<T: Debug + Clone> From<Array<T>> for Vector<T> {
         }
     }
 }
+
+impl<T: PartialEq> PartialEq for Vector<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.len == other.len && &**self == &**other
+    }
+}
+
+impl<T: Eq> Eq for Vector<T> {}

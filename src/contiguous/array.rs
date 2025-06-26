@@ -10,7 +10,7 @@ use std::slice;
 pub struct Array<T> {
     pub(crate) ptr: NonNull<T>,
     pub(crate) size: usize,
-    _phantom: PhantomData<T>
+    pub(crate) _phantom: PhantomData<T>
 }
 
 impl<T> Array<T> {
@@ -18,7 +18,7 @@ impl<T> Array<T> {
     ///
     /// # Examples
     /// ```
-    /// # use rust_basic_types::Array;
+    /// # use rust_basic_types::contiguous::Array;
     /// let arr = Array::from([1, 2, 3]);
     /// assert_eq!(arr.size(), 3);
     /// ```
@@ -34,7 +34,7 @@ impl<T> Array<T> {
     ///
     /// # Examples
     /// ```
-    /// # use rust_basic_types::Array;
+    /// # use rust_basic_types::contiguous::Array;
     /// let arr: Array<u8> = Array::new();
     /// assert_eq!(arr.size(), 0);
     /// assert_eq!(&*arr, &[]);
@@ -52,7 +52,7 @@ impl<T> Array<T> {
     ///
     /// # Examples
     /// ```
-    /// # use rust_basic_types::Array;
+    /// # use rust_basic_types::contiguous::Array;
     /// # use std::mem::MaybeUninit;
     /// let arr: Array<MaybeUninit<u8>> = Array::new_uninit(5);
     /// assert_eq!(arr.size(), 5);
@@ -101,7 +101,7 @@ impl<T> Array<T> {
     /// 
     /// # Examples
     /// ```
-    /// # use rust_basic_types::Array;
+    /// # use rust_basic_types::contiguous::Array;
     /// let arr = Array::from([1, 2, 3]);
     /// let (ptr, size) = arr.into_parts();
     /// assert_eq!(
@@ -140,7 +140,7 @@ impl<T> Array<T> {
         } else {
             NonNull::new(
                 // SAFETY: Zero-sized layouts have been guarded against.
-                unsafe { alloc::alloc(layout) as *mut T }
+                unsafe { alloc::alloc(layout).cast() }
             ).unwrap_or_else(|| alloc::handle_alloc_error(layout))
         }
     }
@@ -154,7 +154,7 @@ impl<T: Copy> Array<T> {
     ///
     /// # Examples
     /// ```
-    /// # use rust_basic_types::Array;
+    /// # use rust_basic_types::contiguous::Array;
     /// let arr = Array::repeat(5, 3);
     /// assert_eq!(arr.size(), 3);
     /// assert_eq!(&*arr, &[5, 5, 5]);
@@ -184,7 +184,7 @@ impl<T, I> From<I> for Array<T> where I: IntoIterator<Item = T>, I::IntoIter: Ex
     ///
     /// # Examples
     /// ```
-    /// # use rust_basic_types::Array;
+    /// # use rust_basic_types::contiguous::Array;
     /// let arr = Array::from([1, 2, 3]);
     /// assert_eq!(&*arr, [1, 2, 3]);
     /// ```
@@ -221,7 +221,7 @@ impl<T> Array<MaybeUninit<T>> {
     ///
     /// # Examples
     /// ```
-    /// # use rust_basic_types::Array;
+    /// # use rust_basic_types::contiguous::Array;
     /// # use std::mem::MaybeUninit;
     /// let mut arr = Array::new_uninit(5);
     /// for i in 0..5 {
@@ -261,7 +261,7 @@ impl<T> Drop for Array<T> {
             // when allocated. Zero-sized layouts aren't allocated and are guarded against
             // deallocation.
             unsafe {
-                alloc::dealloc(self.ptr.as_ptr() as *mut u8, layout)
+                alloc::dealloc(self.ptr.as_ptr().cast(), layout)
             }
         }
     }
@@ -313,7 +313,7 @@ impl<T: Clone> Clone for Array<T> {
 
 impl<T: PartialEq> PartialEq for Array<T> {
     fn eq(&self, other: &Self) -> bool {
-        &**self == &**other
+        **self == **other
     }
 }
 
