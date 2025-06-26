@@ -1,13 +1,18 @@
-use super::{DLinkedList, NodeRef, Node};
+use std::{fmt::{self, Debug, Formatter}, marker::PhantomData};
+
+use super::{DoublyLinkedList, ListState, NodeRef, Node, Inner};
 
 pub struct Cursor<T> {
-    pub(crate) list: DLinkedList<T>,
+    pub(crate) list: Inner<T>,
     pub(crate) curr: NodeRef<T>
 }
 
 impl<T> Cursor<T> {
-    pub fn as_list(self) -> DLinkedList<T> {
-        self.list
+    pub fn list(self) -> DoublyLinkedList<T> {
+        DoublyLinkedList {
+            state: ListState::Full(self.list),
+            _phantom: PhantomData
+        }
     }
 
     pub fn current(&self) -> &T {
@@ -30,7 +35,7 @@ impl<T> Cursor<T> {
     pub fn move_next(&mut self) -> Option<&mut Self> {
         match self.curr.next() {
             Some(next) => {
-                self.curr = next.clone();
+                self.curr = *next;
                 Some(self)
             },
             None => None,
@@ -49,14 +54,16 @@ impl<T> Cursor<T> {
     pub fn move_prev(&mut self) -> Option<&mut Self> {
         match self.curr.prev() {
             Some(prev) => {
-                self.curr = prev.clone();
+                self.curr = *prev;
                 Some(self)
             },
             None => None,
         }
     }
 
-    pub fn insert_next(&mut self, value: T) {
+    pub fn push_next(&mut self, value: T) {
+        self.list.len = self.list.len.checked_add(1).unwrap(); // TODO: proper handling
+
         let node = NodeRef::from_node(Node {
             value,
             prev: Some(self.curr),
@@ -65,13 +72,15 @@ impl<T> Cursor<T> {
 
         match self.curr.next() {
             Some(next) => *next.prev_mut() = Some(node),
-            None => self.list.tail = Some(node),
+            None => self.list.tail = node,
         }
 
         *self.curr.next_mut() = Some(node);
     }
 
-    pub fn insert_prev(&mut self, value: T) {
+    pub fn push_prev(&mut self, value: T) {
+        self.list.len = self.list.len.checked_add(1).unwrap(); // TODO: proper handling
+
         let node = NodeRef::from_node(Node {
             value,
             prev: self.curr.prev().clone(),
@@ -80,11 +89,58 @@ impl<T> Cursor<T> {
 
         match self.curr.prev() {
             Some(prev) => *prev.next_mut() = Some(node),
-            None => self.list.head = Some(node),
+            None => self.list.head = node,
         }
 
         *self.curr.prev_mut() = Some(node);
     }
 
+    pub fn pop_next(&mut self) -> Option<T> {
+        self.curr.next_mut().as_mut().map(|next| {
+            self.list.len = self.list.len.checked_sub(1).unwrap(); // TODO: proper handling
+            let node = next.take_node();
+
+            match node.next {
+                Some(second_next) => {
+                    *self.curr.next_mut() = Some(second_next);
+                    *second_next.prev_mut() = Some(self.curr);
+                },
+                None => {
+                    *self.curr.next_mut() = None;
+                    self.list.tail = self.curr;
+                },
+            }
+            node.value
+        })
+    }
+
+    pub fn pop_prev(&mut self) -> Option<T> {
+        self.curr.prev_mut().as_mut().map(|prev| {
+            self.list.len = self.list.len.checked_sub(1).unwrap(); // TODO: proper handling
+            let node = prev.take_node();
+
+            match node.prev {
+                Some(second_prev) => {
+                    *self.curr.prev_mut() = Some(second_prev);
+                    *second_prev.next_mut() = Some(self.curr);
+                },
+                None => {
+                    *self.curr.prev_mut() = None;
+                    self.list.head = self.curr;
+                },
+            }
+            node.value
+        })
+    }
+
     // TODO: redirect most to functions list with some extra handling.
+}
+
+impl<T: Debug> Debug for Cursor<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Cursor")
+            // .field("list", &self.list)
+            .field("curr", &self.curr.value())
+            .finish()
+    }
 }

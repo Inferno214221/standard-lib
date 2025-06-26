@@ -1,6 +1,10 @@
 use std::marker::PhantomData;
 
-use super::{DLinkedList, Link};
+use super::{DoublyLinkedList, ListState, Link, Inner};
+
+use ListState::*;
+
+// FIXME: implement drop for all of these types
 
 pub struct IntoIter<T> {
     curr: Link<T>,
@@ -9,16 +13,19 @@ pub struct IntoIter<T> {
     _phantom: PhantomData<T>
 }
 
-impl<T> IntoIterator for DLinkedList<T> {
+impl<T> IntoIterator for DoublyLinkedList<T> {
     type Item = T;
 
     type IntoIter = IntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
         IntoIter {
-            curr: self.head,
+            curr: match self.state {
+                Empty => None,
+                Full(Inner { head, .. }) => Some(head),
+            },
             index: 0,
-            len: self.len,
+            len: self.len(),
             _phantom: PhantomData
         }
     }
@@ -51,16 +58,19 @@ pub struct IterMut<'a, T> {
     _phantom: PhantomData<&'a mut T>
 }
 
-impl<'a, T> IntoIterator for &'a mut DLinkedList<T> {
+impl<'a, T> IntoIterator for &'a mut DoublyLinkedList<T> {
     type Item = &'a mut T;
 
     type IntoIter = IterMut<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         IterMut {
-            curr: self.head,
+            curr: match self.state {
+                Empty => None,
+                Full(Inner { head, .. }) => Some(head),
+            },
             index: 0,
-            len: self.len,
+            len: self.len(),
             _phantom: PhantomData
         }
     }
@@ -91,16 +101,19 @@ pub struct Iter<'a, T> {
     _phantom: PhantomData<&'a T>
 }
 
-impl<'a, T> IntoIterator for &'a DLinkedList<T> {
+impl<'a, T> IntoIterator for &'a DoublyLinkedList<T> {
     type Item = &'a T;
 
     type IntoIter = Iter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         Iter {
-            curr: self.head,
+            curr: match self.state {
+                Empty => None,
+                Full(Inner { head, .. }) => Some(head),
+            },
             index: 0,
-            len: self.len,
+            len: self.len(),
             _phantom: PhantomData
         }
     }

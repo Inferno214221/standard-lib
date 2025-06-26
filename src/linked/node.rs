@@ -9,39 +9,41 @@ pub(crate) type Link<T> = Option<NodeRef<T>>;
 pub(crate) struct NodeRef<T>(NonNull<Node<T>>);
 
 impl<T> NodeRef<T> {
-    pub(crate) fn value(&self) -> &T {
-        unsafe { &(*self.0.as_ptr()).value }
+    pub fn value<'a>(&self) -> &'a T {
+        unsafe { &(self.0.as_ref()).value }
+        // unsafe { &(*self.0.as_ptr()).value }
     }
 
-    pub(crate) fn value_mut(&mut self) -> &mut T {
-        unsafe { &mut (*self.0.as_ptr()).value }
+    pub fn value_mut<'a>(&mut self) -> &'a mut T {
+        unsafe { &mut (self.0.as_mut()).value }
+        // unsafe { &mut (*self.0.as_ptr()).value }
     }
 
-    pub(crate) fn prev(&self) -> &Link<T> {
+    pub fn prev(&self) -> &Link<T> {
         unsafe { &(*self.0.as_ptr()).prev }
     }
 
-    pub(crate) fn prev_mut(&self) -> &mut Link<T> {
+    pub fn prev_mut(&self) -> &mut Link<T> {
         unsafe { &mut (*self.0.as_ptr()).prev }
     }
 
-    pub(crate) fn next(&self) -> &Link<T> {
+    pub fn next(&self) -> &Link<T> {
         unsafe { &(*self.0.as_ptr()).next }
     }
 
-    pub(crate) fn next_mut(&self) -> &mut Link<T> {
+    pub fn next_mut(&self) -> &mut Link<T> {
         unsafe { &mut (*self.0.as_ptr()).next }
     }
 
-    pub(crate) fn from_node(node: Node<T>) -> NodeRef<T> {
+    pub fn from_node(node: Node<T>) -> NodeRef<T> {
         NodeRef(Box::into_non_null(Box::new(node)))
     }
 
-    pub(crate) fn take_node(self) -> Node<T> {
+    pub fn take_node(self) -> Node<T> {
         unsafe { *Box::from_non_null(self.0) }
     }
 
-    pub(crate) fn as_non_null(self) -> NonNull<Node<T>> {
+    pub fn as_non_null(self) -> NonNull<Node<T>> {
         self.0
     }
 }
@@ -61,7 +63,7 @@ impl<T> PartialEq for NodeRef<T> {
 }
 
 pub(crate) struct Node<T> {
-    pub(crate) value: T,
-    pub(crate) prev: Link<T>,
-    pub(crate) next: Link<T>
+    pub value: T,
+    pub prev: Link<T>,
+    pub next: Link<T>
 }
