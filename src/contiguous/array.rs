@@ -1,5 +1,6 @@
 use std::alloc::{self, Layout};
 use std::fmt::{self, Debug, Formatter};
+use std::iter::TrustedLen;
 use std::marker::PhantomData;
 use std::mem::{self, MaybeUninit};
 use std::ops::{Deref, DerefMut};
@@ -175,7 +176,10 @@ impl<T: Copy> Array<T> {
     }
 }
 
-impl<T, I> From<I> for Array<T> where I: IntoIterator<Item = T>, I::IntoIter: ExactSizeIterator {
+impl<T, I> From<I> for Array<T>
+where
+    I: Iterator<Item = T> + ExactSizeIterator + TrustedLen
+{
     /// Creates an Array from a type which implements [`IntoIterator`] and creates an
     /// [`ExactSizeIterator`].
     ///
@@ -188,8 +192,7 @@ impl<T, I> From<I> for Array<T> where I: IntoIterator<Item = T>, I::IntoIter: Ex
     /// let arr = Array::from([1, 2, 3]);
     /// assert_eq!(&*arr, [1, 2, 3]);
     /// ```
-    fn from(value: I) -> Self {
-        let iter = value.into_iter();
+    fn from(iter: I) -> Self {
         let size = iter.len();
         let arr = Self::new_uninit(size);
 

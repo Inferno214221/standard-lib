@@ -1,29 +1,11 @@
-use std::marker::PhantomData;
+use std::{iter::{FusedIterator, TrustedLen}, marker::PhantomData, mem, ptr::{self, NonNull}};
 
 use super::{Array, Vector};
 
 pub struct IntoIter<T> {
-    arr: Array<T>,
-    index: usize,
+    ptr: NonNull<T>,
+    left: usize,
     _phantom: PhantomData<T>
-}
-
-impl<T> Iterator for IntoIter<T> {
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index < self.arr.size {
-            let value = unsafe { self.arr.ptr.add(self.index).read() };
-            self.index += 1;
-            Some(value)
-        } else {
-            None
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.index, Some(self.arr.size))
-    }
 }
 
 impl<T> IntoIterator for Array<T> {
@@ -32,11 +14,13 @@ impl<T> IntoIterator for Array<T> {
     type IntoIter = IntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        IntoIter {
-            arr: self,
-            index: 0,
+        let result = IntoIter {
+            ptr: dbg!(self.ptr),
+            left: dbg!(self.size),
             _phantom: PhantomData
-        }
+        };
+        mem::forget(self);
+        result
     }
 }
 
@@ -49,5 +33,54 @@ impl<T> IntoIterator for Vector<T> {
         Array::from(self).into_iter()
     }
 }
+
+impl<T> Drop for IntoIter<T> {
+    fn drop(&mut self) {
+        for i in 0..self.left {
+            unsafe { ptr::drop_in_place(self.ptr.add(i).as_ptr()) }
+        }
+    }
+}
+
+impl<T> Iterator for IntoIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.left > 0 {
+            let value = unsafe { self.ptr.read() };
+            self.ptr = unsafe { self.ptr.add(1) };
+            self.left -= 1;
+            Some(value)
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.left, Some(self.left))
+    }
+}
+
+impl<T> DoubleEndedIterator for IntoIter<T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.left > 0 {
+            let value = unsafe { self.ptr.add(self.left - 1).read() };
+            self.left -= 1;
+            Some(value)
+        } else {
+            None
+        }
+    }
+}
+
+impl<T> FusedIterator for IntoIter<T> {}
+
+impl<T> ExactSizeIterator for IntoIter<T> {
+    fn len(&self) -> usize {
+        self.left
+    }
+}
+
+unsafe impl<T> TrustedLen for IntoIter<T> {}
 
 // Just use the iter and iter_mut definitions provided by Deref<Target=[T]>.

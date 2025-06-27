@@ -1,6 +1,7 @@
 use std::alloc;
 use std::cmp;
 use std::fmt::{self, Debug, Formatter};
+use std::iter::TrustedLen;
 use std::mem::{self, MaybeUninit};
 use std::ops::{Deref, DerefMut};
 use std::ptr;
@@ -292,14 +293,18 @@ impl<T> Vector<T> {
         old_cap: usize,
         new_cap: usize
     ) {
-        // I didn't think that handling zero-sized types would be quite so easy. Turns out the
-        // solution is: just don't allocate anything. **tada**
-        // ptr::read (and functions which rely on it) handle zero sized types for us, so as long as
-        // we ensure that alloc and realloc are being used properly, we don't need to worry about
-        // allocations at all.
-        if size_of::<T>() == 0 { return; }
-
         let new_ptr = match (old_cap, new_cap) {
+            (_, _) if size_of::<T>() == 0 => {
+                // I didn't think that handling zero-sized types would be quite so easy. Turns out
+                // the solution is: just don't allocate anything. **tada**
+                // ptr::read (and functions which rely on it) handle zero sized types for us, so as
+                // long as we ensure that alloc and realloc are being used properly, we don't need
+                // to worry about allocations at all.
+
+                // We still need to return the existing dangling pointer so that the Array's size
+                // can be updated.
+                ptr
+            },
             (old, new) if old == new => {
                 // The capacities are equal, do nothing there is no need to reallocate.
                 return;
@@ -347,6 +352,7 @@ impl<T> Vector<T> {
         // Prevent a double free by forgetting the old value of self.arr.
         mem::forget(mem::replace(
             &mut self.arr,
+            // TODO: Verify SAFETY
             unsafe { Array::from_parts(new_ptr, new_cap) }
         ));
     }
@@ -356,6 +362,7 @@ impl<T> Vector<T> {
         // just clone the pointer and capacity. (Essentially two usizes)
         let Array { ptr, size: old_cap, .. } = self.arr;
         
+        // TODO: Update SAFETY
         // SAFETY: old_cap < isize::MAX, so old_cap * 2 can't overflow. Can still exceed isize::MAX.
         let new_cap = cmp::max(old_cap * 2, 1);
 
@@ -394,8 +401,7 @@ impl<T> Extend<T> for Vector<T> {
 
 impl<T, I> From<I> for Vector<T>
 where
-    I: IntoIterator<Item = T>,
-    I::IntoIter: ExactSizeIterator
+    I: Iterator<Item = T> + ExactSizeIterator + TrustedLen
 {
     fn from(value: I) -> Self {
         let iter = value.into_iter();
@@ -411,8 +417,9 @@ where
 }
 
 impl<T> FromIterator<T> for Vector<T> {
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut vec = Vector::new();
+    fn from_iter<I: IntoIterator<Item = T>>(value: I) -> Self {
+        let iter = value.into_iter();
+        let mut vec = Vector::with_cap(iter.size_hint().0);
 
         for item in iter {
             vec.push(item);

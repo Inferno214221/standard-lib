@@ -2,6 +2,7 @@
 #![feature(box_vec_non_null)]
 #![feature(extend_one)]
 #![feature(extend_one_unchecked)]
+#![feature(trusted_len)]
 
 pub mod contiguous;
 pub mod linked;
