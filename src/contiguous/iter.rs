@@ -1,12 +1,9 @@
-use std::{iter::{FusedIterator, TrustedLen}, marker::PhantomData, mem, ptr::{self, NonNull}};
+use std::iter::{FusedIterator, TrustedLen};
+use std::marker::PhantomData;
+use std::mem;
+use std::ptr::{self, NonNull};
 
 use super::{Array, Vector};
-
-pub struct IntoIter<T> {
-    ptr: NonNull<T>,
-    left: usize,
-    _phantom: PhantomData<T>
-}
 
 impl<T> IntoIterator for Array<T> {
     type Item = T;
@@ -32,6 +29,14 @@ impl<T> IntoIterator for Vector<T> {
     fn into_iter(self) -> Self::IntoIter {
         Array::from(self).into_iter()
     }
+}
+
+/// An owned type for owned iteration over an [`Array`] or [`Vector`]. See [`Array::into_iter`] and
+/// [`Vector::into_iter`].
+pub struct IntoIter<T> {
+    ptr: NonNull<T>,
+    left: usize,
+    _phantom: PhantomData<T>
 }
 
 impl<T> Drop for IntoIter<T> {

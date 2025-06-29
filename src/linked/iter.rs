@@ -6,13 +6,6 @@ use ListState::*;
 
 // FIXME: implement drop for all of these types
 
-pub struct IntoIter<T> {
-    curr: Link<T>,
-    index: usize,
-    len: usize,
-    _phantom: PhantomData<T>
-}
-
 impl<T> IntoIterator for DoublyLinkedList<T> {
     type Item = T;
 
@@ -29,6 +22,13 @@ impl<T> IntoIterator for DoublyLinkedList<T> {
             _phantom: PhantomData
         }
     }
+}
+
+pub struct IntoIter<T> {
+    curr: Link<T>,
+    index: usize,
+    len: usize,
+    _phantom: PhantomData<T>
 }
 
 impl<T> Iterator for IntoIter<T> {
@@ -49,13 +49,18 @@ impl<T> Iterator for IntoIter<T> {
     }
 }
 
+// TODO: impl DoubleEndedIterator, FusedIterator, TrustedLen, Drop
+
 impl<T> ExactSizeIterator for IntoIter<T> {}
 
-pub struct IterMut<'a, T> {
-    curr: Link<T>,
-    index: usize,
-    len: usize,
-    _phantom: PhantomData<&'a mut T>
+impl<T> DoublyLinkedList<T> {
+    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
+        self.into_iter()
+    }
+
+    pub fn iter(&self) -> Iter<'_, T> {
+        self.into_iter()
+    }
 }
 
 impl<'a, T> IntoIterator for &'a mut DoublyLinkedList<T> {
@@ -76,6 +81,13 @@ impl<'a, T> IntoIterator for &'a mut DoublyLinkedList<T> {
     }
 }
 
+pub struct IterMut<'a, T> {
+    curr: Link<T>,
+    index: usize,
+    len: usize,
+    _phantom: PhantomData<&'a mut T>
+}
+
 impl<'a, T> Iterator for IterMut<'a, T> {
     type Item = &'a mut T;
 
@@ -94,13 +106,6 @@ impl<'a, T> Iterator for IterMut<'a, T> {
 
 impl<T> ExactSizeIterator for IterMut<'_, T> {}
 
-pub struct Iter<'a, T> {
-    curr: Link<T>,
-    index: usize,
-    len: usize,
-    _phantom: PhantomData<&'a T>
-}
-
 impl<'a, T> IntoIterator for &'a DoublyLinkedList<T> {
     type Item = &'a T;
 
@@ -117,6 +122,13 @@ impl<'a, T> IntoIterator for &'a DoublyLinkedList<T> {
             _phantom: PhantomData
         }
     }
+}
+
+pub struct Iter<'a, T> {
+    curr: Link<T>,
+    index: usize,
+    len: usize,
+    _phantom: PhantomData<&'a T>
 }
 
 impl<'a, T> Iterator for Iter<'a, T> {
