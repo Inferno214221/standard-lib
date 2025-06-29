@@ -11,9 +11,7 @@ pub struct DoublyLinkedList<T> {
 
 pub(crate) enum ListState<T> {
     Empty,
-    // Single {
-    //     node: NodeRef<T>
-    // },
+    // Single(NodeRef<T>),
     Full(Inner<T>)
 }
 
@@ -55,7 +53,7 @@ const ONE: Length = Length(NonZero::<usize>::MIN);
 use ListState::*;
 
 impl<T> DoublyLinkedList<T> {
-    pub fn new() -> DoublyLinkedList<T> {
+    pub const fn new() -> DoublyLinkedList<T> {
         DoublyLinkedList {
             state: Empty,
             _phantom: PhantomData
@@ -73,28 +71,28 @@ impl<T> DoublyLinkedList<T> {
         self.len() == 0
     }
 
-    pub fn front(&self) -> Option<&T> {
+    pub const fn front(&self) -> Option<&T> {
         match self.state {
             Empty => None,
             Full(Inner { head, .. }) => Some(head.value()),
         }
     }
 
-    pub fn front_mut(&mut self) -> Option<&mut T> {
+    pub const fn front_mut(&mut self) -> Option<&mut T> {
         match self.state {
             Empty => None,
             Full(Inner { mut head, .. }) => Some(head.value_mut()),
         }
     }
 
-    pub fn back(&self) -> Option<&T> {
+    pub const fn back(&self) -> Option<&T> {
         match self.state {
             Empty => None,
             Full(Inner { tail, .. }) => Some(tail.value()),
         }
     }
 
-    pub fn back_mut(&mut self) -> Option<&mut T> {
+    pub const fn back_mut(&mut self) -> Option<&mut T> {
         match self.state {
             Empty => None,
             Full(Inner { mut tail, .. }) => Some(tail.value_mut()),
@@ -242,7 +240,7 @@ impl<T> DoublyLinkedList<T> {
                 // before the given index has a next node.
                 *prev_node.next().unwrap().prev_mut() = Some(node);
                 *prev_node.next_mut() = Some(node);
-                
+
                 inner.len = inner.len.checked_add(1).unwrap(); // TODO: proper handling
             },
         }
@@ -298,14 +296,6 @@ impl<T> DoublyLinkedList<T> {
         }
     }
 
-    pub fn iter(&self) -> Iter<'_, T> {
-        self.into_iter()
-    }
-
-    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
-        self.into_iter()
-    }
-
     pub fn cursor_font(mut self) -> Option<Cursor<T>> {
         match mem::replace(&mut self.state, Empty) {
             Empty => None,
@@ -359,14 +349,9 @@ impl<T> DoublyLinkedList<T> {
             Empty => {},
             Full(Inner { head, tail, .. }) => {
                 let mut curr = head;
-                loop {
-                    match curr.next() {
-                        Some(next) => {
-                            assert!(next.prev().unwrap() == curr);
-                            curr = *next;
-                        },
-                        None => break,
-                    }
+                while let Some(next) = curr.next() {
+                    assert!(next.prev().unwrap() == curr);
+                    curr = *next;
                 }
                 assert!(tail == curr);
             },

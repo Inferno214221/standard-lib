@@ -1,4 +1,5 @@
-use std::{fmt::{self, Debug, Formatter}, marker::PhantomData};
+use std::fmt::{self, Debug, Formatter};
+use std::marker::PhantomData;
 
 use super::{DoublyLinkedList, ListState, NodeRef, Node, Inner};
 
@@ -8,18 +9,18 @@ pub struct Cursor<T> {
 }
 
 impl<T> Cursor<T> {
-    pub fn list(self) -> DoublyLinkedList<T> {
+    pub const fn list(self) -> DoublyLinkedList<T> {
         DoublyLinkedList {
             state: ListState::Full(self.list),
             _phantom: PhantomData
         }
     }
 
-    pub fn current(&self) -> &T {
+    pub const fn current(&self) -> &T {
         self.curr.value()
     }
 
-    pub fn current_mut(&mut self) -> &mut T {
+    pub const fn current_mut(&mut self) -> &mut T {
         self.curr.value_mut()
     }
 
@@ -67,7 +68,7 @@ impl<T> Cursor<T> {
         let node = NodeRef::from_node(Node {
             value,
             prev: Some(self.curr),
-            next: self.curr.next().clone()
+            next: *self.curr.next()
         });
 
         match self.curr.next() {
@@ -83,7 +84,7 @@ impl<T> Cursor<T> {
 
         let node = NodeRef::from_node(Node {
             value,
-            prev: self.curr.prev().clone(),
+            prev: *self.curr.prev(),
             next: Some(self.curr)
         });
 

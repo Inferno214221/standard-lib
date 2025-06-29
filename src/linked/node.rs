@@ -9,12 +9,12 @@ pub(crate) type Link<T> = Option<NodeRef<T>>;
 pub(crate) struct NodeRef<T>(NonNull<Node<T>>);
 
 impl<T> NodeRef<T> {
-    pub fn value<'a>(&self) -> &'a T {
+    pub const fn value<'a>(&self) -> &'a T {
         unsafe { &(self.0.as_ref()).value }
         // unsafe { &(*self.0.as_ptr()).value }
     }
 
-    pub fn value_mut<'a>(&mut self) -> &'a mut T {
+    pub const fn value_mut<'a>(&mut self) -> &'a mut T {
         unsafe { &mut (self.0.as_mut()).value }
         // unsafe { &mut (*self.0.as_ptr()).value }
     }
@@ -23,6 +23,7 @@ impl<T> NodeRef<T> {
         unsafe { &(*self.0.as_ptr()).prev }
     }
 
+    #[allow(clippy::mut_from_ref)]
     pub fn prev_mut(&self) -> &mut Link<T> {
         unsafe { &mut (*self.0.as_ptr()).prev }
     }
@@ -31,6 +32,7 @@ impl<T> NodeRef<T> {
         unsafe { &(*self.0.as_ptr()).next }
     }
 
+    #[allow(clippy::mut_from_ref)]
     pub fn next_mut(&self) -> &mut Link<T> {
         unsafe { &mut (*self.0.as_ptr()).next }
     }
@@ -43,15 +45,13 @@ impl<T> NodeRef<T> {
         unsafe { *Box::from_non_null(self.0) }
     }
 
-    pub fn as_non_null(self) -> NonNull<Node<T>> {
+    pub const fn as_non_null(self) -> NonNull<Node<T>> {
         self.0
     }
 }
 
 impl<T> Clone for NodeRef<T> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
+    fn clone(&self) -> Self { *self }
 }
 
 impl<T> Copy for NodeRef<T> {}

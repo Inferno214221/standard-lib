@@ -6,6 +6,9 @@
 
 pub mod contiguous;
 pub mod linked;
+pub mod hash;
+
+use std::alloc::Layout;
 
 use contiguous::{Array, Vector};
 use linked::DoublyLinkedList;
@@ -44,22 +47,22 @@ fn main() {
     // // println!("ZST Testing");
 
     let mut vec = Vector::<MyZST>::new();
-    println!("{:?}", vec);
+    println!("{vec:?}");
 
     for _ in 0..10 {
         vec.push(MyZST);
     }
 
-    println!("{:?}", vec);
+    println!("{vec:?}");
 
     let mut iter = vec.into_iter();
     while let Some(i) = iter.next_back() {
-        println!("{:?}", i);
+        println!("{i:?}");
     }
 
-    // println!("{:?}", Array::from([&1, &2, &3]));
+    // println!("{:?}", Array::from([&1, &2, &3].into_iter()));
 
-    // let v = Vector::from(Array::from([1, 2, 3]));
+    // let v = Vector::from(Array::from([1, 2, 3].into_iter()));
 
     // println!("{:?}", v);
 
