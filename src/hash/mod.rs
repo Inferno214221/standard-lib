@@ -1,5 +1,5 @@
-mod map;
-mod iter;
+pub mod map;
+pub mod set;
 
-pub use map::*;
-pub use iter::*;
+#[doc(inline)]
+pub use map::HashMap;

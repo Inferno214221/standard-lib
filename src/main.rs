@@ -4,6 +4,8 @@
 #![feature(extend_one_unchecked)]
 #![feature(trusted_len)]
 
+#![allow(clippy::module_inception)]
+
 pub mod contiguous;
 pub mod linked;
 pub mod hash;

@@ -3,7 +3,8 @@ use std::marker::PhantomData;
 use std::mem;
 use std::num::NonZero;
 
-use super::{NodeRef, Node, Iter, IterMut, Cursor};
+use super::{NodeRef, Node};
+
 pub struct DoublyLinkedList<T> {
     pub(crate) state: ListState<T>,
     pub(crate) _phantom: PhantomData<T>
@@ -292,20 +293,6 @@ impl<T> DoublyLinkedList<T> {
                     // TODO: proper handling
                     self_inner.len = self_inner.len.checked_add(other_inner.len.get()).unwrap();
                 },
-            },
-        }
-    }
-
-    pub fn cursor_font(mut self) -> Option<Cursor<T>> {
-        match mem::replace(&mut self.state, Empty) {
-            Empty => None,
-            Full(inner) => {
-                Some(
-                    Cursor {
-                        curr: inner.head,
-                        list: inner,
-                    }
-                )
             },
         }
     }

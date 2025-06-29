@@ -1,8 +1,8 @@
 use std::hash::{BuildHasher, Hash};
 
-use crate::hash::{HashMap, Bucket};
+use crate::hash::map::{HashMap, Bucket};
 
-use crate::contiguous::IntoIter as ArrIntoIter;
+use crate::contiguous::array::IntoIter as ArrIntoIter;
 use std::slice::IterMut as ArrIterMut;
 use std::slice::Iter as ArrIter;
 

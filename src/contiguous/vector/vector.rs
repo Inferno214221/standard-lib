@@ -8,7 +8,7 @@ use std::ops::{Deref, DerefMut};
 use std::ptr;
 use std::slice;
 
-use super::Array;
+use crate::contiguous::Array;
 
 const MIN_CAP: usize = 2;
 const MAX_CAP: usize = isize::MAX as usize;

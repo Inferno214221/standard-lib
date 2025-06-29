@@ -3,7 +3,9 @@ use std::marker::PhantomData;
 use std::mem;
 use std::ptr::{self, NonNull};
 
-use super::{Array, Vector};
+use super::Array;
+// Import is only for docs.
+use crate::contiguous::Vector;
 
 impl<T> IntoIterator for Array<T> {
     type Item = T;
@@ -18,16 +20,6 @@ impl<T> IntoIterator for Array<T> {
         };
         mem::forget(self);
         result
-    }
-}
-
-impl<T> IntoIterator for Vector<T> {
-    type Item = T;
-
-    type IntoIter = IntoIter<T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        Array::from(self).into_iter()
     }
 }
 
