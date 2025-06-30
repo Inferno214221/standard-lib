@@ -6,14 +6,13 @@
 
 #![allow(clippy::module_inception)]
 
+use std::hash::{Hash, Hasher};
+
+use rust_basic_types::hash::{HashMap, HashSet};
+
 pub mod contiguous;
 pub mod linked;
 pub mod hash;
-
-use std::alloc::Layout;
-
-use contiguous::{Array, Vector};
-use linked::DoublyLinkedList;
 
 #[derive(Debug, Clone)]
 struct MyZST;
@@ -24,94 +23,87 @@ impl Drop for MyZST {
     }
 }
 
+#[derive(Debug)]
+struct BadHash(usize, usize);
+
+impl Hash for BadHash {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.1.hash(state);
+    }
+}
+
+impl PartialEq for BadHash {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl Eq for BadHash {}
+
 fn main() {
-    // println!("\n[Array]\n");
+    // let mut map: HashMap<String, usize> = dbg!(HashMap::new());
+    // dbg!(map.insert(String::from("one"), 1));
+    // dbg!(&map);
+    // map.insert(String::from("two"), 2);
+    // dbg!(&map);
+    // map.insert(String::from("three"), 3);
+    // dbg!(&map);
+    // map.insert(String::from("four"), 4);
+    // dbg!(&map);
 
-    // let mut vec = Vector::<u8>::new();
-    // println!("{:?}", vec);
+    // dbg!(map.insert(String::from("two"), 5));
+    // dbg!(&map);
 
-    // for i in 0..8 {
-    //     vec.push(i);
-    //     println!("{:?}", vec);
-    // }
+    // dbg!(map.remove_entry("three"));
+    // dbg!(&map);
 
-    // vec.insert(2, 100);
+    // dbg!(map.contains("three"));
+    // dbg!(map.contains("two"));
 
-    // println!("{:?}, {:?}", vec.remove(3), vec);
+    // dbg!(map.get("one"));
+    // dbg!(map.get("three"));
+    // dbg!(map.get_mut("one").map(|m| *m = 7));
+    // dbg!(&map);
 
-    // for _ in 0..=10 {
-    //     println!("{:?}", vec.pop());
-    // }
+    // map.reserve(5);
+    // dbg!(&map);
 
-    // println!("{:?}", vec);
-    // // println!("{:?}", Vector::<u8>::with_cap(14));
+    // let mut set: HashSet<String> = dbg!(HashSet::with_cap(4));
+    // dbg!(set.insert(String::from("one")));
+    // set.insert(String::from("two"));
+    // dbg!(set.insert(String::from("one")));
+    // dbg!(&set);
 
-    // // println!("ZST Testing");
+    // let mut a: HashSet<usize> = HashSet::new();
+    // a.insert(0);
+    // a.insert(1);
+    // a.insert(2);
+    // a.insert(3);
 
-    let mut vec = Vector::<MyZST>::new();
-    println!("{vec:?}");
+    // let mut b: HashSet<usize> = HashSet::new();
+    // b.insert(2);
+    // b.insert(3);
+    // b.insert(4);
+    // b.insert(5);
 
-    for _ in 0..10 {
-        vec.push(MyZST);
-    }
+    // dbg!(a.difference(&b).collect::<Vec<_>>());
+    // dbg!(b.difference(&a).collect::<Vec<_>>());
+    // dbg!(a.symmetric_difference(&b).collect::<Vec<_>>());
+    // dbg!(a.union(&b).collect::<Vec<_>>());
+    // dbg!(a.intersection(&b).collect::<Vec<_>>());
 
-    println!("{vec:?}");
+    // a.remove(&0);
+    // a.remove(&1);
+    // a.remove(&2);
+    // a.remove(&3);
 
-    let mut iter = vec.into_iter();
-    while let Some(i) = iter.next_back() {
-        println!("{i:?}");
-    }
+    let mut a: HashSet<BadHash> = HashSet::with_cap(5);
+    a.insert(BadHash(1, 0));
+    a.insert(BadHash(2, 0));
+    a.insert(BadHash(3, 0));
+    a.insert(BadHash(4, 1));
+    dbg!(&a);
 
-    // println!("{:?}", Array::from([&1, &2, &3].into_iter()));
-
-    // let v = Vector::from(Array::from([1, 2, 3].into_iter()));
-
-    // println!("{:?}", v);
-
-    // println!("{:?}", Array::from(v));
-
-    // // let mut ll = DoublyLinkedList::<u8>::new();
-
-    // // println!("{:?}", ll);
-
-    // // for i in 0..8 {
-    // //     ll.push_back(i);
-    // //     println!("{:?}", ll);
-    // // }
-    // // println!("{:?}", ll);
-
-    // // println!("{:?}", ll.get(4));
-
-    // // // println!("{:?}", ll.pop_back());
-
-    // // // let mut ll = DLinkedList::<MyZST>::new();
-    // // // println!("{:?}", ll);
-
-    // // // for _ in 0..10 {
-    // // //     ll.push_back(MyZST);
-    // // // }
-
-    // // println!("{:?}", ll.get(3));
-
-    // // let mut cur = ll.into_cursor().unwrap();
-    // // cur.move_next();
-
-    // // for _ in 0..4 {
-    // //     cur.pop_next();
-    // //     println!("{:?}", cur);
-    // // }
-
-    // // cur.push_next(3);
-    // // println!("{:?}", cur);
-
-    // // cur.as_list().verify_double_links();
-
-    // // println!("{:?}", Vector::from(0..1));
-
-    // let mut ll = DoublyLinkedList::<u8>::new();
-
-    // let mut vec: Vector<_> = "Hello world!".chars().collect();
-    // assert_eq!(vec.remove(1), 'e');
-    // assert_eq!(vec.remove(4), ' ');
-    // assert_eq!(vec, dbg!("Hlloworld!".chars()).collect());
+    a.remove(&BadHash(1, 0));
+    dbg!(&a);
 }

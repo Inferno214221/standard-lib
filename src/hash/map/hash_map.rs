@@ -13,13 +13,14 @@ const GROWTH_FACTOR: usize = 2;
 const LOAD_FACTOR_NUMERATOR: usize = 4;
 const LOAD_FACTOR_DENOMINATOR: usize = 5;
 
+#[derive(Debug)]
 pub struct HashMap<K: Hash + Eq, V, B: BuildHasher = RandomState> {
     pub(crate) arr: Array<Bucket<K, V>>,
     pub(crate) len: usize,
     pub(crate) hasher: B,
 }
 
-pub(crate) type Bucket<K, V> = Option<Box<(K, V)>>;
+pub(crate) type Bucket<K, V> = Option<(K, V)>;
 
 impl<K: Hash + Eq, V, B: BuildHasher + Default> HashMap<K, V, B> {
     pub fn new() -> HashMap<K, V, B> {
@@ -75,7 +76,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         
         let index = self.find_index_for_key(&key);
 
-        // The Bucket at index is either empty or contains an equal key.
+        // The bucket at index is either empty or contains an equal key.
         match &mut self.arr[index] {
             Some(existing) => {
                 // Replace the value with the provided one.
@@ -85,8 +86,8 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
                 ))
             },
             None => {
-                // Create a new Bucket with the provided values.
-                self.arr[index] = Some(Box::new((key, value)));
+                // Create a new bucket with the provided values.
+                self.arr[index] = Some((key, value));
                 self.len += 1;
                 None
             },
@@ -102,7 +103,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     {
         let index = self.find_index_for_borrowed(key);
 
-        // If the Bucket at index is empty, the map doesn't contain the key.
+        // If the bucket at index is empty, the map doesn't contain the key.
         match &self.arr[index] {
             Some(existing) => Some((&existing.0, &existing.1)),
             None => None,
@@ -118,7 +119,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     {
         let index = self.find_index_for_borrowed(key);
 
-        // If the Bucket at index is empty, the map doesn't contain the key.
+        // If the bucket at index is empty, the map doesn't contain the key.
         match &self.arr[index] {
             Some(existing) => Some(&existing.1),
             None => None,
@@ -132,7 +133,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     {
         let index = self.find_index_for_borrowed(key);
 
-        // If the Bucket at index is empty, the map doesn't contain the key.
+        // If the bucket at index is empty, the map doesn't contain the key.
         match &mut self.arr[index] {
             Some(existing) => Some(&mut existing.1),
             None => None,
@@ -144,16 +145,31 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         K: Borrow<Q>,
         Q: Hash + Eq + ?Sized
     {
-        let index = self.find_index_for_borrowed(key);
+        let mut index = self.find_index_for_borrowed(key);
 
-        // If the Bucket at index is empty, the map doesn't contain the key.
-        match mem::take(&mut self.arr[index]) {
+        // If the bucket at index is empty, the map doesn't contain the key.
+        let removed = match mem::take(&mut self.arr[index]) {
             Some(entry) => {
                 self.len -= 1;
-                Some(*entry)
+                Some(entry)
             },
             None => None,
+        };
+
+        let mut next_index = (index + 1) % self.cap();
+
+        // If the next bucket isn't empty and isn't in the correct position, it has been moved to
+        // the right at least once. Therefore, move it left once, either putting it in the correct
+        // location or improving the proximity to the correct location.
+        while let Some(next) = &self.arr[next_index] && self.index_from_key(&next.0) != next_index {
+            println!("Moving value at {next_index:?} to {index:?}.");
+            let moving = mem::take(&mut self.arr[next_index]);
+            let _none = mem::replace(&mut self.arr[index], moving);
+            index = next_index;
+            next_index = (index + 1) % self.cap();
         }
+
+        removed
     }
 
     pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
@@ -203,7 +219,9 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     }
 
     pub fn reserve(&mut self, extra: usize) {
-        let new_cap = self.len.strict_add(extra * LOAD_FACTOR_DENOMINATOR / LOAD_FACTOR_NUMERATOR);
+        // Add capacity to ensure that len + extra fits in a well loaded map.
+        let new_cap = self.len.strict_add(extra) * LOAD_FACTOR_DENOMINATOR / LOAD_FACTOR_NUMERATOR;
+        if new_cap <= self.cap() { return; }
 
         self.realloc_with_cap(new_cap);
     }
@@ -211,7 +229,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
 
 impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     pub(crate) const fn should_grow(&self) -> bool {
-        self.len > self.arr.size * LOAD_FACTOR_NUMERATOR / LOAD_FACTOR_DENOMINATOR
+        self.len >= self.arr.size * LOAD_FACTOR_NUMERATOR / LOAD_FACTOR_DENOMINATOR
     }
 
     pub(crate) fn grow(&mut self) {
@@ -221,6 +239,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     }
 
     pub(crate) fn realloc_with_cap(&mut self, new_cap: usize) {
+        dbg!("Reallocating");
         // Replace the Array first so that we can consume the old Array.
         let old_arr = mem::replace(&mut self.arr, Array::repeat_default(new_cap));
 
@@ -230,11 +249,12 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
             // Move the bucket into the new Array.
             self.arr[index] = Some(entry);
         }
+        dbg!("Reallocation complete");
     }
 
     pub(crate) fn index_from_key<H: Hash + ?Sized>(&self, hashable: &H) -> usize {
         let key_hash = self.hasher.hash_one(hashable);
-        (key_hash % self.cap() as u64) as usize
+        dbg!((key_hash % self.cap() as u64) as usize)
     }
 
     pub(crate) fn find_index_for_key(&self, key: &K) -> usize {

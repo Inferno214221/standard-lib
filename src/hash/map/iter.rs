@@ -33,11 +33,7 @@ impl<K: Hash + Eq, V> Iterator for IntoIter<K, V> {
             next = self.inner.next();
         }
 
-        match next {
-            Some(Some(entry)) => Some(*entry),
-            None => None,
-            Some(None) => unreachable!(),
-        }
+        next.flatten()
     }
 }
 
@@ -68,11 +64,7 @@ impl<'a, K: Hash + Eq, V> Iterator for IterMut<'a, K, V> {
             next = self.inner.next();
         }
 
-        match next {
-            Some(Some(entry)) => Some(&mut **entry),
-            None => None,
-            Some(None) => unreachable!(),
-        }
+        next.and_then(|i| i.as_mut())
     }
 }
 
@@ -103,11 +95,7 @@ impl<'a, K: Hash + Eq, V> Iterator for Iter<'a, K, V> {
             next = self.inner.next();
         }
 
-        match next {
-            Some(Some(entry)) => Some(&**entry),
-            None => None,
-            Some(None) => unreachable!(),
-        }
+        next.and_then(|i| i.as_ref())
     }
 }
 

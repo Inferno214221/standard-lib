@@ -8,6 +8,7 @@ use crate::hash::set::{Difference, Intersection, SymmetricDifference, Union};
 use crate::hash::HashMap;
 use super::Iter;
 
+#[derive(Debug)]
 pub struct HashSet<T: Hash + Eq, B: BuildHasher = RandomState> {
     // Yay, we get to do the thing where unit type evaluates to a no-op.
     pub(crate) inner: HashMap<T, (), B>
@@ -62,13 +63,13 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
         // The Bucket at index is either empty or contains an equal item.
         match &mut self.inner.arr[index] {
             Some(_) => {
-                true
+                false
             },
             None => {
                 // Create a new Bucket with the provided values.
-                self.inner.arr[index] = Some(Box::new((item, ())));
+                self.inner.arr[index] = Some((item, ()));
                 self.inner.len += 1;
-                false
+                true
             },
         }
     }
@@ -83,7 +84,7 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
             },
             None => {
                 // Create a new Bucket with the provided values.
-                self.inner.arr[index] = Some(Box::new((item, ())));
+                self.inner.arr[index] = Some((item, ()));
                 self.inner.len += 1;
                 false
             },
