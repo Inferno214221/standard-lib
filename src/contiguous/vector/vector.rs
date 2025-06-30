@@ -1,7 +1,7 @@
 #![warn(missing_docs)]
 
 use std::cmp;
-use std::fmt::{self, Debug, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 use std::iter::TrustedLen;
 use std::mem::{self, MaybeUninit};
 use std::ops::{Deref, DerefMut};
@@ -222,7 +222,7 @@ impl<T> Vector<T> {
     /// let mut vec: Vector<_> = "Hello world!".chars().collect();
     /// assert_eq!(vec.remove(1), 'e');
     /// assert_eq!(vec.remove(4), ' ');
-    /// assert_eq!(vec, dbg!("Hlloworld!".chars()).collect());
+    /// assert_eq!(vec, "Hlloworld!".chars().collect());
     /// ```
     pub fn remove(&mut self, index: usize) -> T {
         self.check_index(index);
@@ -422,16 +422,6 @@ impl<T: Clone> Clone for Vector<T> {
     }
 }
 
-impl<T: Debug> Debug for Vector<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Vector")
-            .field("contents", &&**self)
-            .field("len", &self.len)
-            .field("cap", &self.cap())
-            .finish()
-    }
-}
-
 impl<T> From<Vector<T>> for Array<T> {
     fn from(mut value: Vector<T>) -> Self {
         // Dealloc all uninit values > len.
@@ -462,3 +452,31 @@ impl<T: PartialEq> PartialEq for Vector<T> {
 }
 
 impl<T: Eq> Eq for Vector<T> {}
+
+impl<T: Debug> Debug for Vector<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Vector")
+            .field_with("contents", |f| write!(
+                f, "![{}]",
+                self.iter()
+                    .map(|i| format!("{i:?}"))
+                    .collect::<Vector<String>>()
+                    .join(", ")
+            ))
+            .field("len", &self.len)
+            .field("cap", &self.cap())
+            .finish()
+    }
+}
+
+impl<T: Display> Display for Vector<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f, "![{}]",
+            self.iter()
+                .map(|i| format!("{i}"))
+                .collect::<Vector<String>>()
+                .join(", ")
+        )
+    }
+}

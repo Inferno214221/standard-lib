@@ -1,10 +1,11 @@
 use std::borrow::Borrow;
-use std::cmp;
+use std::{cmp, fmt};
+use std::fmt::{Debug, Display, Formatter};
 use std::hash::{BuildHasher, Hash, RandomState};
 use std::mem;
 
 use super::{IterMut, Iter, IntoKeys, Keys, IntoValues, ValuesMut, Values};
-use crate::contiguous::Array;
+use crate::contiguous::{Array, Vector};
 
 const MIN_ALLOCATED_CAP: usize = 2;
 
@@ -13,7 +14,6 @@ const GROWTH_FACTOR: usize = 2;
 const LOAD_FACTOR_NUMERATOR: usize = 4;
 const LOAD_FACTOR_DENOMINATOR: usize = 5;
 
-#[derive(Debug)]
 pub struct HashMap<K: Hash + Eq, V, B: BuildHasher = RandomState> {
     pub(crate) arr: Array<Bucket<K, V>>,
     pub(crate) len: usize,
@@ -239,7 +239,6 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     }
 
     pub(crate) fn realloc_with_cap(&mut self, new_cap: usize) {
-        dbg!("Reallocating");
         // Replace the Array first so that we can consume the old Array.
         let old_arr = mem::replace(&mut self.arr, Array::repeat_default(new_cap));
 
@@ -249,12 +248,11 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
             // Move the bucket into the new Array.
             self.arr[index] = Some(entry);
         }
-        dbg!("Reallocation complete");
     }
 
     pub(crate) fn index_from_key<H: Hash + ?Sized>(&self, hashable: &H) -> usize {
         let key_hash = self.hasher.hash_one(hashable);
-        dbg!((key_hash % self.cap() as u64) as usize)
+        (key_hash % self.cap() as u64) as usize
     }
 
     pub(crate) fn find_index_for_key(&self, key: &K) -> usize {
@@ -295,5 +293,34 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
 impl<K: Hash + Eq, V> Default for HashMap<K, V> {
     fn default() -> Self {
         HashMap::new()
+    }
+}
+
+impl<K: Hash + Eq + Debug, V: Debug, B: BuildHasher + Debug> Debug for HashMap<K, V, B> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HashMap")
+            .field_with("contents", |f| write!(
+                f, "#{{{}}}",
+                self.iter()
+                    .map(|(k, v)| format!("{k:?}: {v:?}"))
+                    .collect::<Vector<String>>()
+                    .join(", ")
+            ))
+            .field("len", &self.len)
+            .field("cap", &self.cap())
+            .field("hasher", &self.hasher)
+            .finish()
+    }
+}
+
+impl<K: Hash + Eq + Display, V: Display, B: BuildHasher> Display for HashMap<K, V, B> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f, "#{{{}}}",
+            self.iter()
+                .map(|(k, v)| format!("{k}: {v}"))
+                .collect::<Vector<String>>()
+                .join(", ")
+        )
     }
 }

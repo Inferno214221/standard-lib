@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::fmt::{self, Debug, Display, Formatter};
 use std::hash::{BuildHasher, Hash, RandomState};
 use std::iter::TrustedLen;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Sub, SubAssign};
@@ -8,7 +9,6 @@ use crate::hash::set::{Difference, Intersection, SymmetricDifference, Union};
 use crate::hash::HashMap;
 use super::Iter;
 
-#[derive(Debug)]
 pub struct HashSet<T: Hash + Eq, B: BuildHasher = RandomState> {
     // Yay, we get to do the thing where unit type evaluates to a no-op.
     pub(crate) inner: HashMap<T, (), B>
@@ -266,5 +266,34 @@ impl<T: Hash + Eq, B: BuildHasher> SubAssign for HashSet<T, B> {
         for item in rhs {
             self.remove(&item);
         }
+    }
+}
+
+impl<T: Hash + Eq + Debug, B: BuildHasher + Debug> Debug for HashSet<T, B> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HashSet")
+            .field_with("contents", |f| write!(
+                f, "#{{{}}}",
+                self.iter()
+                    .map(|i| format!("{i:?}"))
+                    .collect::<Vector<String>>()
+                    .join(", ")
+            ))
+            .field("len", &self.len())
+            .field("cap", &self.cap())
+            .field("hasher", &self.inner.hasher)
+            .finish()
+    }
+}
+
+impl<T: Hash + Eq + Display, B: BuildHasher> Display for HashSet<T, B> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f, "#{{{}}}",
+            self.iter()
+                .map(|i| format!("{i}"))
+                .collect::<Vector<String>>()
+                .join(", ")
+        )
     }
 }

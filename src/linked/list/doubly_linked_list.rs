@@ -1,7 +1,9 @@
-use std::fmt::{self, Debug, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 use std::marker::PhantomData;
 use std::mem;
 use std::num::NonZero;
+
+use crate::contiguous::Vector;
 
 use super::{Cursor, NodeRef, Node, Iter, IterMut};
 
@@ -144,8 +146,8 @@ impl<T> DoublyLinkedList<T> {
                 });
             },
             Full(Inner { ref mut len, ref mut tail, .. }) => {
-                *tail.prev_mut() = Some(new_node);
-                *new_node.next_mut() = Some(*tail);
+                *tail.next_mut() = Some(new_node);
+                *new_node.prev_mut() = Some(*tail);
                 *tail = new_node;
                 *len = len.checked_add(1).unwrap(); // TODO: proper handling
             },
@@ -433,18 +435,39 @@ impl<T> Drop for DoublyLinkedList<T> {
     }
 }
 
-// impl Extend for DLinkedList
+impl<T> FromIterator<T> for DoublyLinkedList<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut list = DoublyLinkedList::new();
+        for item in iter.into_iter() {
+            list.push_back(item);
+        }
+        list
+    }
+}
 
 impl<T: Debug> Debug for DoublyLinkedList<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("DLinkedList")
+            .field_with("contents", |f| write!(
+                f, "({})",
+                    self.iter()
+                        .map(|i| format!("{i:?}"))
+                        .collect::<Vector<String>>()
+                        .join(") -> (")
+            ))
             .field("len", &self.len())
-            .field(
-                "elements",
-                &(self.iter().map(
-                    |v| format!("({v:?}) -> ")
-                ).collect::<String>() + "End")
-            )
             .finish()
+    }
+}
+
+impl<T: Display> Display for DoublyLinkedList<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f, "({})",
+            self.iter()
+                .map(|i| format!("{i}"))
+                .collect::<Vector<String>>()
+                .join(") -> (")
+        )
     }
 }

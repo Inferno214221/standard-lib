@@ -14,8 +14,8 @@ impl<T> IntoIterator for Array<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         let result = IntoIter {
-            ptr: dbg!(self.ptr),
-            left: dbg!(self.size),
+            ptr: self.ptr,
+            left: self.size,
             _phantom: PhantomData
         };
         mem::forget(self);

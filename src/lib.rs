@@ -3,6 +3,7 @@
 #![feature(extend_one)]
 #![feature(extend_one_unchecked)]
 #![feature(trusted_len)]
+#![feature(debug_closure_helpers)]
 
 // #![warn(missing_docs)]
 #![warn(clippy::missing_safety_doc)]

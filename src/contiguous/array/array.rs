@@ -1,13 +1,15 @@
 #![warn(missing_docs)]
 
 use std::alloc::{self, Layout};
-use std::fmt::{self, Debug, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 use std::iter::TrustedLen;
 use std::marker::PhantomData;
 use std::mem::{self, MaybeUninit};
 use std::ops::{Deref, DerefMut};
 use std::ptr::{self, NonNull};
 use std::slice;
+
+use crate::contiguous::Vector;
 
 const MAX_SIZE: usize = isize::MAX as usize;
 
@@ -466,15 +468,6 @@ impl<T> DerefMut for Array<T> {
     }
 }
 
-impl<T: Debug> Debug for Array<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Array")
-            .field("contents", &&**self)
-            .field("size", &self.size)
-            .finish()
-    }
-}
-
 unsafe impl<T: Send> Send for Array<T> {}
 unsafe impl<T: Sync> Sync for Array<T> {}
 
@@ -491,3 +484,30 @@ impl<T: PartialEq> PartialEq for Array<T> {
 }
 
 impl<T: Eq> Eq for Array<T> {}
+
+impl<T: Debug> Debug for Array<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Array")
+            .field_with("contents", |f| write!(
+                f, "[{}]",
+                self.iter()
+                    .map(|i| format!("{i:?}"))
+                    .collect::<Vector<String>>()
+                    .join(", ")
+            ))
+            .field("size", &self.size)
+            .finish()
+    }
+}
+
+impl<T: Display> Display for Array<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f, "[{}]",
+            self.iter()
+                .map(|i| format!("{i}"))
+                .collect::<Vector<String>>()
+                .join(", ")
+        )
+    }
+}
