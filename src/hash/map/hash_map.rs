@@ -3,6 +3,7 @@ use std::cmp;
 use std::hash::{BuildHasher, Hash, RandomState};
 use std::mem;
 
+use super::{IterMut, Iter, IntoKeys, Keys, IntoValues, ValuesMut, Values};
 use crate::contiguous::Array;
 
 const MIN_ALLOCATED_CAP: usize = 2;
@@ -20,20 +21,20 @@ pub struct HashMap<K: Hash + Eq, V, B: BuildHasher = RandomState> {
 
 pub(crate) type Bucket<K, V> = Option<Box<(K, V)>>;
 
-impl<K: Hash + Eq, V> HashMap<K, V> {
-    pub fn new() -> HashMap<K, V> {
+impl<K: Hash + Eq, V, B: BuildHasher + Default> HashMap<K, V, B> {
+    pub fn new() -> HashMap<K, V, B> {
         HashMap {
             arr: Array::new(),
             len: 0,
-            hasher: RandomState::new()
+            hasher: B::default()
         }
     }
 
-    pub fn with_cap(cap: usize) -> HashMap<K, V> {
+    pub fn with_cap(cap: usize) -> HashMap<K, V, B> {
         HashMap {
             arr: Array::repeat_default(cap),
             len: 0,
-            hasher: RandomState::new()
+            hasher: B::default()
         }
     }
 }
@@ -162,6 +163,50 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     {
         self.remove_entry(key).map(|e| e.1)
     }
+
+    pub fn contains<Q>(&self, key: &Q) -> bool
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq + ?Sized
+    {
+        let index = self.find_index_for_borrowed(key);
+
+        self.arr[index].is_some()
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
+        self.into_iter()
+    }
+
+    pub fn iter(&self) -> Iter<'_, K, V> {
+        self.into_iter()
+    }
+
+    pub fn into_keys(self) -> IntoKeys<K, V> {
+        IntoKeys(self.into_iter())
+    }
+
+    pub fn keys<'a>(&'a self) -> Keys<'a, K, V> {
+        Keys(self.iter())
+    }
+    
+    pub fn into_values(self) -> IntoValues<K, V> {
+        IntoValues(self.into_iter())
+    }
+
+    pub fn values_mut<'a>(&'a mut self) -> ValuesMut<'a, K, V> {
+        ValuesMut(self.iter_mut())
+    }
+
+    pub fn values<'a>(&'a self) -> Values<'a, K, V> {
+        Values(self.iter())
+    }
+
+    pub fn reserve(&mut self, extra: usize) {
+        let new_cap = self.len.strict_add(extra * LOAD_FACTOR_DENOMINATOR / LOAD_FACTOR_NUMERATOR);
+
+        self.realloc_with_cap(new_cap);
+    }
 }
 
 impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
@@ -172,9 +217,12 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     pub(crate) fn grow(&mut self) {
         let new_cap = cmp::max(self.cap() * GROWTH_FACTOR, MIN_ALLOCATED_CAP);
 
-        let old_arr = mem::replace(&mut self.arr, Array::repeat_default(new_cap));
+        self.realloc_with_cap(new_cap)
+    }
 
+    pub(crate) fn realloc_with_cap(&mut self, new_cap: usize) {
         // Replace the Array first so that we can consume the old Array.
+        let old_arr = mem::replace(&mut self.arr, Array::repeat_default(new_cap));
 
         for entry in old_arr.into_iter().flatten() {
             let index = self.find_index_for_key(&entry.0);
