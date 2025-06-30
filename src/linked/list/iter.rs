@@ -25,10 +25,10 @@ impl<T> IntoIterator for DoublyLinkedList<T> {
 }
 
 pub struct IntoIter<T> {
-    curr: Link<T>,
-    index: usize,
-    len: usize,
-    _phantom: PhantomData<T>
+    pub(crate) curr: Link<T>,
+    pub(crate) index: usize,
+    pub(crate) len: usize,
+    pub(crate) _phantom: PhantomData<T>
 }
 
 impl<T> Iterator for IntoIter<T> {
@@ -53,16 +53,6 @@ impl<T> Iterator for IntoIter<T> {
 
 impl<T> ExactSizeIterator for IntoIter<T> {}
 
-impl<T> DoublyLinkedList<T> {
-    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
-        self.into_iter()
-    }
-
-    pub fn iter(&self) -> Iter<'_, T> {
-        self.into_iter()
-    }
-}
-
 impl<'a, T> IntoIterator for &'a mut DoublyLinkedList<T> {
     type Item = &'a mut T;
 
@@ -82,10 +72,10 @@ impl<'a, T> IntoIterator for &'a mut DoublyLinkedList<T> {
 }
 
 pub struct IterMut<'a, T> {
-    curr: Link<T>,
-    index: usize,
-    len: usize,
-    _phantom: PhantomData<&'a mut T>
+    pub(crate) curr: Link<T>,
+    pub(crate) index: usize,
+    pub(crate) len: usize,
+    pub(crate) _phantom: PhantomData<&'a mut T>
 }
 
 impl<'a, T> Iterator for IterMut<'a, T> {
@@ -125,10 +115,10 @@ impl<'a, T> IntoIterator for &'a DoublyLinkedList<T> {
 }
 
 pub struct Iter<'a, T> {
-    curr: Link<T>,
-    index: usize,
-    len: usize,
-    _phantom: PhantomData<&'a T>
+    pub(crate) curr: Link<T>,
+    pub(crate) index: usize,
+    pub(crate) len: usize,
+    pub(crate) _phantom: PhantomData<&'a T>
 }
 
 impl<'a, T> Iterator for Iter<'a, T> {

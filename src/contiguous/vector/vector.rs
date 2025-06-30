@@ -253,7 +253,6 @@ impl<T> Vector<T> {
     // new_cap = len + extra
     pub fn reserve(&mut self, extra: usize) {
         let new_cap = self.len.strict_add(extra);
-        if new_cap <= self.cap() { return; }
 
         self.realloc_with_cap(new_cap);
     }

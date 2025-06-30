@@ -1,29 +1,11 @@
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
-use std::mem;
 
 use crate::linked::list::{DoublyLinkedList, ListState, NodeRef, Node, Inner};
-use ListState::*;
 
 pub struct Cursor<T> {
     pub(crate) list: Inner<T>,
     pub(crate) curr: NodeRef<T>
-}
-
-impl<T> DoublyLinkedList<T> {
-    pub fn cursor_font(mut self) -> Option<Cursor<T>> {
-        match mem::replace(&mut self.state, Empty) {
-            Empty => None,
-            Full(inner) => {
-                Some(
-                    Cursor {
-                        curr: inner.head,
-                        list: inner,
-                    }
-                )
-            },
-        }
-    }
 }
 
 impl<T> Cursor<T> {

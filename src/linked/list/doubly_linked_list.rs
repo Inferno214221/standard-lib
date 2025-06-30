@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use std::mem;
 use std::num::NonZero;
 
-use super::{NodeRef, Node};
+use super::{Cursor, NodeRef, Node, Iter, IterMut};
 
 pub struct DoublyLinkedList<T> {
     pub(crate) state: ListState<T>,
@@ -295,6 +295,42 @@ impl<T> DoublyLinkedList<T> {
                 },
             },
         }
+    }
+
+    pub fn cursor_front(mut self) -> Option<Cursor<T>> {
+        match mem::replace(&mut self.state, Empty) {
+            Empty => None,
+            Full(inner) => {
+                Some(
+                    Cursor {
+                        curr: inner.head,
+                        list: inner,
+                    }
+                )
+            },
+        }
+    }
+
+    pub fn cursor_back(mut self) -> Option<Cursor<T>> {
+        match mem::replace(&mut self.state, Empty) {
+            Empty => None,
+            Full(inner) => {
+                Some(
+                    Cursor {
+                        curr: inner.tail,
+                        list: inner,
+                    }
+                )
+            },
+        }
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
+        self.into_iter()
+    }
+
+    pub fn iter(&self) -> Iter<'_, T> {
+        self.into_iter()
     }
 }
 

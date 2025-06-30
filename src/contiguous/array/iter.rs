@@ -4,7 +4,7 @@ use std::mem;
 use std::ptr::{self, NonNull};
 
 use super::Array;
-// Import is only for docs.
+#[allow(unused)]
 use crate::contiguous::Vector;
 
 impl<T> IntoIterator for Array<T> {
@@ -26,9 +26,9 @@ impl<T> IntoIterator for Array<T> {
 /// An owned type for owned iteration over an [`Array`] or [`Vector`]. See [`Array::into_iter`] and
 /// [`Vector::into_iter`].
 pub struct IntoIter<T> {
-    ptr: NonNull<T>,
-    left: usize,
-    _phantom: PhantomData<T>
+    pub(crate) ptr: NonNull<T>,
+    pub(crate) left: usize,
+    pub(crate) _phantom: PhantomData<T>
 }
 
 impl<T> Drop for IntoIter<T> {
