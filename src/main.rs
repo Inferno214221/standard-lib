@@ -7,41 +7,15 @@
 
 #![allow(clippy::module_inception)]
 
-use std::hash::{Hash, Hasher};
-
 pub mod contiguous;
 pub mod linked;
 pub mod hash;
 
+pub(crate) mod util;
+
 use contiguous::{Array, Vector};
 use linked::DoublyLinkedList;
 use hash::{HashMap, HashSet};
-
-#[derive(Debug, Clone)]
-struct MyZST;
-
-impl Drop for MyZST {
-    fn drop(&mut self) {
-        println!("Dropped MyZST");
-    }
-}
-
-#[derive(Debug)]
-struct BadHash(usize, usize);
-
-impl Hash for BadHash {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.1.hash(state);
-    }
-}
-
-impl PartialEq for BadHash {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-}
-
-impl Eq for BadHash {}
 
 fn main() {
     let mut map: HashMap<String, usize> = dbg!(HashMap::new());
@@ -111,14 +85,14 @@ fn main() {
     // dbg!(&a);
 
     println!("\n[Format Tests]\n");
-    println!("{}", Array::from([0_u8, 1, 2, 3].into_iter()));
     println!("{:?}", Array::from([0_u8, 1, 2, 3].into_iter()));
-    println!("{}", Vector::from([0_u8, 1, 2, 3].into_iter()));
+    println!("{}", Array::from([0_u8, 1, 2, 3].into_iter()));
     println!("{:?}", Vector::from([0_u8, 1, 2, 3].into_iter()));
-    println!("{}", [0_u8, 1, 2, 3].into_iter().collect::<DoublyLinkedList<_>>());
+    println!("{}", Vector::from([0_u8, 1, 2, 3].into_iter()));
     println!("{:?}", [0_u8, 1, 2, 3].into_iter().collect::<DoublyLinkedList<_>>());
-    println!("{}", &map);
+    println!("{}", [0_u8, 1, 2, 3].into_iter().collect::<DoublyLinkedList<_>>());
     println!("{:?}", &map);
-    println!("{}", &set);
+    println!("{}", &map);
     println!("{:?}", &set);
+    println!("{}", &set);
 }

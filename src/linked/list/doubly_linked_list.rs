@@ -448,24 +448,18 @@ impl<T> FromIterator<T> for DoublyLinkedList<T> {
 impl<T: Debug> Debug for DoublyLinkedList<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("DLinkedList")
-            .field_with("contents", |f| write!(
-                f, "({})",
-                    self.iter()
-                        .map(|i| format!("{i:?}"))
-                        .collect::<Vector<String>>()
-                        .join(") -> (")
-            ))
+        .field_with("contents", |f| f.debug_list().entries(self.iter()).finish())
             .field("len", &self.len())
             .finish()
     }
 }
 
-impl<T: Display> Display for DoublyLinkedList<T> {
+impl<T: Debug> Display for DoublyLinkedList<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f, "({})",
             self.iter()
-                .map(|i| format!("{i}"))
+                .map(|i| format!("{i:?}"))
                 .collect::<Vector<String>>()
                 .join(") -> (")
         )

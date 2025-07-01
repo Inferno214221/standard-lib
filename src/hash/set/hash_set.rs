@@ -7,6 +7,7 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, S
 use crate::contiguous::Vector;
 use crate::hash::set::{Difference, Intersection, SymmetricDifference, Union};
 use crate::hash::HashMap;
+use crate::util::fmt::DebugRaw;
 use super::Iter;
 
 pub struct HashSet<T: Hash + Eq, B: BuildHasher = RandomState> {
@@ -269,16 +270,24 @@ impl<T: Hash + Eq, B: BuildHasher> SubAssign for HashSet<T, B> {
     }
 }
 
+impl<T: Hash + Eq, B: BuildHasher> PartialEq for HashSet<T, B> {
+    fn eq(&self, other: &Self) -> bool {
+        self.is_subset(other) && self.is_superset(other)
+    }
+}
+
+impl<T: Hash + Eq, B: BuildHasher> Eq for HashSet<T, B> {}
+
 impl<T: Hash + Eq + Debug, B: BuildHasher + Debug> Debug for HashSet<T, B> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("HashSet")
-            .field_with("contents", |f| write!(
-                f, "#{{{}}}",
-                self.iter()
-                    .map(|i| format!("{i:?}"))
-                    .collect::<Vector<String>>()
-                    .join(", ")
-            ))
+            .field_with("buckets", |f| f.debug_list().entries(
+                self.inner.arr.iter()
+                    .map(|o| DebugRaw(match o {
+                        Some((t, _)) => format!("{t:?}"),
+                        None => "-".into(),
+                    }))
+            ).finish())
             .field("len", &self.len())
             .field("cap", &self.cap())
             .field("hasher", &self.inner.hasher)
@@ -286,14 +295,9 @@ impl<T: Hash + Eq + Debug, B: BuildHasher + Debug> Debug for HashSet<T, B> {
     }
 }
 
-impl<T: Hash + Eq + Display, B: BuildHasher> Display for HashSet<T, B> {
+impl<T: Hash + Eq + Debug, B: BuildHasher> Display for HashSet<T, B> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f, "#{{{}}}",
-            self.iter()
-                .map(|i| format!("{i}"))
-                .collect::<Vector<String>>()
-                .join(", ")
-        )
+        write!(f, "#")?;
+        f.debug_set().entries(self.iter()).finish()
     }
 }

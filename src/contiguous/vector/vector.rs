@@ -456,27 +456,16 @@ impl<T: Eq> Eq for Vector<T> {}
 impl<T: Debug> Debug for Vector<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Vector")
-            .field_with("contents", |f| write!(
-                f, "![{}]",
-                self.iter()
-                    .map(|i| format!("{i:?}"))
-                    .collect::<Vector<String>>()
-                    .join(", ")
-            ))
+            .field_with("contents", |f| f.debug_list().entries(self.iter()).finish())
             .field("len", &self.len)
             .field("cap", &self.cap())
             .finish()
     }
 }
 
-impl<T: Display> Display for Vector<T> {
+impl<T: Debug> Display for Vector<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f, "![{}]",
-            self.iter()
-                .map(|i| format!("{i}"))
-                .collect::<Vector<String>>()
-                .join(", ")
-        )
+        write!(f, "!")?;
+        f.debug_list().entries(self.iter()).finish()
     }
 }

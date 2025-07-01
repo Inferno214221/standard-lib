@@ -5,7 +5,8 @@ use std::hash::{BuildHasher, Hash, RandomState};
 use std::mem;
 
 use super::{IterMut, Iter, IntoKeys, Keys, IntoValues, ValuesMut, Values};
-use crate::contiguous::{Array, Vector};
+use crate::contiguous::Array;
+use crate::util::fmt::DebugRaw;
 
 const MIN_ALLOCATED_CAP: usize = 2;
 
@@ -299,13 +300,13 @@ impl<K: Hash + Eq, V> Default for HashMap<K, V> {
 impl<K: Hash + Eq + Debug, V: Debug, B: BuildHasher + Debug> Debug for HashMap<K, V, B> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("HashMap")
-            .field_with("contents", |f| write!(
-                f, "#{{{}}}",
-                self.iter()
-                    .map(|(k, v)| format!("{k:?}: {v:?}"))
-                    .collect::<Vector<String>>()
-                    .join(", ")
-            ))
+            .field_with("buckets", |f| f.debug_list().entries(
+                self.arr.iter()
+                    .map(|o| DebugRaw(match o {
+                        Some((k, v)) => format!("({k:?}: {v:?})"),
+                        None => "-".into(),
+                    }))
+            ).finish())
             .field("len", &self.len)
             .field("cap", &self.cap())
             .field("hasher", &self.hasher)
@@ -313,14 +314,9 @@ impl<K: Hash + Eq + Debug, V: Debug, B: BuildHasher + Debug> Debug for HashMap<K
     }
 }
 
-impl<K: Hash + Eq + Display, V: Display, B: BuildHasher> Display for HashMap<K, V, B> {
+impl<K: Hash + Eq + Debug, V: Debug, B: BuildHasher> Display for HashMap<K, V, B> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f, "#{{{}}}",
-            self.iter()
-                .map(|(k, v)| format!("{k}: {v}"))
-                .collect::<Vector<String>>()
-                .join(", ")
-        )
+        write!(f, "#")?;
+        f.debug_map().entries(self.iter().map(|i| (&i.0, &i.1))).finish()
     }
 }

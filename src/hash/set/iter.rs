@@ -24,6 +24,10 @@ impl<T: Hash + Eq> Iterator for IntoIter<T> {
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
 }
 
 impl<'a, T: Hash + Eq, B: BuildHasher> IntoIterator for &'a HashSet<T, B> {
@@ -46,6 +50,10 @@ impl<'a, T: Hash + Eq> Iterator for Iter<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
 }
 
 pub struct Difference<'a, T: Hash + Eq, B: BuildHasher> {
@@ -63,6 +71,10 @@ impl<'a, T: Hash + Eq, B: BuildHasher> Iterator for Difference<'a, T, B> {
         }
         next
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
 }
 
 pub struct SymmetricDifference<'a, T: Hash + Eq, B: BuildHasher> {
@@ -74,6 +86,10 @@ impl<'a, T: Hash + Eq, B: BuildHasher> Iterator for SymmetricDifference<'a, T, B
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
     }
 }
 
@@ -92,6 +108,10 @@ impl<'a, T: Hash + Eq, B: BuildHasher> Iterator for Intersection<'a, T, B> {
         }
         next
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
 }
 
 pub struct Union<'a, T: Hash + Eq, B: BuildHasher> {
@@ -103,5 +123,9 @@ impl<'a, T: Hash + Eq, B: BuildHasher> Iterator for Union<'a, T, B> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
     }
 }

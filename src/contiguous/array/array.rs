@@ -9,8 +9,6 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::{self, NonNull};
 use std::slice;
 
-use crate::contiguous::Vector;
-
 const MAX_SIZE: usize = isize::MAX as usize;
 
 /// An implementation of an array that is sized at runtime. Similar to a [`Box<[T]>`](Box<T>).
@@ -488,26 +486,14 @@ impl<T: Eq> Eq for Array<T> {}
 impl<T: Debug> Debug for Array<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Array")
-            .field_with("contents", |f| write!(
-                f, "[{}]",
-                self.iter()
-                    .map(|i| format!("{i:?}"))
-                    .collect::<Vector<String>>()
-                    .join(", ")
-            ))
+            .field_with("contents", |f| f.debug_list().entries(self.iter()).finish())
             .field("size", &self.size)
             .finish()
     }
 }
 
-impl<T: Display> Display for Array<T> {
+impl<T: Debug> Display for Array<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f, "[{}]",
-            self.iter()
-                .map(|i| format!("{i}"))
-                .collect::<Vector<String>>()
-                .join(", ")
-        )
+        f.debug_list().entries(self.iter()).finish()
     }
 }
