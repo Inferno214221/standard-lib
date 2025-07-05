@@ -10,6 +10,37 @@ use crate::hash::HashMap;
 use crate::util::fmt::DebugRaw;
 use super::Iter;
 
+/// A set of values that prevents duplicates with the help of the [`Hash`] trait.
+/// 
+/// Relies on [`HashMap`] internally, see documentation there for additional details.
+/// 
+/// # Time Complexity
+/// See [`HashMap`] with the following additions.
+/// 
+/// Variables are defined as follows:
+/// - `n`: The number of items in the HashSet.
+/// - `m`: The number of items in the second HashSet.
+/// 
+/// | Method | Complexity |
+/// |-|-|
+/// | `difference`*, `-` | `O(n)` |
+/// | `-=` | `O(m)` |
+/// | `symmetric_difference`*, `^` | `O(n+m)` |
+/// | `^=` | `O(n+m)`**, `O(m)` |
+/// | `intersection`*, `&` | `O(n)` |
+/// | `&=` | `O(n)` |
+/// | `union`*, `\|` | `O(n+m)` |
+/// | `\|=` | `O(n+m)`**, `O(m)` |
+/// | `is_subset` | `O(m)` |
+/// | `is_superset` | `O(n)` |
+/// 
+/// In the event of a has collision, all methods will take additional time. This additional time is
+/// kept at a minimum and hash collisions are unlikely especially with a large capacity.
+/// 
+/// \* When exhausted.
+/// 
+/// \** If the HashMap already has capacity for the additional items, these methods will take `O(m)`
+/// instead.
 pub struct HashSet<T: Hash + Eq, B: BuildHasher = RandomState> {
     // Yay, we get to do the thing where unit type evaluates to a no-op.
     pub(crate) inner: HashMap<T, (), B>

@@ -13,6 +13,20 @@ use std::slice;
 const MAX_SIZE: usize = isize::MAX as usize;
 
 /// An implementation of an array that is sized at runtime. Similar to a [`Box<[T]>`](Box<T>).
+/// 
+/// # Time Complexity
+/// For this analysis of time complexity, variables are defined as follows:
+/// - `n`: The number of items in the Array.
+/// - `i`: The index of the item in question.
+/// 
+/// | Method | Complexity |
+/// |-|-|
+/// | `get` | `O(1)` |
+/// | `size` | `O(1)` |
+/// | `realloc` | `O(n)`*, `O(1)` |
+/// | `contains` | `O(n)` |
+/// 
+/// \* It might be possible to get an `O(1)` reallocation, but I don't believe it is very likely.
 pub struct Array<T> {
     pub(crate) ptr: NonNull<T>,
     pub(crate) size: usize,

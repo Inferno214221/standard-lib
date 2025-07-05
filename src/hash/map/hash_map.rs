@@ -15,6 +15,32 @@ const GROWTH_FACTOR: usize = 2;
 const LOAD_FACTOR_NUMERATOR: usize = 4;
 const LOAD_FACTOR_DENOMINATOR: usize = 5;
 
+/// A map of keys to values which relies on the keys implementing [`Hash`].
+/// 
+/// A custom load factor is not supported at this point, with the default being 4/5.
+/// 
+/// # Time Complexity
+/// For this analysis of time complexity, variables are defined as follows:
+/// - `n`: The number of items in the HashMap.
+/// 
+/// | Method | Complexity |
+/// |-|-|
+/// | `len` | `O(1)` |
+/// | `insert` | `O(1)`**, `O(n)` |
+/// | `insert_unchecked` | `O(1)`* |
+/// | `get` | `O(1)`* |
+/// | `remove` | `O(1)`* |
+/// | `contains` | `O(1)`* |
+/// | `reserve` | `O(n)`***, `O(1)` |
+/// 
+/// \* In the event of a has collision, these functions will take additional time, while a valid
+/// / correct location is found. This additional time is kept at a minimum and hash collisions are
+/// unlikely especially with a large capacity.
+/// 
+/// \** If the HashMap doesn't have enough capacity for the new element, `insert` will take `O(n)`.
+/// \* applies as well.
+/// 
+/// \*** If the HashMap has enough capacity for the additional items already, `reserve` is `O(1)`.
 pub struct HashMap<K: Hash + Eq, V, B: BuildHasher = RandomState> {
     pub(crate) arr: Array<Bucket<K, V>>,
     pub(crate) len: usize,
@@ -76,6 +102,27 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
             self.grow()
         }
 
+        let index = self.find_index_for_key(&key);
+
+        // The bucket at index is either empty or contains an equal key.
+        match &mut self.arr[index] {
+            Some(existing) => {
+                // Replace the value with the provided one.
+                Some(mem::replace(
+                    &mut existing.1,
+                    value
+                ))
+            },
+            None => {
+                // Create a new bucket with the provided values.
+                self.arr[index] = Some((key, value));
+                self.len += 1;
+                None
+            },
+        }
+    }
+
+    pub unsafe fn insert_unchecked(&mut self, key: K, value: V) -> Option<V> {        
         let index = self.find_index_for_key(&key);
 
         // The bucket at index is either empty or contains an equal key.
@@ -192,6 +239,14 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         self.arr[index].is_some()
     }
 
+    pub fn reserve(&mut self, extra: usize) {
+        // Add capacity to ensure that len + extra fits in a well loaded map.
+        let new_cap = self.len.strict_add(extra) * LOAD_FACTOR_DENOMINATOR / LOAD_FACTOR_NUMERATOR;
+        if new_cap <= self.cap() { return; }
+
+        self.realloc_with_cap(new_cap);
+    }
+
     pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
         self.into_iter()
     }
@@ -218,14 +273,6 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
 
     pub fn values<'a>(&'a self) -> Values<'a, K, V> {
         Values(self.iter())
-    }
-
-    pub fn reserve(&mut self, extra: usize) {
-        // Add capacity to ensure that len + extra fits in a well loaded map.
-        let new_cap = self.len.strict_add(extra) * LOAD_FACTOR_DENOMINATOR / LOAD_FACTOR_NUMERATOR;
-        if new_cap <= self.cap() { return; }
-
-        self.realloc_with_cap(new_cap);
     }
 }
 

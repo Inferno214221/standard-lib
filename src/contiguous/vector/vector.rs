@@ -19,6 +19,32 @@ const GROWTH_FACTOR: usize = 2;
 // TODO: Propagate appropriate Panic docs.
 
 /// A variable size contiguous collection, based on [`Array<T>`].
+/// 
+/// # Time Complexity
+/// For this analysis of time complexity, variables are defined as follows:
+/// - `n`: The number of items in the Vector.
+/// - `i`: The index of the item in question.
+/// - `m`: The number of items in the second Vector.
+/// 
+/// | Method | Complexity |
+/// |-|-|
+/// | `get` | `O(1)` |
+/// | `len` | `O(1)` |
+/// | `push` | `O(1)`*, `O(n)` |
+/// | `push_unchecked` | `O(1)` |
+/// | `pop` | `O(1)` |
+/// | `insert` | `O(n-i)` |
+/// | `remove` | `O(n-i)` |
+/// | `replace` | `O(1)` |
+/// | `reserve` | `O(n)`**, `O(1)` |
+/// | `shrink_to_fit` | `O(n)` |
+/// | `adjust_cap` | `O(n)` |
+/// | `append` | `O(n+m)` |
+/// | `contains` | `O(n)` |
+/// 
+/// \* If the Vector doesn't have enough capacity for the new element, `push` will take `O(n)`.
+/// 
+/// \** If the Vector has enough capacity for the additional items already, `reserve` is `O(1)`.
 pub struct Vector<T> {
     pub(crate) arr: Array<MaybeUninit<T>>,
     pub(crate) len: usize

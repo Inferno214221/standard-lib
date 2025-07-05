@@ -7,6 +7,35 @@ use crate::contiguous::Vector;
 
 use super::{Cursor, NodeRef, Node, Iter, IterMut};
 
+/// A list with links in both directions. See also: [`Cursor`] for bi-directional iteration and
+/// traversal.
+/// 
+/// # Time Complexity
+/// For this analysis of time complexity, variables are defined as follows:
+/// - `n`: The number of items in the DoublyLinkedList.
+/// - `i`: The index of the item in question.
+/// 
+/// | Method | Complexity |
+/// |-|-|
+/// | `len` | `O(1)` |
+/// | `front` | `O(1)` |
+/// | `back` | `O(1)` |
+/// | `push_front` | `O(1)` |
+/// | `push_back` | `O(1)` |
+/// | `pop_front` | `O(1)` |
+/// | `pop_back` | `O(1)` |
+/// | `get` | `O(min(i, n-i))` |
+/// | `insert` | `O(min(i, n-i))` |
+/// | `remove` | `O(min(i, n-i))` |
+/// | `replace` | `O(min(i, n-i))` |
+/// | `append` | `O(1)` |
+/// | `contains` | `O(n)` |
+/// 
+/// As a general note, modern computer architecture isn't kind to linked lists, (or more
+/// importantly, favours contiguous collections) because all `O(i)` or `O(n)` operations will
+/// consist primarily of cache misses. For this reason, [`Vector`] should be preferred for most
+/// applications unless DoublyLinkedList and the accompanying [`Cursor`] type's `O(1)` methods are
+/// being heavily utilized.
 pub struct DoublyLinkedList<T> {
     pub(crate) state: ListState<T>,
     pub(crate) _phantom: PhantomData<T>
