@@ -13,17 +13,8 @@
 
 #![allow(clippy::module_inception)]
 
-/// Contiguous collection types. Namely [`Array`](contiguous::Array) and
-/// [`Vector`](contiguous::Vector) for contiguous data storage that varies in size at runtime.
 pub mod contiguous;
-
-/// Linked collection types. Primarily revolves around
-/// [`DoublyLinkedList`](linked::DoublyLinkedList) and its accompanying [`Cursor`](linked::Cursor)
-/// type.
 pub mod linked;
-
-/// Collections based on the [`Hash`](std::hash::Hash) trait, including [`HashMap`](hash::HashMap)
-/// and [`HashSet`](hash::HashSet) for storing unique values or key-value pairs.
 pub mod hash;
 
 pub(crate) mod util;
