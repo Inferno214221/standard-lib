@@ -21,21 +21,21 @@ impl<T> NodeRef<T> {
         // unsafe { &mut (*self.0.as_ptr()).value }
     }
 
-    pub fn prev(&self) -> &Link<T> {
+    pub fn prev<'a>(&self) -> &'a Link<T> {
         unsafe { &(*self.0.as_ptr()).prev }
     }
 
     #[allow(clippy::mut_from_ref)]
-    pub fn prev_mut(&self) -> &mut Link<T> {
+    pub fn prev_mut<'a>(&self) -> &'a mut Link<T> {
         unsafe { &mut (*self.0.as_ptr()).prev }
     }
 
-    pub fn next(&self) -> &Link<T> {
+    pub fn next<'a>(&self) -> &'a Link<T> {
         unsafe { &(*self.0.as_ptr()).next }
     }
 
     #[allow(clippy::mut_from_ref)]
-    pub fn next_mut(&self) -> &mut Link<T> {
+    pub fn next_mut<'a>(&self) -> &'a mut Link<T> {
         unsafe { &mut (*self.0.as_ptr()).next }
     }
 
@@ -49,6 +49,10 @@ impl<T> NodeRef<T> {
 
     pub const fn as_non_null(self) -> NonNull<Node<T>> {
         self.0
+    }
+
+    pub const fn as_ptr(self) -> *mut Node<T> {
+        self.0.as_ptr()
     }
 }
 
