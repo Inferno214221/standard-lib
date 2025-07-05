@@ -1,6 +1,7 @@
 #![warn(missing_docs)]
 
 use std::alloc::{self, Layout};
+use std::borrow::{Borrow, BorrowMut};
 use std::fmt::{self, Debug, Display, Formatter};
 use std::iter::TrustedLen;
 use std::marker::PhantomData;
@@ -208,6 +209,11 @@ impl<T: Copy> Array<T> {
         unsafe { arr.assume_init() }
     }
 
+    /// Reallocate self with `new_size`, filling any extra elements with a copy of `item`.
+    /// 
+    /// # Panics
+    /// Panics if the memory layout of the new allocation would have a size that exceeds
+    /// [`isize::MAX`]. (`new_size * size_of::<T>() > isize::MAX`)
     pub fn realloc_with_copy(&mut self, item: T, new_size: usize) {
         // SAFETY: We use a shallow clone here to allow us to change the type of the Array without
         // moving it out from behind a mutable reference. Neither of the Arrays are dropped and self
@@ -223,7 +229,7 @@ impl<T: Copy> Array<T> {
                 wip_arr.ptr.add(i).write(MaybeUninit::new(item))
             }
         }
-        
+
         // Forget the old value to prevent a double free.
         mem::forget(mem::replace(
             self,
@@ -234,6 +240,10 @@ impl<T: Copy> Array<T> {
 }
 
 impl<T: Default> Array<T> {
+    /// Creates a new `Array<T>` by repeating the default value of `T` `count` times.
+    ///
+    /// # Panics
+    /// Panics if memory layout size exceeds [`isize::MAX`].
     pub fn repeat_default(count: usize) -> Array<T> {
         let arr = Self::new_uninit(count);
 
@@ -249,6 +259,11 @@ impl<T: Default> Array<T> {
         unsafe { arr.assume_init() }
     }
 
+    /// Reallocate self with `new_size`, filling any extra elements with the default value of `T`.
+    /// 
+    /// # Panics
+    /// Panics if the memory layout of the new allocation would have a size that exceeds
+    /// [`isize::MAX`]. (`new_size * size_of::<T>() > isize::MAX`)
     pub fn realloc_with_default(&mut self, new_size: usize) {
         // SAFETY: We use a shallow clone here to allow us to change the type of the Array without
         // moving it out from behind a mutable reference. Neither of the Arrays are dropped and self
@@ -264,7 +279,7 @@ impl<T: Default> Array<T> {
                 wip_arr.ptr.add(i).write(MaybeUninit::new(T::default()))
             }
         }
-        
+
         // Forget the old value to prevent a double free.
         mem::forget(mem::replace(
             self,
@@ -446,8 +461,8 @@ impl<T> Deref for Array<T> {
     fn deref(&self) -> &Self::Target {
         // SAFETY: The held data uses Layout::array(size) and is therefore valid and properly
         // aligned for (size * mem::size_of::<T>()) bytes. Data is properly initialized and has a
-        // length no greater than isize::MAX.
-        // TODO: verify that: Mutation throughout 'a is prevented by the compiler.
+        // length no greater than isize::MAX. Array's safe API doesn't provide access to raw
+        // pointers, so the borrow checker prevents mutation throughout 'a.
         unsafe {
             slice::from_raw_parts(self.ptr.as_ptr(), self.size)
         }
@@ -458,15 +473,43 @@ impl<T> DerefMut for Array<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         // SAFETY: The held data uses Layout::array(size) and is therefore valid and properly
         // aligned for (size * mem::size_of::<T>()) bytes. Data is properly initialized and has a
-        // length no greater than isize::MAX.
-        // TODO: verify that: Accessing throughout 'a is prevented by the compiler.
+        // length no greater than isize::MAX. Array's safe API doesn't provide access to raw
+        // pointers, so the borrow checker prevents access throughout 'a.
         unsafe {
             slice::from_raw_parts_mut(self.ptr.as_ptr(), self.size)
         }
     }
 }
 
+impl<T> AsRef<[T]> for Array<T> {
+    fn as_ref(&self) -> &[T] {
+        self.deref()
+    }
+}
+
+impl<T> AsMut<[T]> for Array<T> {
+    fn as_mut(&mut self) -> &mut [T] {
+        self.deref_mut()
+    }
+}
+
+impl<T> Borrow<[T]> for Array<T> {
+    fn borrow(&self) -> &[T] {
+        self.as_ref()
+    }
+}
+
+impl<T> BorrowMut<[T]> for Array<T> {
+    fn borrow_mut(&mut self) -> &mut [T] {
+        self.as_mut()
+    }
+}
+
+// SAFETY: Arrays, when used safely rely on unique pointers and are therefore safe for Send when T:
+// Send.
 unsafe impl<T: Send> Send for Array<T> {}
+// SAFETY: Array's safe API obeys all rules of the borrow checker, so no interior mutability occurs.
+// This means that Array<T> can safely implement Sync when T: Sync.
 unsafe impl<T: Sync> Sync for Array<T> {}
 
 impl<T: Clone> Clone for Array<T> {

@@ -1,5 +1,6 @@
 #![warn(missing_docs)]
 
+use std::borrow::{Borrow, BorrowMut};
 use std::cmp;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::iter::TrustedLen;
@@ -15,7 +16,6 @@ const MAX_CAP: usize = isize::MAX as usize;
 
 const GROWTH_FACTOR: usize = 2;
 
-// TODO: Wrap and handle len += 1;
 // TODO: Propagate appropriate Panic docs.
 
 /// A variable size contiguous collection, based on [`Array<T>`].
@@ -23,9 +23,6 @@ pub struct Vector<T> {
     pub(crate) arr: Array<MaybeUninit<T>>,
     pub(crate) len: usize
 }
-
-unsafe impl<T: Send> Send for Vector<T> {}
-unsafe impl<T: Sync> Sync for Vector<T> {}
 
 impl<T> Vector<T> {
     /// Returns the length of the Vector.
@@ -169,13 +166,14 @@ impl<T> Vector<T> {
         } else {
             // Decrement len before getting.
             self.len -= 1;
+
+            // SAFETY: len has just been decremented and is within the capacity of the Vector.
+            // size_of::<T>() * self.len can't overflow isize::MAX, and all values < len are
+            // initialized.
+            // We are making a bitwise copy of the value on the heap and then forgetting that the
+            // version on the heap exists, which is as close as we can get to actually moving the
+            // value off of the heap.
             let value = unsafe {
-                // SAFETY: len has just been decremented and is within the capacity of the Vector.
-                // size_of::<T>() * self.len can't overflow isize::MAX, and all values < len are
-                // initialized.
-                // We are making a bitwise copy of the value on the heap and then forgetting that
-                // the version on the heap exists, which is as close as we can get to moving the
-                // value off of the heap.
                 self.arr.ptr.add(self.len).read().assume_init()
             };
             Some(value)
@@ -265,12 +263,11 @@ impl<T> Vector<T> {
         if new_cap < self.cap() {
             // Drop the values that are about to be deallocated.
             for i in new_cap..self.cap() {
+                // SAFETY: The pointer is nonnull, as well as properly aligned, initialized and
+                // ready to drop. count > isize::MAX is already guarded against and all possible
+                // values are within the allocated range of the Array.
                 unsafe {
-                    // SAFETY: The pointer is nonnull, as well as properly aligned, initialized and
-                    // ready to drop.
                     ptr::drop_in_place(
-                        // SAFETY: count > isize::MAX is already guarded against and all possible
-                        // values are within the allocated range of the Array.
                         self.arr.ptr.add(i).as_ptr()
                     );
                 }
@@ -332,6 +329,8 @@ impl<T> Extend<T> for Vector<T> {
     }
 
     unsafe fn extend_one_unchecked(&mut self, item: T) where Self: Sized {
+        // SAFETY: extend_reserve is implemented correctly, so all other safety requirements are the
+        // responsibility of the caller.
         unsafe { self.push_unchecked(item) }
     }
 }
@@ -410,6 +409,37 @@ impl<T> DerefMut for Vector<T> {
     }
 }
 
+impl<T> AsRef<[T]> for Vector<T> {
+    fn as_ref(&self) -> &[T] {
+        self.deref()
+    }
+}
+
+impl<T> AsMut<[T]> for Vector<T> {
+    fn as_mut(&mut self) -> &mut [T] {
+        self.deref_mut()
+    }
+}
+
+impl<T> Borrow<[T]> for Vector<T> {
+    fn borrow(&self) -> &[T] {
+        self.as_ref()
+    }
+}
+
+impl<T> BorrowMut<[T]> for Vector<T> {
+    fn borrow_mut(&mut self) -> &mut [T] {
+        self.as_mut()
+    }
+}
+
+// SAFETY: Vectors, when used safely rely on unique pointers and are therefore safe for Send when T:
+// Send.
+unsafe impl<T: Send> Send for Vector<T> {}
+// SAFETY: Vector's safe API obeys all rules of the borrow checker, so no interior mutability
+// occurs. This means that Vector<T> can safely implement Sync when T: Sync.
+unsafe impl<T: Sync> Sync for Vector<T> {}
+
 impl<T: Clone> Clone for Vector<T> {
     fn clone(&self) -> Self {
         let mut vec = Self::with_cap(self.cap());
@@ -447,7 +477,7 @@ impl<T> From<Array<T>> for Vector<T> {
 
 impl<T: PartialEq> PartialEq for Vector<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.len == other.len && **self == **other
+        **self == **other
     }
 }
 
