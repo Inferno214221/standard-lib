@@ -58,7 +58,7 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
         if self.inner.should_grow() {
             self.inner.grow()
         }
-        
+
         let index = self.inner.find_index_for_key(&item);
 
         // The Bucket at index is either empty or contains an equal item.

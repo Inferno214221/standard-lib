@@ -26,6 +26,7 @@ pub(crate) type Bucket<K, V> = Option<(K, V)>;
 impl<K: Hash + Eq, V, B: BuildHasher + Default> HashMap<K, V, B> {
     pub fn new() -> HashMap<K, V, B> {
         HashMap {
+            // Capacity zero causes some problems, e.g. % 0 = undef, does it provide any benefit?
             arr: Array::new(),
             len: 0,
             hasher: B::default()
@@ -74,7 +75,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         if self.should_grow() {
             self.grow()
         }
-        
+
         let index = self.find_index_for_key(&key);
 
         // The bucket at index is either empty or contains an equal key.
@@ -102,7 +103,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         K: Borrow<Q>,
         Q: Hash + Eq + ?Sized
     {
-        let index = self.find_index_for_borrowed(key);
+        let index = self.find_index_for_key(key);
 
         // If the bucket at index is empty, the map doesn't contain the key.
         match &self.arr[index] {
@@ -118,7 +119,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         K: Borrow<Q>,
         Q: Hash + Eq + ?Sized
     {
-        let index = self.find_index_for_borrowed(key);
+        let index = self.find_index_for_key(key);
 
         // If the bucket at index is empty, the map doesn't contain the key.
         match &self.arr[index] {
@@ -132,7 +133,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         K: Borrow<Q>,
         Q: Hash + Eq + ?Sized
     {
-        let index = self.find_index_for_borrowed(key);
+        let index = self.find_index_for_key(key);
 
         // If the bucket at index is empty, the map doesn't contain the key.
         match &mut self.arr[index] {
@@ -146,7 +147,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         K: Borrow<Q>,
         Q: Hash + Eq + ?Sized
     {
-        let mut index = self.find_index_for_borrowed(key);
+        let mut index = self.find_index_for_key(key);
 
         // If the bucket at index is empty, the map doesn't contain the key.
         let removed = match mem::take(&mut self.arr[index]) {
@@ -186,7 +187,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         K: Borrow<Q>,
         Q: Hash + Eq + ?Sized
     {
-        let index = self.find_index_for_borrowed(key);
+        let index = self.find_index_for_key(key);
 
         self.arr[index].is_some()
     }
@@ -206,7 +207,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     pub fn keys<'a>(&'a self) -> Keys<'a, K, V> {
         Keys(self.iter())
     }
-    
+
     pub fn into_values(self) -> IntoValues<K, V> {
         IntoValues(self.into_iter())
     }
@@ -256,21 +257,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         (key_hash % self.cap() as u64) as usize
     }
 
-    pub(crate) fn find_index_for_key(&self, key: &K) -> usize {
-        let mut index = self.index_from_key(&key);
-
-        // This is where Eq comes in: while there is a value at the current index, but the key
-        // isn't equal, increment the index (wrapping at the capacity) and check again.
-        // Can't enter recursion unless the load factor is 100%.
-        while let Some(existing) = &self.arr[index] && &existing.0 != key {
-            index = (index + 1) % self.cap();
-        }
-
-        // After that loop, index is either empty or contains an equal key.
-        index
-    }
-
-    pub(crate) fn find_index_for_borrowed<Q>(&self, key: &Q) -> usize
+    pub(crate) fn find_index_for_key<Q>(&self, key: &Q) -> usize
     where
         // We're introducing a new type parameter here, Q which represents a borrowed version of K
         // where equality and hashing carries over the borrow.

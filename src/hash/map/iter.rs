@@ -1,4 +1,5 @@
 use std::hash::{BuildHasher, Hash};
+use std::iter::FusedIterator;
 
 use crate::hash::map::{HashMap, Bucket};
 
@@ -35,7 +36,13 @@ impl<K: Hash + Eq, V> Iterator for IntoIter<K, V> {
 
         next.flatten()
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, Some(self.len))
+    }
 }
+
+impl<K: Hash + Eq, V> FusedIterator for IntoIter<K, V> {}
 
 impl<'a, K: Hash + Eq, V, B: BuildHasher> IntoIterator for &'a mut HashMap<K, V, B> {
     type Item = &'a mut (K, V);
@@ -66,7 +73,13 @@ impl<'a, K: Hash + Eq, V> Iterator for IterMut<'a, K, V> {
 
         next.and_then(|i| i.as_mut())
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, Some(self.len))
+    }
 }
+
+impl<'a, K: Hash + Eq, V> FusedIterator for IterMut<'a, K, V> {}
 
 impl<'a, K: Hash + Eq, V, B: BuildHasher> IntoIterator for &'a HashMap<K, V, B> {
     type Item = &'a (K, V);
@@ -97,7 +110,13 @@ impl<'a, K: Hash + Eq, V> Iterator for Iter<'a, K, V> {
 
         next.and_then(|i| i.as_ref())
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, Some(self.len))
+    }
 }
+
+impl<'a, K: Hash + Eq, V> FusedIterator for Iter<'a, K, V> {}
 
 pub struct IntoKeys<K, V>(
     pub(crate) IntoIter<K, V>
@@ -109,7 +128,13 @@ impl<K: Hash + Eq, V> Iterator for IntoKeys<K, V> {
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next().map(|e| e.0)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
 }
+
+impl<K: Hash + Eq, V> FusedIterator for IntoKeys<K, V> {}
 
 pub struct Keys<'a, K, V>(
     pub(crate) Iter<'a, K, V>
@@ -121,7 +146,13 @@ impl<'a, K: Hash + Eq, V> Iterator for Keys<'a, K, V> {
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next().map(|e| &e.0)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
 }
+
+impl<'a, K: Hash + Eq, V> FusedIterator for Keys<'a, K, V> {}
 
 pub struct IntoValues<K, V>(
     pub(crate) IntoIter<K, V>
@@ -133,7 +164,13 @@ impl<K: Hash + Eq, V> Iterator for IntoValues<K, V> {
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next().map(|e| e.1)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
 }
+
+impl<K: Hash + Eq, V> FusedIterator for IntoValues<K, V> {}
 
 pub struct ValuesMut<'a, K, V>(
     pub(crate) IterMut<'a, K, V>
@@ -145,7 +182,13 @@ impl<'a, K: Hash + Eq, V> Iterator for ValuesMut<'a, K, V> {
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next().map(|e| &mut e.1)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
 }
+
+impl<'a, K: Hash + Eq, V> FusedIterator for ValuesMut<'a, K, V> {}
 
 pub struct Values<'a, K, V>(
     pub(crate) Iter<'a, K, V>
@@ -157,4 +200,10 @@ impl<'a, K: Hash + Eq, V> Iterator for Values<'a, K, V> {
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next().map(|e| &e.1)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
 }
+
+impl<'a, K: Hash + Eq, V> FusedIterator for Values<'a, K, V> {}

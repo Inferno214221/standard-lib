@@ -1,4 +1,5 @@
-use std::{hash::{BuildHasher, Hash}, iter::Chain};
+use std::hash::{BuildHasher, Hash};
+use std::iter::{Chain, FusedIterator};
 
 use super::HashSet;
 
@@ -30,6 +31,8 @@ impl<T: Hash + Eq> Iterator for IntoIter<T> {
     }
 }
 
+impl<T: Hash + Eq> FusedIterator for IntoIter<T> {}
+
 impl<'a, T: Hash + Eq, B: BuildHasher> IntoIterator for &'a HashSet<T, B> {
     type Item = &'a T;
 
@@ -56,6 +59,8 @@ impl<'a, T: Hash + Eq> Iterator for Iter<'a, T> {
     }
 }
 
+impl<'a, T: Hash + Eq> FusedIterator for Iter<'a, T> {}
+
 pub struct Difference<'a, T: Hash + Eq, B: BuildHasher> {
     pub(crate) inner: Iter<'a, T>,
     pub(crate) other: &'a HashSet<T, B>
@@ -77,6 +82,8 @@ impl<'a, T: Hash + Eq, B: BuildHasher> Iterator for Difference<'a, T, B> {
     }
 }
 
+impl<'a, T: Hash + Eq, B: BuildHasher> FusedIterator for Difference<'a, T, B> {}
+
 pub struct SymmetricDifference<'a, T: Hash + Eq, B: BuildHasher> {
     pub(crate) inner: Chain<Difference<'a, T, B>, Difference<'a, T, B>>
 }
@@ -92,6 +99,8 @@ impl<'a, T: Hash + Eq, B: BuildHasher> Iterator for SymmetricDifference<'a, T, B
         self.inner.size_hint()
     }
 }
+
+impl<'a, T: Hash + Eq, B: BuildHasher> FusedIterator for SymmetricDifference<'a, T, B> {}
 
 pub struct Intersection<'a, T: Hash + Eq, B: BuildHasher> {
     pub(crate) inner: Iter<'a, T>,
@@ -114,6 +123,8 @@ impl<'a, T: Hash + Eq, B: BuildHasher> Iterator for Intersection<'a, T, B> {
     }
 }
 
+impl<'a, T: Hash + Eq, B: BuildHasher> FusedIterator for Intersection<'a, T, B> {}
+
 pub struct Union<'a, T: Hash + Eq, B: BuildHasher> {
     pub(crate) inner: Chain<Iter<'a, T>, Difference<'a, T, B>>
 }
@@ -129,3 +140,5 @@ impl<'a, T: Hash + Eq, B: BuildHasher> Iterator for Union<'a, T, B> {
         self.inner.size_hint()
     }
 }
+
+impl<'a, T: Hash + Eq, B: BuildHasher> FusedIterator for Union<'a, T, B> {}
