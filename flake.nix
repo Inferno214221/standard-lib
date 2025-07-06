@@ -38,12 +38,18 @@
           src = ./.;
 
           buildPhase = ''
-            cargo rustdoc -- --theme $src/kali-dark.css --enable-index-page -Z unstable-options
+            cargo rustdoc -- \
+              --theme $src/doc/kali-dark.css \
+              --html-in-header $src/doc/robots.html \
+              --enable-index-page \
+              -Z unstable-options
           '';
 
           installPhase = ''
             mkdir -p $out
-            cp -R ./target/doc $out
+            cp -R ./target/doc/* $out/
+            
+            echo -e "User-agent: *\nDisallow: /\n" > $out/robots.txt
           '';
         };
       }
