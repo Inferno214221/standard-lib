@@ -48,8 +48,8 @@
           installPhase = ''
             mkdir -p $out
             cp -R ./target/doc/* $out/
-            
-            echo -e "User-agent: *\nDisallow: /\n" > $out/robots.txt
+            cp $src/doc/robots.txt $out/
+            cp $src/doc/CNAME $out/
           '';
         };
       }
