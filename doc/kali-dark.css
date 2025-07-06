@@ -101,11 +101,20 @@
     --sidebar-resizer-active: #005af3;
 }
 
-.primitive,
-.code-header {
+.primitive {
     color: #10b1fe;
 }
 
 pre.rust code {
     color: #abb2bf;
+}
+
+pre.rust code .extra-kw,
+.code-header .extra-kw {
+    color: #10b1fe;
+}
+
+pre.rust code .extra-op,
+.code-header .extra-op {
+    color: #7a82da;
 }

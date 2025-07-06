@@ -43,6 +43,13 @@
               --html-in-header $src/doc/robots.html \
               --enable-index-page \
               -Z unstable-options
+            # Highlight keywords
+            find ./target/doc/rust_basic_types -type f -name "*html" -exec sed -E "s/(>|>([^\">]*[; \[\(])?)(((pub|const|fn|self|Self|struct|enum|type|impl|for|unsafe|as|mut|'\w+) ?)+)([<& \n:,\)])/\1<span class=\"extra-kw\">\3<\/span>\6/g" -i {} \;
+            # Second pass for references and pointers
+            find ./target/doc/rust_basic_types -type f -name "*html" -exec sed -E "s/(>|>([^\">]*[; \[\(]*)?)(mut|const) /\1<span class=\"extra-kw\">\3<\/span> /g" -i {} \;
+            # Highlight operators
+            find ./target/doc/rust_basic_types -type f -name "*html" -exec sed -E "s/(>|>([^\">]*[; \[\(\w])?)(&amp;|-&gt;|::|\*)/\1<span class=\"extra-op\">\3<\/span>/g" -i {} \;
+            # TODO: where, mut, <>, (), []
           '';
 
           installPhase = ''
