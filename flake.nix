@@ -15,17 +15,36 @@
           inherit system overlays;
         };
         rustVersion = "2025-06-18";
-      in
+        buildInputs = with pkgs; [
+          (rust-bin.nightly."${rustVersion}".default.override {
+            extensions = [ "rust-src" ];
+          })
+          pkg-config
+          gcc
+          cargo-expand
+        ];
+      in with pkgs;
       {
-        devShells.default = with pkgs; mkShell {
-          buildInputs = [
-            (rust-bin.nightly."${rustVersion}".default.override {
-              extensions = [ "rust-src" ];
-            })
-            pkg-config
-            gcc
-            cargo-expand
-          ];
+        devShells.default = mkShell {
+          inherit buildInputs;
+        };
+
+        packages.docs = stdenv.mkDerivation {
+          name = "rust-basic-types-doc";
+          version = "0.1.0";
+
+          inherit buildInputs;
+
+          src = ./.;
+
+          buildPhase = ''
+            cargo rustdoc -- --theme $src/kali-dark.css
+          '';
+
+          installPhase = ''
+            mkdir -p $out
+            cp -R ./target/doc $out
+          '';
         };
       }
     );

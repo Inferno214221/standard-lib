@@ -1,0 +1,111 @@
+:root {
+    --main-background-color: #272a34;
+    --main-color: #eeeeec;
+    --settings-input-color: #2777ff;
+    --settings-input-border-color: #bbbbbd;
+    --settings-button-color: #16171e;
+    --settings-button-border-focus: #2777ff;
+    --sidebar-background-color: #23252e;
+    --sidebar-background-color-hover: #1a1c23;
+    --sidebar-border-color: #000;
+    --code-block-background-color: #1a1c23;
+    --scrollbar-track-background-color: #16171e;
+    --scrollbar-thumb-background-color: #323643;
+    --scrollbar-color: #2777ff;
+    --headings-border-bottom-color: #888a8d;
+    --border-color: #000;
+    --button-background-color: #323643;
+    --right-side-color: #bbbbbd;
+    --code-attribute-color: #888a8d;
+    --toggles-color: #888a8d;
+    --toggle-filter: invert(100%);
+    --mobile-sidebar-menu-filter: invert(100%);
+    --search-input-focused-border-color: #2777ff;
+    --copy-path-button-color: #bbbbbd;
+    --copy-path-img-filter: invert(50%);
+    --copy-path-img-hover-filter: invert(65%);
+    --code-example-button-color: #888a8d;
+    --code-example-button-hover-color: #bbbbbd;
+    --codeblock-error-hover-color: #ff2e3f;
+    --codeblock-error-color: #9c1e37;
+    --codeblock-ignore-hover-color: #ff936a;
+    --codeblock-ignore-color: #da7a43;
+    --warning-border-color: #ff936a;
+    --type-link-color: #ff6480;
+    --trait-link-color: #ff6480;
+    --assoc-item-link-color: #9f7efe;
+    --function-link-color: #3fc56b;
+    --macro-link-color: #3fc56b;
+    --keyword-link-color: #10b1fe;
+    --mod-link-color: #f9c859;
+    --link-color: #2777ff;
+    --sidebar-link-color: #bbbbbd;
+    --sidebar-current-link-background-color: #323643;
+    --search-result-link-focus-background-color: #1a1c23;
+    --search-result-border-color: #323643;
+    --search-color: #bbbbbd;
+    --search-error-code-background-color: #323643;
+    --search-results-alias-color: #eeeeec;
+    --search-results-grey-color: #bbbbbd;
+    --search-tab-title-count-color: #888a8d;
+    --search-tab-button-not-selected-border-top-color: #23252e;
+    --search-tab-button-not-selected-background: #23252e;
+    --search-tab-button-selected-border-top-color: #2777ff;
+    --search-tab-button-selected-background: #272a34;
+    --settings-menu-filter: invert(50%);
+    --settings-menu-hover-filter: invert(65%);
+    --stab-background-color: #323643;
+    --stab-code-color: #eeeeec;
+    --code-highlight-kw-color: #10b1fe;
+    --code-highlight-kw-2-color: #7a82da;
+    --code-highlight-lifetime-color: #10b1fe;
+    --code-highlight-prelude-color: #ff6480;
+    --code-highlight-prelude-val-color: #9f7efe;
+    --code-highlight-number-color: #ff78f8;
+    --code-highlight-string-color: #f9c859;
+    --code-highlight-literal-color: #10b1fe;
+    --code-highlight-attribute-color: #eeeeec;
+    --code-highlight-self-color: #10b1fe;
+    --code-highlight-macro-color: #3fc56b;
+    --code-highlight-question-mark-color: #7a82da;
+    --code-highlight-comment-color: #636d83;
+    --code-highlight-doc-comment-color: #636d83;
+    --src-line-numbers-span-color: #636d83;
+    --src-line-number-highlighted-background-color: #1a1c23;
+    --target-background-color: #323643;
+    --target-border-color: #2777ff;
+    --kbd-color: #eeeeec;
+    --kbd-background: #16171e;
+    --kbd-box-shadow-color: #272a34;
+    --rust-logo-filter: drop-shadow(1px 0 0px #fff) drop-shadow(0 1px 0 #fff) drop-shadow(-1px 0 0 #fff) drop-shadow(0 -1px 0 #fff);
+    --crate-search-div-filter: invert(94%) sepia(0%) saturate(721%) hue-rotate(255deg) brightness(90%) contrast(90%);
+    --crate-search-div-hover-filter: invert(69%) sepia(60%) saturate(6613%) hue-rotate(184deg) brightness(100%) contrast(91%);
+    --crate-search-hover-border: #2777ff;
+    --src-sidebar-background-selected: #272a34;
+    --src-sidebar-background-hover: #323643;
+    --table-alt-row-background-color: #23252e;
+    --codeblock-link-background: #272a34;
+    /* TODO */
+    --scrape-example-toggle-line-background: #999;
+    --scrape-example-toggle-line-hover-background: #c5c5c5;
+    --scrape-example-code-line-highlight: #5b3b01;
+    --scrape-example-code-line-highlight-focus: #7c4b0f;
+    --scrape-example-help-border-color: #aaa;
+    --scrape-example-help-color: #eee;
+    --scrape-example-help-hover-border-color: #fff;
+    --scrape-example-help-hover-color: #fff;
+    --scrape-example-code-wrapper-background-start: rgba(53, 53, 53, 1);
+    --scrape-example-code-wrapper-background-end: rgba(53, 53, 53, 0);
+    /* END TODO */
+    --sidebar-resizer-hover: #2777ff;
+    --sidebar-resizer-active: #005af3;
+}
+
+.primitive,
+.code-header {
+    color: #10b1fe;
+}
+
+pre.rust code {
+    color: #abb2bf;
+}
