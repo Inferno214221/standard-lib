@@ -38,7 +38,7 @@
           src = ./.;
 
           buildPhase = ''
-            cargo rustdoc -- --theme $src/kali-dark.css
+            cargo rustdoc -- --theme $src/kali-dark.css --enable-index-page -Z unstable-options
           '';
 
           installPhase = ''

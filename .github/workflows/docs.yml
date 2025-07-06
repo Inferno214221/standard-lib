@@ -1,5 +1,5 @@
 # Simple workflow for deploying static content to GitHub Pages
-name: Deploy static content to Pages
+name: Deploy Rustdocs
 
 on:
   # Runs on pushes targeting the default branch
@@ -43,7 +43,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           # Upload entire repository
-          path: './result'
+          path: './result/share/doc'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
