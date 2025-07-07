@@ -14,8 +14,6 @@ const MAX_CAP: usize = isize::MAX as usize;
 
 const GROWTH_FACTOR: usize = 2;
 
-// TODO: Propagate appropriate Panic docs.
-
 /// A variable size contiguous collection, based on [`Array<T>`].
 ///
 /// # Time Complexity
@@ -127,6 +125,9 @@ impl<T> Vector<T> {
     }
 
     /// Push the provided value onto the end of the Vector, increasing the capacity if required.
+    ///
+    /// # Panics
+    /// Panics if the memory layout of the Vector would have a size that exceeds [`isize::MAX`].
     ///
     /// # Examples
     /// ```
@@ -261,9 +262,14 @@ impl<T> Vector<T> {
         unsafe { next.assume_init() }
     }
 
+    /// Replaces the element at the provided index with `new_value`, returning the old value.
+    ///
+    /// # Panics
+    /// Panics if the provided index is out of bounds.
     pub fn replace(&mut self, index: usize, new_value: T) -> T {
         self.check_index(index);
 
+        // SAFETY: index is < len and all values < len are initialized.
         unsafe {
             mem::replace(
                 &mut self.arr[index],
@@ -272,17 +278,31 @@ impl<T> Vector<T> {
         }
     }
 
-    // new_cap = len + extra
+    /// Ensures that the Vector has capacity to hold an additional `extra` elements. After invoking
+    /// this method, the capacity will be >= len + extra.
+    ///
+    /// # Panics
+    /// Panics if the memory layout of the Vector would have a size that exceeds [`isize::MAX`].
     pub fn reserve(&mut self, extra: usize) {
         let new_cap = self.len.strict_add(extra);
+
+        if new_cap < self.cap() { return; }
 
         self.realloc_with_cap(new_cap);
     }
 
+    /// Shrinks the Vector so that its capacity is equal to its length.
+    ///
+    /// # Panics
+    /// Panics if the memory layout of the Vector would have a size that exceeds [`isize::MAX`].
     pub fn shrink_to_fit(&mut self) {
         self.realloc_with_cap(self.len);
     }
 
+    /// Adjusts the capacity of the Vector to `new_cap`, dropping elements if required.
+    ///
+    /// # Panics
+    /// Panics if the memory layout of the Vector would have a size that exceeds [`isize::MAX`].
     pub fn adjust_cap(&mut self, new_cap: usize) {
         if new_cap < self.cap() {
             // Drop the values that are about to be deallocated.
@@ -302,19 +322,46 @@ impl<T> Vector<T> {
         self.realloc_with_cap(new_cap);
     }
 
+    /// Appends all elements from `other` to self.
+    ///
+    /// # Panics
+    /// Panics if the memory layout of the Vector would have a size that exceeds [`isize::MAX`].
     pub fn append(&mut self, other: Vector<T>) {
+        let initial_len = self.len;
         self.extend_reserve(other.len);
-        for item in other.into_iter() {
-            self.extend_one(item);
+
+        // SAFETY: self is valid from initial_len to initial_len + other.len and other is valid from
+        // 0 to other.len. Both are properly aligned and don't overlap.
+        unsafe {
+            // Reduce iteration by copying one slice into the other.
+            ptr::copy_nonoverlapping(
+                self.arr.ptr.add(initial_len).as_ptr().cast_const(),
+                other.arr.ptr.as_ptr(),
+                other.len
+            );
         }
+
+        self.len += other.len;
+
+        // Forget about other because we have copied all values.
+        mem::forget(other);
     }
 }
 
 impl<T> Vector<T> {
+    /// Reallocates the internal Array with the provided capacity.
+    ///
+    /// # Panics
+    /// Panics if the memory layout of the Vector would have a size that exceeds [`isize::MAX`].
     pub(crate) fn realloc_with_cap(&mut self, new_cap: usize) {
         self.arr.realloc(new_cap);
     }
 
+    /// Grows the internal Array to allow for the insertion of additional elements. After calling
+    /// this, the Vector can take at least one more element.
+    ///
+    /// # Panics
+    /// Panics if the memory layout of the Vector would have a size that exceeds [`isize::MAX`].
     pub(crate) fn grow(&mut self) {
         // SAFETY: old_cap < isize::MAX, so old_cap * 2 can't overflow. Can still exceed isize::MAX.
         let mut new_cap = cmp::max(self.cap() * GROWTH_FACTOR, MIN_CAP);
@@ -327,6 +374,10 @@ impl<T> Vector<T> {
         self.realloc_with_cap(new_cap);
     }
 
+    /// Checks that the provided index is within the bounds of self.
+    ///
+    /// # Panics
+    /// Panics if the provided index is out of bounds.
     pub(crate) fn check_index(&self, index: usize) {
         assert!(
             index < self.len,
@@ -402,6 +453,7 @@ impl<T> Drop for Vector<T> {
     fn drop(&mut self) {
         // Call drop on all initialized values in place.
         for i in 0..self.len {
+            // SAFETY: All values less than len are initialized and safe to drop.
             unsafe { self.arr.ptr.add(i).as_mut().assume_init_drop(); }
         }
 
@@ -414,6 +466,10 @@ impl<T> Deref for Vector<T> {
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
+        // SAFETY: Vector is valid as a slice for len values, which are all initialized. The pointer
+        // is nonnull, properly aligned and the range entirely contained within this Vector.
+        // The borrow checker enforces that self isn't mutated due to this function taking a &self.
+        // The total size is < isize::MAX as the result of being a valid Vector.
         unsafe {
             slice::from_raw_parts(
                 // Reinterpret *mut MaybeUninit<T> as *mut T for all values < len.
@@ -426,6 +482,10 @@ impl<T> Deref for Vector<T> {
 
 impl<T> DerefMut for Vector<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
+        // SAFETY: Vector is valid as a slice for len values, which are all initialized. The pointer
+        // is nonnull, properly aligned and the range entirely contained within this Vector.
+        // The borrow checker enforces that self isn't accessed due to this function taking a &self.
+        // The total size is < isize::MAX as the result of being a valid Vector.
         unsafe {
             slice::from_raw_parts_mut(
                 // Reinterpret *mut MaybeUninit<T> as *mut T for all values < len.

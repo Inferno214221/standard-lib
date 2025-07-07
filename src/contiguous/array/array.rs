@@ -368,9 +368,6 @@ impl<T> Array<MaybeUninit<T>> {
     /// # Panics
     /// Panics if the memory layout of the new allocation would have a size that exceeds
     /// [`isize::MAX`]. (`new_size * size_of::<T>() > isize::MAX`)
-    ///
-    /// # Examples
-    /// TODO
     pub fn realloc(&mut self, new_size: usize) {
         let new_ptr = match (self.size, new_size) {
             (_, _) if size_of::<T>() == 0 => {
