@@ -16,5 +16,6 @@
 pub mod contiguous;
 pub mod linked;
 pub mod hash;
+pub mod binary_tree;
 
 pub(crate) mod util;

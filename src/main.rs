@@ -10,25 +10,29 @@
 pub mod contiguous;
 pub mod linked;
 pub mod hash;
+pub mod binary_tree;
 
 pub(crate) mod util;
+
+use std::collections::BTreeMap;
 
 use contiguous::{Array, Vector};
 use linked::DoublyLinkedList;
 use hash::{HashMap, HashSet};
+use binary_tree::map::BinaryTreeMap;
 
 fn main() {
     let mut map: HashMap<String, usize> = dbg!(HashMap::new());
-    dbg!(map.insert(String::from("one"), 1));
+    dbg!(map.insert("one".into(), 1));
     dbg!(&map);
-    map.insert(String::from("two"), 2);
+    map.insert("two".into(), 2);
     dbg!(&map);
-    map.insert(String::from("three"), 3);
+    map.insert("three".into(), 3);
     dbg!(&map);
-    map.insert(String::from("four"), 4);
+    map.insert("four".into(), 4);
     dbg!(&map);
 
-    dbg!(map.insert(String::from("two"), 5));
+    dbg!(map.insert("two".into(), 5));
     dbg!(&map);
 
     dbg!(map.remove_entry("three"));
@@ -46,9 +50,9 @@ fn main() {
     dbg!(&map);
 
     let mut set: HashSet<String> = dbg!(HashSet::with_cap(4));
-    dbg!(set.insert(String::from("one")));
-    set.insert(String::from("two"));
-    dbg!(set.insert(String::from("one")));
+    dbg!(set.insert("one".into()));
+    set.insert("two".into());
+    dbg!(set.insert("one".into()));
     dbg!(&set);
 
     // let mut a: HashSet<usize> = HashSet::new();
@@ -84,6 +88,15 @@ fn main() {
     // a.remove(&BadHash(1, 0));
     // dbg!(&a);
 
+    let mut bmap: BinaryTreeMap<usize, String> = BinaryTreeMap::new();
+    bmap.insert(3, "three".into());
+    bmap.insert(1, "one".into());
+    bmap.insert(2, "two".into());
+    bmap.insert(4, "four".into());
+
+    dbg!(bmap.get(&1));
+    dbg!(bmap.get(&2));
+
     println!("\n[Format Tests]\n");
     println!("{:?}", Array::from([0_u8, 1, 2, 3].into_iter()));
     println!("{}", Array::from([0_u8, 1, 2, 3].into_iter()));
@@ -95,4 +108,5 @@ fn main() {
     println!("{}", &map);
     println!("{:?}", &set);
     println!("{}", &set);
+    println!("{:?}", &bmap);
 }
