@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 use std::fmt::{self, Debug, Display, Formatter};
 
-use super::{Branch, Iter};
+use super::{Branch, IntoKeys, IntoValues, Iter, Keys, Values};
 
 pub struct BinaryTreeMap<K: Ord, V> {
     pub(crate) root: Branch<K, V>,
@@ -97,8 +97,47 @@ impl<K: Ord, V> BinaryTreeMap<K, V> {
         self.take_first_entry().map(|(_, v)| v)
     }
 
+    pub fn last_entry(&self) -> Option<(&K, &V)> {
+        self.root.last_entry()
+    }
+
+    pub fn last(&self) -> Option<&V> {
+        self.last_entry().map(|(_, v)| v)
+    }
+
+    pub fn take_last_entry(&mut self) -> Option<(K, V)> {
+        self.root.take_last_entry()
+    }
+
+    pub fn take_last(&mut self) -> Option<V> {
+        self.take_last_entry().map(|(_, v)| v)
+    }
+
     pub fn iter(&self) -> Iter<'_, K, V> {
         self.into_iter()
+    }
+
+    pub fn into_keys(self) -> IntoKeys<K, V> {
+        IntoKeys(self.into_iter())
+    }
+
+    pub fn keys<'a>(&'a self) -> Keys<'a, K, V> {
+        Keys(self.iter())
+    }
+
+    pub fn into_values(self) -> IntoValues<K, V> {
+        IntoValues(self.into_iter())
+    }
+
+    // pub fn values_mut<'a>(&'a mut self) -> ValuesMut<'a, K, V> {
+    //     ValuesMut {
+    //         len: self.len(),
+    //         inner: self.arr.iter_mut(),
+    //     }
+    // }
+
+    pub fn values<'a>(&'a self) -> Values<'a, K, V> {
+        Values(self.iter())
     }
 }
 

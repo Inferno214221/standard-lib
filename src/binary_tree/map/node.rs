@@ -137,6 +137,26 @@ impl<K: Ord, V> Branch<K, V> {
             None => None,
         }
     }
+
+    pub fn last_entry(&self) -> Option<(&K, &V)> {
+        match &self.0 {
+            Some(node) => match node.right.last_entry() {
+                Some(e) => Some(e),
+                None => Some(node.tuple()),
+            },
+            None => None,
+        }
+    }
+
+    pub fn take_last_entry(&mut self) -> Option<(K, V)> {
+        match &mut self.0 {
+            Some(node) => match node.right.take_last_entry() {
+                Some(e) => Some(e),
+                None => Some(mem::take(&mut self.0).unwrap().into_tuple()),
+            },
+            None => None,
+        }
+    }
 }
 
 impl<K: Ord, V> Deref for Branch<K, V> {
