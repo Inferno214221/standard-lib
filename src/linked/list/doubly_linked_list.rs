@@ -2,6 +2,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::marker::PhantomData;
 use std::mem;
 use std::num::NonZero;
+use std::ptr;
 
 use crate::contiguous::Vector;
 
@@ -241,13 +242,11 @@ impl<T> DoublyLinkedList<T> {
     }
 
     pub fn get(&self, index: usize) -> &T {
-        self.checked_seek(index)
-            .value()
+        self.checked_seek(index).value()
     }
 
     pub fn get_mut(&mut self, index: usize) -> &mut T {
-        self.checked_seek(index)
-            .value_mut()
+        self.checked_seek(index).value_mut()
     }
 
     pub fn insert(&mut self, index: usize, value: T) {
@@ -328,31 +327,25 @@ impl<T> DoublyLinkedList<T> {
         }
     }
 
-    pub fn cursor_front(mut self) -> Option<Cursor<T>> {
-        match mem::replace(&mut self.state, Empty) {
-            Empty => None,
-            Full(inner) => {
-                Some(
-                    Cursor {
-                        curr: inner.head,
-                        list: inner,
-                    }
-                )
+    // TODO: pub fn contains(&self, item: T)
+
+    pub const fn cursor_front(self) -> Cursor<T> {
+        Cursor {
+            curr: match self.state {
+                Empty => None,
+                Full(Inner { head, .. }) => Some(head),
             },
+            list: self,
         }
     }
 
-    pub fn cursor_back(mut self) -> Option<Cursor<T>> {
-        match mem::replace(&mut self.state, Empty) {
-            Empty => None,
-            Full(inner) => {
-                Some(
-                    Cursor {
-                        curr: inner.tail,
-                        list: inner,
-                    }
-                )
+    pub const fn cursor_back(self) -> Cursor<T> {
+        Cursor {
+            curr: match self.state {
+                Empty => None,
+                Full(Inner { tail, .. }) => Some(tail),
             },
+            list: self,
         }
     }
 
@@ -451,13 +444,10 @@ impl<T> Drop for DoublyLinkedList<T> {
         match self.state {
             Empty => {},
             Full(Inner { head, .. }) => {
-                let mut curr = head.take_node();
-                loop {
-                    drop(curr.value);
-                    match curr.next {
-                        Some(next) => curr = next.take_node(),
-                        None => break,
-                    }
+                let mut curr = Some(head);
+                while let Some(ptr) = curr {
+                    unsafe { ptr::drop_in_place(ptr.as_ptr()) };
+                    curr = *ptr.next();
                 }
             },
         }
@@ -477,7 +467,7 @@ impl<T> FromIterator<T> for DoublyLinkedList<T> {
 impl<T: Debug> Debug for DoublyLinkedList<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("DLinkedList")
-        .field_with("contents", |f| f.debug_list().entries(self.iter()).finish())
+            .field_with("contents", |f| f.debug_list().entries(self.iter()).finish())
             .field("len", &self.len())
             .finish()
     }
