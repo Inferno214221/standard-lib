@@ -128,7 +128,7 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
         T: Borrow<Q>,
         Q: Hash + Eq + ?Sized
     {
-        self.inner.remove_entry(item).map(|e| e.0)
+        self.inner.remove_entry(item).map(|(k, _)| k)
     }
 
     pub fn contains<Q>(&self, item: &Q) -> bool

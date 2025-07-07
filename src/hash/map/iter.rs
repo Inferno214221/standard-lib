@@ -90,7 +90,7 @@ impl<K: Hash + Eq, V> Iterator for IntoKeys<K, V> {
     type Item = K;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|e| e.0)
+        self.0.next().map(|(k, _)| k)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -108,7 +108,7 @@ impl<'a, K: Hash + Eq, V> Iterator for Keys<'a, K, V> {
     type Item = &'a K;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|e| e.0)
+        self.0.next().map(|(k, _)| k)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -126,7 +126,7 @@ impl<K: Hash + Eq, V> Iterator for IntoValues<K, V> {
     type Item = V;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|e| e.1)
+        self.0.next().map(|(_, v)| v)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -168,7 +168,7 @@ impl<'a, K: Hash + Eq, V> Iterator for Values<'a, K, V> {
     type Item = &'a V;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|e| e.1)
+        self.0.next().map(|(_, v)| v)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

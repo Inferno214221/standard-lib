@@ -224,7 +224,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         K: Borrow<Q>,
         Q: Hash + Eq + ?Sized
     {
-        self.remove_entry(key).map(|e| e.1)
+        self.remove_entry(key).map(|(_, v)| v)
     }
 
     pub fn contains<Q>(&self, key: &Q) -> bool

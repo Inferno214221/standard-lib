@@ -46,7 +46,7 @@ impl<K: Ord, V> BinaryTreeMap<K, V> {
         K: Borrow<Q>,
         Q: Ord + ?Sized
     {
-        self.remove_entry(key).map(|e| e.1)
+        self.remove_entry(key).map(|(_, v)| v)
     }
 
     pub fn get_entry<Q>(&self, key: &Q) -> Option<(&K, &V)>
@@ -62,7 +62,7 @@ impl<K: Ord, V> BinaryTreeMap<K, V> {
         K: Borrow<Q>,
         Q: Ord + ?Sized
     {
-        self.get_entry(key).map(|e| e.1)
+        self.get_entry(key).map(|(_, v)| v)
     }
 
     pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
@@ -86,7 +86,7 @@ impl<K: Ord, V> BinaryTreeMap<K, V> {
     }
 
     pub fn first(&self) -> Option<&V> {
-        self.first_entry().map(|e| e.1)
+        self.first_entry().map(|(_, v)| v)
     }
 
     pub fn take_first_entry(&mut self) -> Option<(K, V)> {
@@ -94,7 +94,7 @@ impl<K: Ord, V> BinaryTreeMap<K, V> {
     }
 
     pub fn take_first(&mut self) -> Option<V> {
-        self.take_first_entry().map(|e| e.1)
+        self.take_first_entry().map(|(_, v)| v)
     }
 
     pub fn iter(&self) -> Iter<'_, K, V> {
