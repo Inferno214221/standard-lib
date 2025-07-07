@@ -1,5 +1,3 @@
-#![warn(missing_docs)]
-
 use std::borrow::{Borrow, BorrowMut};
 use std::cmp;
 use std::fmt::{self, Debug, Display, Formatter};

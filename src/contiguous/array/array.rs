@@ -1,5 +1,3 @@
-#![warn(missing_docs)]
-
 use std::alloc::{self, Layout};
 use std::borrow::{Borrow, BorrowMut};
 use std::fmt::{self, Debug, Display, Formatter};
