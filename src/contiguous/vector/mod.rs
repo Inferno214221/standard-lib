@@ -1,5 +1,5 @@
-mod vector;
 mod iter;
+mod vector;
 
-pub use vector::*;
 pub use iter::*;
+pub use vector::*;

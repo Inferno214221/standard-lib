@@ -11,24 +11,24 @@ use std::slice;
 const MAX_SIZE: usize = isize::MAX as usize;
 
 /// An implementation of an array that is sized at runtime. Similar to a [`Box<[T]>`](Box<T>).
-/// 
+///
 /// # Time Complexity
 /// For this analysis of time complexity, variables are defined as follows:
 /// - `n`: The number of items in the Array.
 /// - `i`: The index of the item in question.
-/// 
+///
 /// | Method | Complexity |
 /// |-|-|
 /// | `get` | `O(1)` |
 /// | `size` | `O(1)` |
 /// | `realloc` | `O(n)`*, `O(1)` |
 /// | `contains` | `O(n)` |
-/// 
+///
 /// \* It might be possible to get an `O(1)` reallocation, but I don't believe it is very likely.
 pub struct Array<T> {
     pub(crate) ptr: NonNull<T>,
     pub(crate) size: usize,
-    pub(crate) _phantom: PhantomData<T>
+    pub(crate) _phantom: PhantomData<T>,
 }
 
 impl<T> Array<T> {
@@ -82,21 +82,21 @@ impl<T> Array<T> {
         Array {
             ptr,
             size,
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 
     /// Decomposes an `Array<T>` into its raw components, a [`NonNull<T>`] pointer to the contained
     /// data and a [`usize`] representing the size.
-    /// 
+    ///
     /// Returns the pointer to the underlying data and the number of elements in the Array.
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// After calling this function, the caller is responsible for the safety of the allocated data.
     /// The parts can be used to reconstruct an Array with [`Array::from_parts`], allowing it to be
     /// used again and dropped normally.
-    /// 
+    ///
     /// # Examples
     /// See [`Array::from_parts`].
     pub const fn into_parts(self) -> (NonNull<T>, usize) {
@@ -107,16 +107,16 @@ impl<T> Array<T> {
 
     /// Creates an `Array<T>` from its raw components, a [`NonNull<T>`] pointer to the contained
     /// data and a [`usize`] representing the size.
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// This is extremely unsafe, nothing is checked during construction.
-    /// 
+    ///
     /// For the produced value to be valid:
     /// - `ptr` needs to be a currently and correctly allocated pointer within the global allocator.
     /// - `ptr` needs to refer to `size` properly initialized values of `T`.
     /// - `size` needs to be less than or equal to [`isize::MAX`] / `size_of::<T>()`.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use rust_basic_types::contiguous::Array;
@@ -131,27 +131,27 @@ impl<T> Array<T> {
         Array {
             ptr,
             size,
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 
     /// Interprets self as an `Array<MaybeUninit<T>>`. Although it may not seem very useful by
     /// itself, this method acts as a counterpart to [`Array::assume_init`] and allows
     /// [`Array::realloc`] to be called on a previously initialized Array.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use rust_basic_types::contiguous::Array;
     /// # use std::mem::MaybeUninit;
     /// let mut arr = Array::from([1_u8, 2, 3].into_iter());
     /// let mut new_arr = arr.forget_init();
-    /// 
+    ///
     /// new_arr.realloc(4);
     /// new_arr[3] = MaybeUninit::new(4);
-    /// 
+    ///
     /// // SAFETY: All values in new_arr are now initialized.
     /// arr = unsafe { new_arr.assume_init() };
-    /// 
+    ///
     /// assert_eq!(&*arr, &[1, 2, 3, 4]);
     /// ```
     pub fn forget_init(self) -> Array<MaybeUninit<T>> {
@@ -222,7 +222,7 @@ impl<T: Copy> Array<T> {
     }
 
     /// Reallocate self with `new_size`, filling any extra elements with a copy of `item`.
-    /// 
+    ///
     /// # Panics
     /// Panics if the memory layout of the new allocation would have a size that exceeds
     /// [`isize::MAX`]. (`new_size * size_of::<T>() > isize::MAX`)
@@ -272,7 +272,7 @@ impl<T: Default> Array<T> {
     }
 
     /// Reallocate self with `new_size`, filling any extra elements with the default value of `T`.
-    /// 
+    ///
     /// # Panics
     /// Panics if the memory layout of the new allocation would have a size that exceeds
     /// [`isize::MAX`]. (`new_size * size_of::<T>() > isize::MAX`)
@@ -303,7 +303,7 @@ impl<T: Default> Array<T> {
 
 impl<T, I> From<I> for Array<T>
 where
-    I: Iterator<Item = T> + ExactSizeIterator + TrustedLen
+    I: Iterator<Item = T> + ExactSizeIterator + TrustedLen,
 {
     /// Creates an Array from a type which implements [`IntoIterator`] and creates an
     /// [`ExactSizeIterator`].
@@ -364,11 +364,11 @@ impl<T> Array<MaybeUninit<T>> {
 
     /// Reallocate the Array to have size equal to new_size, with new locations uninitialized.
     /// Several checks are performed first to ensure that an allocation is actually required.
-    /// 
+    ///
     /// # Panics
     /// Panics if the memory layout of the new allocation would have a size that exceeds
     /// [`isize::MAX`]. (`new_size * size_of::<T>() > isize::MAX`)
-    /// 
+    ///
     /// # Examples
     /// TODO
     pub fn realloc(&mut self, new_size: usize) {
@@ -452,7 +452,7 @@ impl<T> Drop for Array<T> {
             // SAFETY: count > isize::MAX / size_of::<T>() is already guarded against and
             // all possible values are within the allocated range of the Array.
             unsafe {
-                ptr::drop_in_place(self.ptr.add(i).as_ptr() );
+                ptr::drop_in_place(self.ptr.add(i).as_ptr());
             }
         }
 

@@ -2,11 +2,11 @@ use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::mem;
 
-use crate::linked::list::{DoublyLinkedList, Link, ListState, Node, NodeRef};
+use super::{DoublyLinkedList, Link, ListState, Node, NodeRef};
 
 pub struct Cursor<T> {
     pub(crate) list: DoublyLinkedList<T>,
-    pub(crate) curr: Link<T>
+    pub(crate) curr: Link<T>,
 }
 
 impl<T> Cursor<T> {

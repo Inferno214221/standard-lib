@@ -1,10 +1,10 @@
 use std::borrow::Borrow;
-use std::{cmp, fmt};
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{BuildHasher, Hash, RandomState};
 use std::mem;
+use std::{cmp, fmt};
 
-use super::{Iter, IntoKeys, Keys, IntoValues, ValuesMut, Values};
+use super::{IntoKeys, IntoValues, Iter, Keys, Values, ValuesMut};
 use crate::contiguous::Array;
 use crate::util::fmt::DebugRaw;
 
@@ -16,13 +16,13 @@ const LOAD_FACTOR_NUMERATOR: usize = 4;
 const LOAD_FACTOR_DENOMINATOR: usize = 5;
 
 /// A map of keys to values which relies on the keys implementing [`Hash`].
-/// 
+///
 /// A custom load factor is not supported at this point, with the default being 4/5.
-/// 
+///
 /// # Time Complexity
 /// For this analysis of time complexity, variables are defined as follows:
 /// - `n`: The number of items in the HashMap.
-/// 
+///
 /// | Method | Complexity |
 /// |-|-|
 /// | `len` | `O(1)` |
@@ -32,14 +32,14 @@ const LOAD_FACTOR_DENOMINATOR: usize = 5;
 /// | `remove` | `O(1)`* |
 /// | `contains` | `O(1)`* |
 /// | `reserve` | `O(n)`***, `O(1)` |
-/// 
+///
 /// \* In the event of a has collision, these functions will take additional time, while a valid
 /// / correct location is found. This additional time is kept at a minimum and hash collisions are
 /// unlikely especially with a large capacity.
-/// 
+///
 /// \** If the HashMap doesn't have enough capacity for the new element, `insert` will take `O(n)`.
 /// \* applies as well.
-/// 
+///
 /// \*** If the HashMap has enough capacity for the additional items already, `reserve` is `O(1)`.
 pub struct HashMap<K: Hash + Eq, V, B: BuildHasher = RandomState> {
     pub(crate) arr: Array<Bucket<K, V>>,
@@ -55,7 +55,7 @@ impl<K: Hash + Eq, V, B: BuildHasher + Default> HashMap<K, V, B> {
             // Capacity zero causes some problems, e.g. % 0 = undef, does it provide any benefit?
             arr: Array::new(),
             len: 0,
-            hasher: B::default()
+            hasher: B::default(),
         }
     }
 
@@ -63,7 +63,7 @@ impl<K: Hash + Eq, V, B: BuildHasher + Default> HashMap<K, V, B> {
         HashMap {
             arr: Array::repeat_default(cap),
             len: 0,
-            hasher: B::default()
+            hasher: B::default(),
         }
     }
 }
@@ -122,7 +122,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         }
     }
 
-    pub unsafe fn insert_unchecked(&mut self, key: K, value: V) -> Option<V> {        
+    pub unsafe fn insert_unchecked(&mut self, key: K, value: V) -> Option<V> {
         let index = self.find_index_for_key(&key);
 
         // The bucket at index is either empty or contains an equal key.
@@ -148,7 +148,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         // We're introducing a new type parameter here, Q which represents a borrowed version of K
         // where equality and hashing carries over the borrow.
         K: Borrow<Q>,
-        Q: Hash + Eq + ?Sized
+        Q: Hash + Eq + ?Sized,
     {
         let index = self.find_index_for_key(key);
 
@@ -162,7 +162,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq + ?Sized
+        Q: Hash + Eq + ?Sized,
     {
         let index = self.find_index_for_key(key);
 
@@ -176,7 +176,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq + ?Sized
+        Q: Hash + Eq + ?Sized,
     {
         let index = self.find_index_for_key(key);
 
@@ -190,7 +190,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq + ?Sized
+        Q: Hash + Eq + ?Sized,
     {
         let mut index = self.find_index_for_key(key);
 
@@ -208,7 +208,9 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         // If the next bucket isn't empty and isn't in the correct position, it has been moved to
         // the right at least once. Therefore, move it left once, either putting it in the correct
         // location or improving the proximity to the correct location.
-        while let Some(next) = &self.arr[next_index] && self.index_from_key(&next.0) != next_index {
+        while let Some(next) = &self.arr[next_index]
+            && self.index_from_key(&next.0) != next_index
+        {
             println!("Moving value at {next_index:?} to {index:?}.");
             let moving = mem::take(&mut self.arr[next_index]);
             let _none = mem::replace(&mut self.arr[index], moving);
@@ -222,7 +224,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq + ?Sized
+        Q: Hash + Eq + ?Sized,
     {
         self.remove_entry(key).map(|(_, v)| v)
     }
@@ -230,7 +232,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     pub fn contains<Q>(&self, key: &Q) -> bool
     where
         K: Borrow<Q>,
-        Q: Hash + Eq + ?Sized
+        Q: Hash + Eq + ?Sized,
     {
         let index = self.find_index_for_key(key);
 
@@ -306,14 +308,16 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         // We're introducing a new type parameter here, Q which represents a borrowed version of K
         // where equality and hashing carries over the borrow.
         K: Borrow<Q>,
-        Q: Hash + Eq + ?Sized
+        Q: Hash + Eq + ?Sized,
     {
         let mut index = self.index_from_key(&key);
 
         // This is where Eq comes in: while there is a value at the current index, but the key
         // isn't equal, increment the index (wrapping at the capacity) and check again.
         // Can't enter recursion unless the load factor is 100%.
-        while let Some(existing) = &self.arr[index] && existing.0.borrow() != key {
+        while let Some(existing) = &self.arr[index]
+            && existing.0.borrow() != key
+        {
             index = (index + 1) % self.cap();
         }
 

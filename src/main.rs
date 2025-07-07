@@ -7,19 +7,19 @@
 
 #![allow(clippy::module_inception)]
 
-pub mod contiguous;
-pub mod linked;
-pub mod hash;
 pub mod binary_tree;
+pub mod contiguous;
+pub mod hash;
+pub mod linked;
 
 pub(crate) mod util;
 
 use std::collections::BTreeMap;
 
-use contiguous::{Array, Vector};
-use linked::DoublyLinkedList;
-use hash::{HashMap, HashSet};
 use binary_tree::map::BinaryTreeMap;
+use contiguous::{Array, Vector};
+use hash::{HashMap, HashSet};
+use linked::DoublyLinkedList;
 
 fn main() {
     let mut map: HashMap<String, usize> = dbg!(HashMap::new());
@@ -102,8 +102,14 @@ fn main() {
     println!("{}", Array::from([0_u8, 1, 2, 3].into_iter()));
     println!("{:?}", Vector::from([0_u8, 1, 2, 3].into_iter()));
     println!("{}", Vector::from([0_u8, 1, 2, 3].into_iter()));
-    println!("{:?}", [0_u8, 1, 2, 3].into_iter().collect::<DoublyLinkedList<_>>());
-    println!("{}", [0_u8, 1, 2, 3].into_iter().collect::<DoublyLinkedList<_>>());
+    println!(
+        "{:?}",
+        [0_u8, 1, 2, 3].into_iter().collect::<DoublyLinkedList<_>>()
+    );
+    println!(
+        "{}",
+        [0_u8, 1, 2, 3].into_iter().collect::<DoublyLinkedList<_>>()
+    );
     println!("{:?}", &map);
     println!("{}", &map);
     println!("{:?}", &set);

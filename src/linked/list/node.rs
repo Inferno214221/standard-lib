@@ -6,9 +6,7 @@ pub(crate) type Link<T> = Option<NodeRef<T>>;
 // Box<T> has the special property that dereferencing it allows a value to be moved out of the heap.
 
 #[derive(Debug)]
-pub(crate) struct NodeRef<T>(
-    pub NonNull<Node<T>>
-);
+pub(crate) struct NodeRef<T>(pub NonNull<Node<T>>);
 
 impl<T> NodeRef<T> {
     pub const fn value<'a>(&self) -> &'a T {
@@ -57,7 +55,9 @@ impl<T> NodeRef<T> {
 }
 
 impl<T> Clone for NodeRef<T> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl<T> Copy for NodeRef<T> {}
@@ -71,5 +71,5 @@ impl<T> PartialEq for NodeRef<T> {
 pub(crate) struct Node<T> {
     pub value: T,
     pub prev: Link<T>,
-    pub next: Link<T>
+    pub next: Link<T>,
 }

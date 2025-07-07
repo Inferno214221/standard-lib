@@ -1,6 +1,6 @@
 use std::iter::FusedIterator;
 
-use crate::binary_tree::map::BinaryTreeMap;
+use super::BinaryTreeMap;
 
 impl<K: Ord, V> IntoIterator for BinaryTreeMap<K, V> {
     type Item = (K, V);
@@ -56,9 +56,7 @@ impl<'a, K: Ord, V> Iterator for Iter<'a, K, V> {
 
 impl<'a, K: Ord, V> FusedIterator for Iter<'a, K, V> {}
 
-pub struct IntoKeys<K: Ord, V>(
-    pub(crate) IntoIter<K, V>
-);
+pub struct IntoKeys<K: Ord, V>(pub(crate) IntoIter<K, V>);
 
 impl<K: Ord, V> Iterator for IntoKeys<K, V> {
     type Item = K;
@@ -74,9 +72,7 @@ impl<K: Ord, V> Iterator for IntoKeys<K, V> {
 
 impl<K: Ord, V> FusedIterator for IntoKeys<K, V> {}
 
-pub struct Keys<'a, K: Ord, V>(
-    pub(crate) Iter<'a, K, V>
-);
+pub struct Keys<'a, K: Ord, V>(pub(crate) Iter<'a, K, V>);
 
 impl<'a, K: Ord, V> Iterator for Keys<'a, K, V> {
     type Item = &'a K;
@@ -92,9 +88,7 @@ impl<'a, K: Ord, V> Iterator for Keys<'a, K, V> {
 
 impl<'a, K: Ord, V> FusedIterator for Keys<'a, K, V> {}
 
-pub struct IntoValues<K: Ord, V>(
-    pub(crate) IntoIter<K, V>
-);
+pub struct IntoValues<K: Ord, V>(pub(crate) IntoIter<K, V>);
 
 impl<K: Ord, V> Iterator for IntoValues<K, V> {
     type Item = V;
@@ -112,9 +106,7 @@ impl<K: Ord, V> FusedIterator for IntoValues<K, V> {}
 
 // TODO: write ValuesMut for BinaryTreeMap
 
-pub struct Values<'a, K: Ord, V>(
-    pub(crate) Iter<'a, K, V>
-);
+pub struct Values<'a, K: Ord, V>(pub(crate) Iter<'a, K, V>);
 
 impl<'a, K: Ord, V> Iterator for Values<'a, K, V> {
     type Item = &'a V;

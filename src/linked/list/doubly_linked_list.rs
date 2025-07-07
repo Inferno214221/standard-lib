@@ -4,18 +4,17 @@ use std::mem;
 use std::num::NonZero;
 use std::ptr;
 
+use super::{Cursor, Iter, IterMut, Node, NodeRef};
 use crate::contiguous::Vector;
-
-use super::{Cursor, NodeRef, Node, Iter, IterMut};
 
 /// A list with links in both directions. See also: [`Cursor`] for bi-directional iteration and
 /// traversal.
-/// 
+///
 /// # Time Complexity
 /// For this analysis of time complexity, variables are defined as follows:
 /// - `n`: The number of items in the DoublyLinkedList.
 /// - `i`: The index of the item in question.
-/// 
+///
 /// | Method | Complexity |
 /// |-|-|
 /// | `len` | `O(1)` |
@@ -31,7 +30,7 @@ use super::{Cursor, NodeRef, Node, Iter, IterMut};
 /// | `replace` | `O(min(i, n-i))` |
 /// | `append` | `O(1)` |
 /// | `contains` | `O(n)` |
-/// 
+///
 /// As a general note, modern computer architecture isn't kind to linked lists, (or more
 /// importantly, favours contiguous collections) because all `O(i)` or `O(n)` operations will
 /// consist primarily of cache misses. For this reason, [`Vector`] should be preferred for most
@@ -39,19 +38,19 @@ use super::{Cursor, NodeRef, Node, Iter, IterMut};
 /// being heavily utilized.
 pub struct DoublyLinkedList<T> {
     pub(crate) state: ListState<T>,
-    pub(crate) _phantom: PhantomData<T>
+    pub(crate) _phantom: PhantomData<T>,
 }
 
 pub(crate) enum ListState<T> {
     Empty,
     // Single(NodeRef<T>),
-    Full(Inner<T>)
+    Full(Inner<T>),
 }
 
 pub(crate) struct Inner<T> {
     pub len: Length,
     pub head: NodeRef<T>,
-    pub tail: NodeRef<T>
+    pub tail: NodeRef<T>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -89,7 +88,7 @@ impl<T> DoublyLinkedList<T> {
     pub const fn new() -> DoublyLinkedList<T> {
         DoublyLinkedList {
             state: Empty,
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 
@@ -252,12 +251,8 @@ impl<T> DoublyLinkedList<T> {
     pub fn insert(&mut self, index: usize, value: T) {
         let inner = self.checked_inner_for_index_mut(index - 1);
         match index {
-            0 => {
-                self.push_front(value)
-            },
-            val if val == inner.len.get() => {
-                self.push_back(value)
-            },
+            0 => self.push_front(value),
+            val if val == inner.len.get() => self.push_back(value),
             val => {
                 let prev_node = inner.seek(val - 1);
 
@@ -370,7 +365,8 @@ impl<T> DoublyLinkedList<T> {
                 assert!(
                     index < inner.len.get(),
                     "index {} out of bounds for collection with {} elements",
-                    index, inner.len.get()
+                    index,
+                    inner.len.get()
                 );
                 inner
             },
@@ -384,7 +380,8 @@ impl<T> DoublyLinkedList<T> {
                 assert!(
                     index < inner.len.get(),
                     "index {} out of bounds for collection with {} elements",
-                    index, inner.len.get()
+                    index,
+                    inner.len.get()
                 );
                 inner
             },
@@ -476,7 +473,8 @@ impl<T: Debug> Debug for DoublyLinkedList<T> {
 impl<T: Debug> Display for DoublyLinkedList<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
-            f, "({})",
+            f,
+            "({})",
             self.iter()
                 .map(|i| format!("{i:?}"))
                 .collect::<Vector<String>>()

@@ -4,23 +4,22 @@ use std::hash::{BuildHasher, Hash, RandomState};
 use std::iter::TrustedLen;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Sub, SubAssign};
 
+use super::{Difference, Intersection, Iter, SymmetricDifference, Union};
 use crate::contiguous::Vector;
-use crate::hash::set::{Difference, Intersection, SymmetricDifference, Union};
 use crate::hash::HashMap;
 use crate::util::fmt::DebugRaw;
-use super::Iter;
 
 /// A set of values that prevents duplicates with the help of the [`Hash`] trait.
-/// 
+///
 /// Relies on [`HashMap`] internally, see documentation there for additional details.
-/// 
+///
 /// # Time Complexity
 /// See [`HashMap`] with the following additions.
-/// 
+///
 /// Variables are defined as follows:
 /// - `n`: The number of items in the HashSet.
 /// - `m`: The number of items in the second HashSet.
-/// 
+///
 /// | Method | Complexity |
 /// |-|-|
 /// | `difference`*, `-` | `O(n)` |
@@ -33,29 +32,29 @@ use super::Iter;
 /// | `\|=` | `O(n+m)`**, `O(m)` |
 /// | `is_subset` | `O(m)` |
 /// | `is_superset` | `O(n)` |
-/// 
+///
 /// In the event of a has collision, all methods will take additional time. This additional time is
 /// kept at a minimum and hash collisions are unlikely especially with a large capacity.
-/// 
+///
 /// \* When exhausted.
-/// 
+///
 /// \** If the HashMap already has capacity for the additional items, these methods will take `O(m)`
 /// instead.
 pub struct HashSet<T: Hash + Eq, B: BuildHasher = RandomState> {
     // Yay, we get to do the thing where unit type evaluates to a no-op.
-    pub(crate) inner: HashMap<T, (), B>
+    pub(crate) inner: HashMap<T, (), B>,
 }
 
 impl<T: Hash + Eq, B: BuildHasher + Default> HashSet<T, B> {
     pub fn new() -> HashSet<T, B> {
         HashSet {
-            inner: HashMap::new()
+            inner: HashMap::new(),
         }
     }
 
     pub fn with_cap(cap: usize) -> HashSet<T, B> {
         HashSet {
-            inner: HashMap::with_cap(cap)
+            inner: HashMap::with_cap(cap),
         }
     }
 }
@@ -63,13 +62,13 @@ impl<T: Hash + Eq, B: BuildHasher + Default> HashSet<T, B> {
 impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
     pub fn with_hasher(hasher: B) -> HashSet<T, B> {
         HashSet {
-            inner: HashMap::with_hasher(hasher)
+            inner: HashMap::with_hasher(hasher),
         }
     }
 
     pub fn with_cap_and_hasher(cap: usize, hasher: B) -> HashSet<T, B> {
         HashSet {
-            inner: HashMap::with_cap_and_hasher(cap, hasher)
+            inner: HashMap::with_cap_and_hasher(cap, hasher),
         }
     }
 
@@ -94,9 +93,7 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
 
         // The Bucket at index is either empty or contains an equal item.
         match &mut self.inner.arr[index] {
-            Some(_) => {
-                false
-            },
+            Some(_) => false,
             None => {
                 // Create a new Bucket with the provided values.
                 self.inner.arr[index] = Some((item, ()));
@@ -106,14 +103,12 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
         }
     }
 
-    pub unsafe fn insert_unchecked(&mut self, item: T) -> bool {        
+    pub unsafe fn insert_unchecked(&mut self, item: T) -> bool {
         let index = self.inner.find_index_for_key(&item);
 
         // The Bucket at index is either empty or contains an equal item.
         match &mut self.inner.arr[index] {
-            Some(_) => {
-                true
-            },
+            Some(_) => true,
             None => {
                 // Create a new Bucket with the provided values.
                 self.inner.arr[index] = Some((item, ()));
@@ -126,7 +121,7 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
     pub fn remove<Q>(&mut self, item: &Q) -> Option<T>
     where
         T: Borrow<Q>,
-        Q: Hash + Eq + ?Sized
+        Q: Hash + Eq + ?Sized,
     {
         self.inner.remove_entry(item).map(|(k, _)| k)
     }
@@ -134,7 +129,7 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
     pub fn contains<Q>(&self, item: &Q) -> bool
     where
         T: Borrow<Q>,
-        Q: Hash + Eq + ?Sized
+        Q: Hash + Eq + ?Sized,
     {
         self.inner.contains(item)
     }
@@ -150,11 +145,14 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
     pub fn difference<'a>(&'a self, other: &'a HashSet<T, B>) -> Difference<'a, T, B> {
         Difference {
             inner: self.iter(),
-            other
+            other,
         }
     }
 
-    pub fn symmetric_difference<'a>(&'a self, other: &'a HashSet<T, B>) -> SymmetricDifference<'a, T, B> {
+    pub fn symmetric_difference<'a>(
+        &'a self,
+        other: &'a HashSet<T, B>,
+    ) -> SymmetricDifference<'a, T, B> {
         SymmetricDifference {
             inner: self.difference(other).chain(other.difference(self)),
         }
@@ -163,7 +161,7 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
     pub fn intersection<'a>(&'a self, other: &'a HashSet<T, B>) -> Intersection<'a, T, B> {
         Intersection {
             inner: self.iter(),
-            other
+            other,
         }
     }
 
@@ -197,7 +195,7 @@ impl<T, B, I> From<I> for HashSet<T, B>
 where
     T: Hash + Eq,
     B: BuildHasher + Default,
-    I: Iterator<Item = T> + ExactSizeIterator + TrustedLen
+    I: Iterator<Item = T> + ExactSizeIterator + TrustedLen,
 {
     fn from(value: I) -> Self {
         let iter = value.into_iter();

@@ -32,7 +32,7 @@ impl<K: Ord, V> BinaryTreeMap<K, V> {
     pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
     where
         K: Borrow<Q>,
-        Q: Ord + ?Sized
+        Q: Ord + ?Sized,
     {
         let result = self.root.remove_entry(key);
         if result.is_some() {
@@ -44,7 +44,7 @@ impl<K: Ord, V> BinaryTreeMap<K, V> {
     pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Borrow<Q>,
-        Q: Ord + ?Sized
+        Q: Ord + ?Sized,
     {
         self.remove_entry(key).map(|(_, v)| v)
     }
@@ -52,7 +52,7 @@ impl<K: Ord, V> BinaryTreeMap<K, V> {
     pub fn get_entry<Q>(&self, key: &Q) -> Option<(&K, &V)>
     where
         K: Borrow<Q>,
-        Q: Ord + ?Sized
+        Q: Ord + ?Sized,
     {
         self.root.get_entry(key)
     }
@@ -60,7 +60,7 @@ impl<K: Ord, V> BinaryTreeMap<K, V> {
     pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where
         K: Borrow<Q>,
-        Q: Ord + ?Sized
+        Q: Ord + ?Sized,
     {
         self.get_entry(key).map(|(_, v)| v)
     }
@@ -68,7 +68,7 @@ impl<K: Ord, V> BinaryTreeMap<K, V> {
     pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
         K: Borrow<Q>,
-        Q: Ord + ?Sized
+        Q: Ord + ?Sized,
     {
         self.root.get_mut(key)
     }
@@ -76,7 +76,7 @@ impl<K: Ord, V> BinaryTreeMap<K, V> {
     pub fn contains<Q>(&mut self, key: &Q) -> bool
     where
         K: Borrow<Q>,
-        Q: Ord + ?Sized
+        Q: Ord + ?Sized,
     {
         self.root.contains(key)
     }

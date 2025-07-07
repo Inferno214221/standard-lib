@@ -13,9 +13,9 @@
 
 #![allow(clippy::module_inception)]
 
-pub mod contiguous;
-pub mod linked;
-pub mod hash;
 pub mod binary_tree;
+pub mod contiguous;
+pub mod hash;
+pub mod linked;
 
 pub(crate) mod util;

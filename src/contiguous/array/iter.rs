@@ -16,7 +16,7 @@ impl<T> IntoIterator for Array<T> {
         let result = IntoIter {
             ptr: self.ptr,
             len: self.size,
-            _phantom: PhantomData
+            _phantom: PhantomData,
         };
         mem::forget(self);
         result
@@ -28,7 +28,7 @@ impl<T> IntoIterator for Array<T> {
 pub struct IntoIter<T> {
     pub(crate) ptr: NonNull<T>,
     pub(crate) len: usize,
-    pub(crate) _phantom: PhantomData<T>
+    pub(crate) _phantom: PhantomData<T>,
 }
 
 impl<T> Drop for IntoIter<T> {

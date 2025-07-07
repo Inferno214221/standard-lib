@@ -17,13 +17,13 @@ const GROWTH_FACTOR: usize = 2;
 // TODO: Propagate appropriate Panic docs.
 
 /// A variable size contiguous collection, based on [`Array<T>`].
-/// 
+///
 /// # Time Complexity
 /// For this analysis of time complexity, variables are defined as follows:
 /// - `n`: The number of items in the Vector.
 /// - `i`: The index of the item in question.
 /// - `m`: The number of items in the second Vector.
-/// 
+///
 /// | Method | Complexity |
 /// |-|-|
 /// | `get` | `O(1)` |
@@ -39,18 +39,18 @@ const GROWTH_FACTOR: usize = 2;
 /// | `adjust_cap` | `O(n)` |
 /// | `append` | `O(n+m)` |
 /// | `contains` | `O(n)` |
-/// 
+///
 /// \* If the Vector doesn't have enough capacity for the new element, `push` will take `O(n)`.
-/// 
+///
 /// \** If the Vector has enough capacity for the additional items already, `reserve` is `O(1)`.
 pub struct Vector<T> {
     pub(crate) arr: Array<MaybeUninit<T>>,
-    pub(crate) len: usize
+    pub(crate) len: usize,
 }
 
 impl<T> Vector<T> {
     /// Returns the length of the Vector.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use rust_basic_types::contiguous::Vector;
@@ -63,7 +63,7 @@ impl<T> Vector<T> {
 
     /// Returns the current capacity of the Vector. Unlike [`Vec`], the capacity is guaranteed to be
     /// exactly the value provided to any of the various capacity manipulation functions.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use rust_basic_types::contiguous::Vector;
@@ -90,7 +90,7 @@ impl<T> Vector<T> {
 
     /// Creates a new Vector with length and capacity 0. Memory will be allocated when the capacity
     /// changes.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use rust_basic_types::contiguous::Vector;
@@ -101,16 +101,16 @@ impl<T> Vector<T> {
     pub fn new() -> Vector<T> {
         Vector {
             arr: Array::new(),
-            len: 0
+            len: 0,
         }
     }
 
     /// Creates a new Vector with capacity exactly equal to the provided value, allowing values to
     /// be added without reallocation.
-    /// 
+    ///
     /// # Panics
     /// Panics if memory layout size exceeds [`isize::MAX`].
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use rust_basic_types::contiguous::Vector;
@@ -122,12 +122,12 @@ impl<T> Vector<T> {
     pub fn with_cap(cap: usize) -> Vector<T> {
         Vector {
             arr: Array::new_uninit(cap),
-            len: 0
+            len: 0,
         }
     }
 
     /// Push the provided value onto the end of the Vector, increasing the capacity if required.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use rust_basic_types::contiguous::Vector;
@@ -147,13 +147,13 @@ impl<T> Vector<T> {
 
     /// Push the provided value onto the end of the Vector, assuming that there is enough capacity
     /// to do so.
-    /// 
+    ///
     /// # Safety
     /// It is up to the caller to ensure that the Vector has enough capacity to add the provided
     /// value, using methods like [`reserve`](Vector::reserve), [`adjust_cap`](Vector::adjust_cap)
     /// or [`with_cap`](Vector::with_cap) to do so. Using this method on a Vector without enough
     /// capacity is undefined behavior.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use rust_basic_types::contiguous::{Array, Vector};
@@ -174,7 +174,7 @@ impl<T> Vector<T> {
 
     /// Pops the last value off the end of the Vector, returning an owned value if the Vector has
     /// length greater than 0.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use rust_basic_types::contiguous::Vector;
@@ -205,10 +205,10 @@ impl<T> Vector<T> {
     }
 
     /// Inserts the provided value at the given index, growing and moving items as necessary.
-    /// 
+    ///
     /// # Panics
     /// Panics if the provided index is out of bounds.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use rust_basic_types::contiguous::Vector;
@@ -234,10 +234,10 @@ impl<T> Vector<T> {
     }
 
     /// Removes the element at the provided index, moving all following values to fill in the gap.
-    /// 
+    ///
     /// # Panics
     /// Panics if the provided index is out of bounds.
-    /// 
+    ///
     /// # Examples
     /// ```
     /// # use rust_basic_types::contiguous::Vector;
@@ -352,7 +352,10 @@ impl<T> Extend<T> for Vector<T> {
         self.reserve(additional);
     }
 
-    unsafe fn extend_one_unchecked(&mut self, item: T) where Self: Sized {
+    unsafe fn extend_one_unchecked(&mut self, item: T)
+    where
+        Self: Sized,
+    {
         // SAFETY: extend_reserve is implemented correctly, so all other safety requirements are the
         // responsibility of the caller.
         unsafe { self.push_unchecked(item) }
@@ -361,7 +364,7 @@ impl<T> Extend<T> for Vector<T> {
 
 impl<T, I> From<I> for Vector<T>
 where
-    I: Iterator<Item = T> + ExactSizeIterator + TrustedLen
+    I: Iterator<Item = T> + ExactSizeIterator + TrustedLen,
 {
     fn from(value: I) -> Self {
         let iter = value.into_iter();
@@ -415,7 +418,7 @@ impl<T> Deref for Vector<T> {
             slice::from_raw_parts(
                 // Reinterpret *mut MaybeUninit<T> as *mut T for all values < len.
                 self.arr.ptr.as_ptr().cast(),
-                self.len
+                self.len,
             )
         }
     }
@@ -427,7 +430,7 @@ impl<T> DerefMut for Vector<T> {
             slice::from_raw_parts_mut(
                 // Reinterpret *mut MaybeUninit<T> as *mut T for all values < len.
                 self.arr.ptr.as_ptr().cast(),
-                self.len
+                self.len,
             )
         }
     }
@@ -494,7 +497,7 @@ impl<T> From<Array<T>> for Vector<T> {
         let len = value.size();
         Vector {
             arr: value.forget_init(),
-            len
+            len,
         }
     }
 }

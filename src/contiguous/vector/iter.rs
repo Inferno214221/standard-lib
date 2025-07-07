@@ -1,6 +1,5 @@
 use super::Vector;
 use crate::contiguous::Array;
-
 #[doc(inline)]
 pub use crate::contiguous::array::IntoIter;
 

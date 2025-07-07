@@ -1,11 +1,10 @@
 use std::hash::{BuildHasher, Hash};
 use std::iter::FusedIterator;
-
-use crate::hash::map::{HashMap, Bucket};
-
-use crate::contiguous::array::IntoIter as ArrIntoIter;
-use std::slice::IterMut as ArrIterMut;
 use std::slice::Iter as ArrIter;
+use std::slice::IterMut as ArrIterMut;
+
+use super::{Bucket, HashMap};
+use crate::contiguous::array::IntoIter as ArrIntoIter;
 
 impl<K: Hash + Eq, V, B: BuildHasher> IntoIterator for HashMap<K, V, B> {
     type Item = (K, V);
@@ -22,7 +21,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> IntoIterator for HashMap<K, V, B> {
 
 pub struct IntoIter<K, V> {
     pub(crate) inner: ArrIntoIter<Bucket<K, V>>,
-    pub(crate) len: usize
+    pub(crate) len: usize,
 }
 
 impl<K: Hash + Eq, V> Iterator for IntoIter<K, V> {
@@ -59,7 +58,7 @@ impl<'a, K: Hash + Eq, V, B: BuildHasher> IntoIterator for &'a HashMap<K, V, B> 
 
 pub struct Iter<'a, K, V> {
     pub(crate) inner: ArrIter<'a, Bucket<K, V>>,
-    pub(crate) len: usize
+    pub(crate) len: usize,
 }
 
 impl<'a, K: Hash + Eq, V> Iterator for Iter<'a, K, V> {
@@ -82,9 +81,7 @@ impl<'a, K: Hash + Eq, V> Iterator for Iter<'a, K, V> {
 
 impl<'a, K: Hash + Eq, V> FusedIterator for Iter<'a, K, V> {}
 
-pub struct IntoKeys<K, V>(
-    pub(crate) IntoIter<K, V>
-);
+pub struct IntoKeys<K, V>(pub(crate) IntoIter<K, V>);
 
 impl<K: Hash + Eq, V> Iterator for IntoKeys<K, V> {
     type Item = K;
@@ -100,9 +97,7 @@ impl<K: Hash + Eq, V> Iterator for IntoKeys<K, V> {
 
 impl<K: Hash + Eq, V> FusedIterator for IntoKeys<K, V> {}
 
-pub struct Keys<'a, K, V>(
-    pub(crate) Iter<'a, K, V>
-);
+pub struct Keys<'a, K, V>(pub(crate) Iter<'a, K, V>);
 
 impl<'a, K: Hash + Eq, V> Iterator for Keys<'a, K, V> {
     type Item = &'a K;
@@ -118,9 +113,7 @@ impl<'a, K: Hash + Eq, V> Iterator for Keys<'a, K, V> {
 
 impl<'a, K: Hash + Eq, V> FusedIterator for Keys<'a, K, V> {}
 
-pub struct IntoValues<K, V>(
-    pub(crate) IntoIter<K, V>
-);
+pub struct IntoValues<K, V>(pub(crate) IntoIter<K, V>);
 
 impl<K: Hash + Eq, V> Iterator for IntoValues<K, V> {
     type Item = V;
@@ -138,7 +131,7 @@ impl<K: Hash + Eq, V> FusedIterator for IntoValues<K, V> {}
 
 pub struct ValuesMut<'a, K, V> {
     pub(crate) inner: ArrIterMut<'a, Bucket<K, V>>,
-    pub(crate) len: usize
+    pub(crate) len: usize,
 }
 
 impl<'a, K: Hash + Eq, V> Iterator for ValuesMut<'a, K, V> {
@@ -160,9 +153,7 @@ impl<'a, K: Hash + Eq, V> Iterator for ValuesMut<'a, K, V> {
 
 impl<'a, K: Hash + Eq, V> FusedIterator for ValuesMut<'a, K, V> {}
 
-pub struct Values<'a, K, V>(
-    pub(crate) Iter<'a, K, V>
-);
+pub struct Values<'a, K, V>(pub(crate) Iter<'a, K, V>);
 
 impl<'a, K: Hash + Eq, V> Iterator for Values<'a, K, V> {
     type Item = &'a V;

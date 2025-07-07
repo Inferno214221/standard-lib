@@ -2,9 +2,9 @@ use std::iter::{FusedIterator, TrustedLen};
 use std::marker::PhantomData;
 use std::ptr;
 
-use super::{DoublyLinkedList, ListState, Link, Inner};
-
 use ListState::*;
+
+use super::{DoublyLinkedList, Inner, Link, ListState};
 
 // TODO: Make a new DoubleEndedIterator?
 
@@ -20,7 +20,7 @@ impl<T> IntoIterator for DoublyLinkedList<T> {
                 Full(Inner { head, .. }) => Some(head),
             },
             len: self.len(),
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 }
@@ -28,7 +28,7 @@ impl<T> IntoIterator for DoublyLinkedList<T> {
 pub struct IntoIter<T> {
     pub(crate) curr: Link<T>,
     pub(crate) len: usize,
-    pub(crate) _phantom: PhantomData<T>
+    pub(crate) _phantom: PhantomData<T>,
 }
 
 impl<T> Drop for IntoIter<T> {
@@ -81,7 +81,7 @@ impl<'a, T> IntoIterator for &'a mut DoublyLinkedList<T> {
                 Full(Inner { head, .. }) => Some(head),
             },
             len: self.len(),
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 }
@@ -89,7 +89,7 @@ impl<'a, T> IntoIterator for &'a mut DoublyLinkedList<T> {
 pub struct IterMut<'a, T> {
     pub(crate) curr: Link<T>,
     pub(crate) len: usize,
-    pub(crate) _phantom: PhantomData<&'a mut T>
+    pub(crate) _phantom: PhantomData<&'a mut T>,
 }
 
 impl<'a, T> Iterator for IterMut<'a, T> {
@@ -131,7 +131,7 @@ impl<'a, T> IntoIterator for &'a DoublyLinkedList<T> {
                 Full(Inner { head, .. }) => Some(head),
             },
             len: self.len(),
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 }
@@ -139,7 +139,7 @@ impl<'a, T> IntoIterator for &'a DoublyLinkedList<T> {
 pub struct Iter<'a, T> {
     pub(crate) curr: Link<T>,
     pub(crate) len: usize,
-    pub(crate) _phantom: PhantomData<&'a T>
+    pub(crate) _phantom: PhantomData<&'a T>,
 }
 
 impl<'a, T> Iterator for Iter<'a, T> {

@@ -1,3 +1,3 @@
+pub mod alloc;
 pub mod fmt;
 pub mod hash;
-pub mod alloc;

@@ -10,7 +10,7 @@ pub(crate) struct Node<K: Ord, V> {
     pub left: Branch<K, V>,
     pub right: Branch<K, V>,
     pub key: K,
-    pub value: V
+    pub value: V,
 }
 
 impl<K: Ord, V> Node<K, V> {
@@ -36,7 +36,7 @@ impl<K: Ord, V> Branch<K, V> {
                     left: None.into(),
                     right: None.into(),
                     key,
-                    value
+                    value,
                 }));
                 None
             },
@@ -46,7 +46,7 @@ impl<K: Ord, V> Branch<K, V> {
     pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
     where
         K: Borrow<Q>,
-        Q: Ord + ?Sized
+        Q: Ord + ?Sized,
     {
         match &mut self.0 {
             Some(node) => match key.cmp(node.key.borrow()) {
@@ -61,7 +61,7 @@ impl<K: Ord, V> Branch<K, V> {
     pub fn get_entry<Q>(&self, key: &Q) -> Option<(&K, &V)>
     where
         K: Borrow<Q>,
-        Q: Ord + ?Sized
+        Q: Ord + ?Sized,
     {
         match &self.0 {
             Some(node) => match key.cmp(node.key.borrow()) {
@@ -91,7 +91,7 @@ impl<K: Ord, V> Branch<K, V> {
     pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
         K: Borrow<Q>,
-        Q: Ord + ?Sized
+        Q: Ord + ?Sized,
     {
         match &mut self.0 {
             Some(node) => match key.cmp(node.key.borrow()) {
@@ -106,7 +106,7 @@ impl<K: Ord, V> Branch<K, V> {
     pub fn contains<Q>(&mut self, key: &Q) -> bool
     where
         K: Borrow<Q>,
-        Q: Ord + ?Sized
+        Q: Ord + ?Sized,
     {
         match &mut self.0 {
             Some(node) => match key.cmp(node.key.borrow()) {
@@ -182,11 +182,21 @@ impl<K: Ord, V> From<Option<Box<Node<K, V>>>> for Branch<K, V> {
 impl<K: Ord + Debug, V: Debug> Debug for Branch<K, V> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match &self.0 {
-            Some(node) => write!(f, "{}\n({:?}: {:?})\n{}",
-                format!("{:?}", node.left).lines().map(|l| String::from("┌    ") + l).collect::<Vec<_>>().join("\n"),
+            Some(node) => write!(
+                f,
+                "{}\n({:?}: {:?})\n{}",
+                format!("{:?}", node.left)
+                    .lines()
+                    .map(|l| String::from("┌    ") + l)
+                    .collect::<Vec<_>>()
+                    .join("\n"),
                 node.key,
                 node.value,
-                format!("{:?}", node.right).lines().map(|l| String::from("└    ") + l).collect::<Vec<_>>().join("\n")
+                format!("{:?}", node.right)
+                    .lines()
+                    .map(|l| String::from("└    ") + l)
+                    .collect::<Vec<_>>()
+                    .join("\n")
             ),
             None => write!(f, "-"),
         }
