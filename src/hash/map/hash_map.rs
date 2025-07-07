@@ -4,7 +4,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::hash::{BuildHasher, Hash, RandomState};
 use std::mem;
 
-use super::{IterMut, Iter, IntoKeys, Keys, IntoValues, ValuesMut, Values};
+use super::{Iter, IntoKeys, Keys, IntoValues, ValuesMut, Values};
 use crate::contiguous::Array;
 use crate::util::fmt::DebugRaw;
 
@@ -161,8 +161,6 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
 
     pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where
-        // We're introducing a new type parameter here, Q which represents a borrowed version of K
-        // where equality and hashing carries over the borrow.
         K: Borrow<Q>,
         Q: Hash + Eq + ?Sized
     {
@@ -247,10 +245,6 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         self.realloc_with_cap(new_cap);
     }
 
-    pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
-        self.into_iter()
-    }
-
     pub fn iter(&self) -> Iter<'_, K, V> {
         self.into_iter()
     }
@@ -268,7 +262,10 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     }
 
     pub fn values_mut<'a>(&'a mut self) -> ValuesMut<'a, K, V> {
-        ValuesMut(self.iter_mut())
+        ValuesMut {
+            len: self.len(),
+            inner: self.arr.iter_mut(),
+        }
     }
 
     pub fn values<'a>(&'a self) -> Values<'a, K, V> {
@@ -351,6 +348,6 @@ impl<K: Hash + Eq + Debug, V: Debug, B: BuildHasher + Debug> Debug for HashMap<K
 impl<K: Hash + Eq + Debug, V: Debug, B: BuildHasher> Display for HashMap<K, V, B> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "#")?;
-        f.debug_map().entries(self.iter().map(|i| (&i.0, &i.1))).finish()
+        f.debug_map().entries(self.iter()).finish()
     }
 }

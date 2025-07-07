@@ -44,45 +44,8 @@ impl<K: Hash + Eq, V> Iterator for IntoIter<K, V> {
 
 impl<K: Hash + Eq, V> FusedIterator for IntoIter<K, V> {}
 
-impl<'a, K: Hash + Eq, V, B: BuildHasher> IntoIterator for &'a mut HashMap<K, V, B> {
-    type Item = &'a mut (K, V);
-
-    type IntoIter = IterMut<'a, K, V>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        IterMut {
-            len: self.len(),
-            inner: self.arr.iter_mut(),
-        }
-    }
-}
-
-pub struct IterMut<'a, K, V> {
-    pub(crate) inner: ArrIterMut<'a, Bucket<K, V>>,
-    pub(crate) len: usize
-}
-
-impl<'a, K: Hash + Eq, V> Iterator for IterMut<'a, K, V> {
-    type Item = &'a mut (K, V);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let mut next = self.inner.next();
-        while let Some(None) = next {
-            next = self.inner.next();
-        }
-
-        next.and_then(|i| i.as_mut())
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (0, Some(self.len))
-    }
-}
-
-impl<'a, K: Hash + Eq, V> FusedIterator for IterMut<'a, K, V> {}
-
 impl<'a, K: Hash + Eq, V, B: BuildHasher> IntoIterator for &'a HashMap<K, V, B> {
-    type Item = &'a (K, V);
+    type Item = (&'a K, &'a V);
 
     type IntoIter = Iter<'a, K, V>;
 
@@ -100,7 +63,7 @@ pub struct Iter<'a, K, V> {
 }
 
 impl<'a, K: Hash + Eq, V> Iterator for Iter<'a, K, V> {
-    type Item = &'a (K, V);
+    type Item = (&'a K, &'a V);
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut next = self.inner.next();
@@ -108,7 +71,8 @@ impl<'a, K: Hash + Eq, V> Iterator for Iter<'a, K, V> {
             next = self.inner.next();
         }
 
-        next.and_then(|i| i.as_ref())
+        // Convert &'a (K, V) to (&'a K, &'a V) to avoid promising the internal use of a tuple.
+        next.and_then(|i| i.as_ref().map(|(k, v)| (k, v)))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -144,7 +108,7 @@ impl<'a, K: Hash + Eq, V> Iterator for Keys<'a, K, V> {
     type Item = &'a K;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|e| &e.0)
+        self.0.next().map(|e| e.0)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -172,19 +136,25 @@ impl<K: Hash + Eq, V> Iterator for IntoValues<K, V> {
 
 impl<K: Hash + Eq, V> FusedIterator for IntoValues<K, V> {}
 
-pub struct ValuesMut<'a, K, V>(
-    pub(crate) IterMut<'a, K, V>
-);
+pub struct ValuesMut<'a, K, V> {
+    pub(crate) inner: ArrIterMut<'a, Bucket<K, V>>,
+    pub(crate) len: usize
+}
 
 impl<'a, K: Hash + Eq, V> Iterator for ValuesMut<'a, K, V> {
     type Item = &'a mut V;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|e| &mut e.1)
+        let mut next = self.inner.next();
+        while let Some(None) = next {
+            next = self.inner.next();
+        }
+
+        next.and_then(|i| i.as_mut().map(|(_, v)| v))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
+        (0, Some(self.len))
     }
 }
 
@@ -198,7 +168,7 @@ impl<'a, K: Hash + Eq, V> Iterator for Values<'a, K, V> {
     type Item = &'a V;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|e| &e.1)
+        self.0.next().map(|e| e.1)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
