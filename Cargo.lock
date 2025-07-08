@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "rust-basic-types"
+name = "standard-collections"
 version = "0.1.0"

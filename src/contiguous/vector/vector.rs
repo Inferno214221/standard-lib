@@ -51,7 +51,7 @@ impl<T> Vector<T> {
     ///
     /// # Examples
     /// ```
-    /// # use rust_basic_types::contiguous::Vector;
+    /// # use standard_collections::contiguous::Vector;
     /// let vec = Vector::from(1_u8..=3);
     /// assert_eq!(vec.len(), 3);
     /// ```
@@ -64,7 +64,7 @@ impl<T> Vector<T> {
     ///
     /// # Examples
     /// ```
-    /// # use rust_basic_types::contiguous::Vector;
+    /// # use standard_collections::contiguous::Vector;
     /// let vec: Vector<u8> = Vector::with_cap(5);
     /// assert_eq!(vec.cap(), 5);
     /// ```
@@ -76,7 +76,7 @@ impl<T> Vector<T> {
     ///  
     /// # Examples
     /// ```
-    /// # use rust_basic_types::contiguous::Vector;
+    /// # use standard_collections::contiguous::Vector;
     /// let mut vec: Vector<u8> = Vector::new();
     /// assert!(vec.is_empty());
     /// vec.push(1);
@@ -91,7 +91,7 @@ impl<T> Vector<T> {
     ///
     /// # Examples
     /// ```
-    /// # use rust_basic_types::contiguous::Vector;
+    /// # use standard_collections::contiguous::Vector;
     /// let vec: Vector<u8> = Vector::new();
     /// assert_eq!(vec.len(), 0);
     /// assert_eq!(vec.cap(), 0);
@@ -111,7 +111,7 @@ impl<T> Vector<T> {
     ///
     /// # Examples
     /// ```
-    /// # use rust_basic_types::contiguous::Vector;
+    /// # use standard_collections::contiguous::Vector;
     /// let mut vec: Vector<u8> = Vector::with_cap(5);
     /// assert_eq!(vec.cap(), 5);
     /// vec.extend([1_u8, 2, 3, 4, 5]);
@@ -131,7 +131,7 @@ impl<T> Vector<T> {
     ///
     /// # Examples
     /// ```
-    /// # use rust_basic_types::contiguous::Vector;
+    /// # use standard_collections::contiguous::Vector;
     /// let mut vec = Vector::<u8>::new();
     /// for i in 0..=5 {
     ///     vec.push(i);
@@ -157,7 +157,7 @@ impl<T> Vector<T> {
     ///
     /// # Examples
     /// ```
-    /// # use rust_basic_types::contiguous::{Array, Vector};
+    /// # use standard_collections::contiguous::{Array, Vector};
     /// let arr = Array::from(1_u8..=3);
     /// let mut vec = Vector::with_cap(arr.size());
     /// for i in arr.into_iter() {
@@ -178,7 +178,7 @@ impl<T> Vector<T> {
     ///
     /// # Examples
     /// ```
-    /// # use rust_basic_types::contiguous::Vector;
+    /// # use standard_collections::contiguous::Vector;
     /// let mut vec = Vector::from(0..5);
     /// for i in (0..vec.len()).rev() {
     ///     assert_eq!(vec.pop(), Some(i));
@@ -212,7 +212,7 @@ impl<T> Vector<T> {
     ///
     /// # Examples
     /// ```
-    /// # use rust_basic_types::contiguous::Vector;
+    /// # use standard_collections::contiguous::Vector;
     /// let mut vec = Vector::from(0..3);
     /// vec.insert(1, 100);
     /// vec.insert(1, 200);
@@ -241,7 +241,7 @@ impl<T> Vector<T> {
     ///
     /// # Examples
     /// ```
-    /// # use rust_basic_types::contiguous::Vector;
+    /// # use standard_collections::contiguous::Vector;
     /// let mut vec: Vector<_> = "Hello world!".chars().collect();
     /// assert_eq!(vec.remove(1), 'e');
     /// assert_eq!(vec.remove(4), ' ');

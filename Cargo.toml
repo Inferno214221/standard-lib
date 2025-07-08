@@ -1,5 +1,5 @@
 [package]
-name = "rust-basic-types"
+name = "standard-collections"
 version = "0.1.0"
 edition = "2024"
 
