@@ -14,8 +14,6 @@ pub mod linked;
 
 pub(crate) mod util;
 
-use std::collections::BTreeMap;
-
 use binary_tree::map::BinaryTreeMap;
 use contiguous::{Array, Vector};
 use hash::{HashMap, HashSet};
