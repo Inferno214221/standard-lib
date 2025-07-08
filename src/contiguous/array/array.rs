@@ -32,18 +32,6 @@ pub struct Array<T> {
 }
 
 impl<T> Array<T> {
-    /// Returns the size of the Array.
-    ///
-    /// # Examples
-    /// ```
-    /// # use standard_collections::contiguous::Array;
-    /// let arr = Array::from([1, 2, 3].into_iter());
-    /// assert_eq!(arr.size(), 3);
-    /// ```
-    pub const fn size(&self) -> usize {
-        self.size
-    }
-
     /// Creates a new Array with size 0.
     ///
     /// This method isn't very helpful in most cases because the size remains zero after
@@ -133,6 +121,18 @@ impl<T> Array<T> {
             size,
             _phantom: PhantomData,
         }
+    }
+
+    /// Returns the size of the Array.
+    ///
+    /// # Examples
+    /// ```
+    /// # use standard_collections::contiguous::Array;
+    /// let arr = Array::from([1, 2, 3].into_iter());
+    /// assert_eq!(arr.size(), 3);
+    /// ```
+    pub const fn size(&self) -> usize {
+        self.size
     }
 
     /// Interprets self as an `Array<MaybeUninit<T>>`. Although it may not seem very useful by

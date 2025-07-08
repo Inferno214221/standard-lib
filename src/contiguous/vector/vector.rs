@@ -47,45 +47,6 @@ pub struct Vector<T> {
 }
 
 impl<T> Vector<T> {
-    /// Returns the length of the Vector.
-    ///
-    /// # Examples
-    /// ```
-    /// # use standard_collections::contiguous::Vector;
-    /// let vec = Vector::from(1_u8..=3);
-    /// assert_eq!(vec.len(), 3);
-    /// ```
-    pub const fn len(&self) -> usize {
-        self.len
-    }
-
-    /// Returns the current capacity of the Vector. Unlike [`Vec`], the capacity is guaranteed to be
-    /// exactly the value provided to any of the various capacity manipulation functions.
-    ///
-    /// # Examples
-    /// ```
-    /// # use standard_collections::contiguous::Vector;
-    /// let vec: Vector<u8> = Vector::with_cap(5);
-    /// assert_eq!(vec.cap(), 5);
-    /// ```
-    pub const fn cap(&self) -> usize {
-        self.arr.size()
-    }
-
-    /// Returns true if the Vector contains no elements.
-    ///  
-    /// # Examples
-    /// ```
-    /// # use standard_collections::contiguous::Vector;
-    /// let mut vec: Vector<u8> = Vector::new();
-    /// assert!(vec.is_empty());
-    /// vec.push(1);
-    /// assert!(!vec.is_empty())
-    /// ```
-    pub const fn is_empty(&self) -> bool {
-        self.len == 0
-    }
-
     /// Creates a new Vector with length and capacity 0. Memory will be allocated when the capacity
     /// changes.
     ///
@@ -122,6 +83,45 @@ impl<T> Vector<T> {
             arr: Array::new_uninit(cap),
             len: 0,
         }
+    }
+
+    /// Returns the length of the Vector.
+    ///
+    /// # Examples
+    /// ```
+    /// # use standard_collections::contiguous::Vector;
+    /// let vec = Vector::from(1_u8..=3);
+    /// assert_eq!(vec.len(), 3);
+    /// ```
+    pub const fn len(&self) -> usize {
+        self.len
+    }
+
+    /// Returns true if the Vector contains no elements.
+    ///  
+    /// # Examples
+    /// ```
+    /// # use standard_collections::contiguous::Vector;
+    /// let mut vec: Vector<u8> = Vector::new();
+    /// assert!(vec.is_empty());
+    /// vec.push(1);
+    /// assert!(!vec.is_empty())
+    /// ```
+    pub const fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    /// Returns the current capacity of the Vector. Unlike [`Vec`], the capacity is guaranteed to be
+    /// exactly the value provided to any of the various capacity manipulation functions.
+    ///
+    /// # Examples
+    /// ```
+    /// # use standard_collections::contiguous::Vector;
+    /// let vec: Vector<u8> = Vector::with_cap(5);
+    /// assert_eq!(vec.cap(), 5);
+    /// ```
+    pub const fn cap(&self) -> usize {
+        self.arr.size()
     }
 
     /// Push the provided value onto the end of the Vector, increasing the capacity if required.

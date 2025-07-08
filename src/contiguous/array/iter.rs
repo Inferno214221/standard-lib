@@ -23,8 +23,9 @@ impl<T> IntoIterator for Array<T> {
     }
 }
 
-/// An owned type for owned iteration over an [`Array`] or [`Vector`]. See [`Array::into_iter`] and
-/// [`Vector::into_iter`].
+/// A type for owned iteration over an [`Array`] or [`Vector`]. Produces values of type `T`.
+///
+/// See [`Array::into_iter`] and [`Vector::into_iter`].
 pub struct IntoIter<T> {
     pub(crate) ptr: NonNull<T>,
     pub(crate) len: usize,
