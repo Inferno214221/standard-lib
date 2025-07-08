@@ -19,6 +19,9 @@ impl<K: Hash + Eq, V, B: BuildHasher> IntoIterator for HashMap<K, V, B> {
     }
 }
 
+/// A type for owned iteration over a [`HashMap`]. Produces values of type `(K, V)`.
+///
+/// See [`HashMap::into_iter`].
 pub struct IntoIter<K, V> {
     pub(crate) inner: ArrIntoIter<Bucket<K, V>>,
     pub(crate) len: usize,
@@ -56,6 +59,9 @@ impl<'a, K: Hash + Eq, V, B: BuildHasher> IntoIterator for &'a HashMap<K, V, B> 
     }
 }
 
+/// A type for borrowed iteration over a [`HashMap`]. Produces values of type `(&K, &V)`.
+///
+/// See [`HashMap::iter`].
 pub struct Iter<'a, K, V> {
     pub(crate) inner: ArrIter<'a, Bucket<K, V>>,
     pub(crate) len: usize,
@@ -81,6 +87,9 @@ impl<'a, K: Hash + Eq, V> Iterator for Iter<'a, K, V> {
 
 impl<'a, K: Hash + Eq, V> FusedIterator for Iter<'a, K, V> {}
 
+/// A type for owned iteration over a [`HashMap`]'s keys. Produces values of type `K`.
+///
+/// See [`HashMap::into_keys`].
 pub struct IntoKeys<K, V>(pub(crate) IntoIter<K, V>);
 
 impl<K: Hash + Eq, V> Iterator for IntoKeys<K, V> {
@@ -97,6 +106,9 @@ impl<K: Hash + Eq, V> Iterator for IntoKeys<K, V> {
 
 impl<K: Hash + Eq, V> FusedIterator for IntoKeys<K, V> {}
 
+/// A type for borrowed iteration over a [`HashMap`]'s keys. Produces values of type `&K`.
+///
+/// See [`HashMap::keys`].
 pub struct Keys<'a, K, V>(pub(crate) Iter<'a, K, V>);
 
 impl<'a, K: Hash + Eq, V> Iterator for Keys<'a, K, V> {
@@ -113,6 +125,9 @@ impl<'a, K: Hash + Eq, V> Iterator for Keys<'a, K, V> {
 
 impl<'a, K: Hash + Eq, V> FusedIterator for Keys<'a, K, V> {}
 
+/// A type for owned iteration over a [`HashMap`]'s values. Produces values of type `V`.
+///
+/// See [`HashMap::into_values`].
 pub struct IntoValues<K, V>(pub(crate) IntoIter<K, V>);
 
 impl<K: Hash + Eq, V> Iterator for IntoValues<K, V> {
@@ -129,6 +144,9 @@ impl<K: Hash + Eq, V> Iterator for IntoValues<K, V> {
 
 impl<K: Hash + Eq, V> FusedIterator for IntoValues<K, V> {}
 
+/// A type for mutable iteration over a [`HashMap`]'s values. Produces values of type `&mut V`.
+///
+/// See [`HashMap::values_mut`].
 pub struct ValuesMut<'a, K, V> {
     pub(crate) inner: ArrIterMut<'a, Bucket<K, V>>,
     pub(crate) len: usize,
@@ -153,6 +171,9 @@ impl<'a, K: Hash + Eq, V> Iterator for ValuesMut<'a, K, V> {
 
 impl<'a, K: Hash + Eq, V> FusedIterator for ValuesMut<'a, K, V> {}
 
+/// A type for borrowed iteration over a [`HashMap`]'s values. Produces values of type `&V`.
+///
+/// See [`HashMap::values`].
 pub struct Values<'a, K, V>(pub(crate) Iter<'a, K, V>);
 
 impl<'a, K: Hash + Eq, V> Iterator for Values<'a, K, V> {
