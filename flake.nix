@@ -23,7 +23,7 @@
           gcc
           cargo-expand
         ];
-      in with pkgs;
+      in with pkgs; rec
       {
         devShells.default = mkShell {
           inherit buildInputs;
@@ -60,6 +60,15 @@
             cp $src/doc/robots.txt $out/
             cp $src/doc/CNAME $out/
           '';
+        };
+
+        apps.docs = {
+          type = "app";
+          program = "${(
+            writeShellScript
+              "open-docs"
+              "${xdg-utils}/bin/xdg-open ${packages.docs}/standard_collections/index.html"
+          )}";
         };
       }
     );
