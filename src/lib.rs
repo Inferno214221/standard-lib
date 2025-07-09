@@ -10,6 +10,7 @@
 #![warn(clippy::undocumented_unsafe_blocks)]
 #![warn(clippy::missing_const_for_fn)]
 #![warn(clippy::missing_panics_doc)]
+#![warn(clippy::unwrap_used)]
 
 #![allow(clippy::module_inception)]
 

@@ -4,6 +4,8 @@ use std::fmt::{self, Debug, Formatter};
 use std::mem;
 use std::ops::{Deref, DerefMut};
 
+use crate::util::option::OptionExtension;
+
 pub(crate) struct Branch<K: Ord, V>(pub Option<Box<Node<K, V>>>);
 
 pub(crate) struct Node<K: Ord, V> {
@@ -52,7 +54,9 @@ impl<K: Ord, V> Branch<K, V> {
             Some(node) => match key.cmp(node.key.borrow()) {
                 Ordering::Less => node.left.remove_entry(key),
                 Ordering::Greater => node.right.remove_entry(key),
-                Ordering::Equal => Some(mem::take(&mut self.0).unwrap().into_tuple()),
+                // UNREACHABLE: We've already matched self.0 as a Some, but we need the mutable
+                // reference here.
+                Ordering::Equal => Some(mem::take(&mut self.0).unreachable().into_tuple()),
             },
             None => None,
         }
@@ -132,7 +136,9 @@ impl<K: Ord, V> Branch<K, V> {
         match &mut self.0 {
             Some(node) => match node.left.take_first_entry() {
                 Some(e) => Some(e),
-                None => Some(mem::take(&mut self.0).unwrap().into_tuple()),
+                // UNREACHABLE: We've already matched self.0 as a Some, but we need the mutable
+                // reference here.
+                None => Some(mem::take(&mut self.0).unreachable().into_tuple()),
             },
             None => None,
         }
@@ -152,7 +158,9 @@ impl<K: Ord, V> Branch<K, V> {
         match &mut self.0 {
             Some(node) => match node.right.take_last_entry() {
                 Some(e) => Some(e),
-                None => Some(mem::take(&mut self.0).unwrap().into_tuple()),
+                // UNREACHABLE: We've already matched self.0 as a Some, but we need the mutable
+                // reference here.
+                None => Some(mem::take(&mut self.0).unreachable().into_tuple()),
             },
             None => None,
         }

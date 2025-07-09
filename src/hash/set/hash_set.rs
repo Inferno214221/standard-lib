@@ -89,10 +89,11 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
             self.inner.grow()
         }
 
-        let index = self.inner.find_index_for_key(&item);
+        // UNREACHABLE: We've just grown if necessary.
+        let index = self.inner.find_index_for_key(&item).unreachable();
 
         // The Bucket at index is either empty or contains an equal item.
-        match &mut self.inner.arr[index] {
+        match self.inner.arr[index] {
             Some(_) => false,
             None => {
                 // Create a new Bucket with the provided values.
@@ -104,7 +105,8 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
     }
 
     pub unsafe fn insert_unchecked(&mut self, item: T) -> bool {
-        let index = self.inner.find_index_for_key(&item);
+        let index = self.inner.find_index_for_key(&item)
+            .expect("Unchecked insertion into HashSet with capacity 0!");
 
         // The Bucket at index is either empty or contains an equal item.
         match &mut self.inner.arr[index] {
@@ -253,7 +255,8 @@ impl<T: Hash + Eq, B: BuildHasher> BitAndAssign for HashSet<T, B> {
         let mut to_remove = Vector::with_cap(self.cap());
         for item in self.iter() {
             if !rhs.contains(item) {
-                to_remove.push(self.inner.find_index_for_key(item));
+                // UNREACHABLE: We are in a loop over self, so cap > 0.
+                to_remove.push(self.inner.find_index_for_key(item).unreachable());
             }
         }
         for index in to_remove {

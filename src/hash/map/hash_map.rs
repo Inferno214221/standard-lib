@@ -7,6 +7,7 @@ use std::{cmp, fmt};
 use super::{IntoKeys, IntoValues, Iter, Keys, Values, ValuesMut};
 use crate::contiguous::Array;
 use crate::util::fmt::DebugRaw;
+use crate::util::option::OptionExtension;
 
 const MIN_ALLOCATED_CAP: usize = 2;
 
@@ -112,14 +113,13 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     /// required. If the key was already associated with a value, the previous value is returned.
     ///
     /// As with the standard library, the key isn't changed if it already exists.
-    #[allow(clippy::missing_panics_doc)]
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         if self.should_grow() {
             self.grow()
         }
 
-        // UNWRAP: We've just grown if necessary.
-        let index = self.find_index_for_key(&key).unwrap();
+        // UNREACHABLE: We've just grown if necessary.
+        let index = self.find_index_for_key(&key).unreachable();
 
         // The bucket at index is either empty or contains an equal key.
         match &mut self.arr[index] {
@@ -224,7 +224,6 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     }
 
     /// Removes the entry associated with `key`, returning it if it exists.
-    #[allow(clippy::missing_panics_doc)]
     pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
     where
         K: Borrow<Q>,
@@ -248,9 +247,9 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         // the right at least once. Therefore, move it left once, either putting it in the correct
         // location or improving the proximity to the correct location.
         while let Some(next) = &self.arr[next_index]
-            // UNWRAP: We've already propagated a None from find_index_for_key, so index_from_key
-            // will return Some.
-            && self.index_from_key(&next.0).unwrap() != next_index
+            // UNREACHABLE: We've already propagated a None from find_index_for_key, so
+            // index_from_key will return Some.
+            && self.index_from_key(&next.0).unreachable() != next_index
         {
             let moving = mem::take(&mut self.arr[next_index]);
             let _none = mem::replace(&mut self.arr[index], moving);
@@ -353,9 +352,9 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         let old_arr = mem::replace(&mut self.arr, Array::repeat_default(new_cap));
 
         for entry in old_arr.into_iter().flatten() {
-            // UNWRAP: If the new capacity is 0, the old_arr has no items and we can't enter this
-            // loop.
-            let index = self.find_index_for_key(&entry.0).unwrap();
+            // UNREACHABLE: If the new capacity is 0, the old_arr has no items and we can't enter
+            // this loop.
+            let index = self.find_index_for_key(&entry.0).unreachable();
 
             // Move the bucket into the new Array.
             self.arr[index] = Some(entry);
