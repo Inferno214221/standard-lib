@@ -4,9 +4,10 @@ use std::hash::{BuildHasher, Hash, RandomState};
 use std::iter::TrustedLen;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Sub, SubAssign};
 
-use super::{Difference, Intersection, Iter, SymmetricDifference, Union};
+use super::Iter;
 use crate::contiguous::Vector;
 use crate::hash::HashMap;
+use crate::traits::set::Set;
 use crate::util::fmt::DebugRaw;
 use crate::util::option::OptionExtension;
 
@@ -101,7 +102,7 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
 
     /// Inserts the provided item into the HashSet, increasing its capacity if required. If the item
     /// was already included, no change is made and the method returns false. In other words, the
-    /// method reutrns true if the insertion changes the HashSet.
+    /// method returns true if the insertion changes the HashSet.
     pub fn insert(&mut self, item: T) -> bool {
         if self.inner.should_grow() {
             self.inner.grow()
@@ -122,7 +123,7 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
         }
     }
 
-    /// Inserts the provided item, without checking if the HashSet has enough capcity. If the item
+    /// Inserts the provided item, without checking if the HashSet has enough capacity. If the item
     /// was already included, no change is made and the method returns false.
     /// 
     /// # Safety
@@ -182,60 +183,17 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
     pub fn reserve(&mut self, extra: usize) {
         self.inner.reserve(extra)
     }
+}
 
-    /// Returns and iterator over all elements in the HashMap, as references.
-    pub fn iter(&self) -> Iter<'_, T> {
+impl<T: Hash + Eq, B: BuildHasher> Set<T> for HashSet<T, B> {
+    type Iter<'a> = Iter<'a, T> where Self: 'a;
+
+    fn iter<'a>(&'a self) -> Self::Iter<'a> {
         self.into_iter()
     }
 
-    /// Creates a borrowed iterator over all items that are in `self` but not `rhs`. (`self \ rhs`)
-    pub fn difference<'a>(&'a self, other: &'a HashSet<T, B>) -> Difference<'a, T, B> {
-        Difference {
-            inner: self.iter(),
-            other,
-        }
-    }
-
-    /// Creates a borrowed iterator over all items that are in `self` or `rhs` but not both. (`self
-    /// △ rhs`)
-    pub fn symmetric_difference<'a>(
-        &'a self,
-        other: &'a HashSet<T, B>,
-    ) -> SymmetricDifference<'a, T, B> {
-        SymmetricDifference {
-            inner: self.difference(other).chain(other.difference(self)),
-        }
-    }
-
-    /// Creates a borrowed iterator over all items that are in both `self` and `rhs`. (`self ∩ rhs`)
-    pub fn intersection<'a>(&'a self, other: &'a HashSet<T, B>) -> Intersection<'a, T, B> {
-        Intersection {
-            inner: self.iter(),
-            other,
-        }
-    }
-
-    /// Creates a borrowed iterator over all items that are in either `self` or `rhs`. (`self ∪
-    /// rhs`)
-    pub fn union<'a>(&'a self, other: &'a HashSet<T, B>) -> Union<'a, T, B> {
-        Union {
-            inner: self.iter().chain(other.difference(self)),
-        }
-    }
-
-    /// Returns true if self contains all elements of `other`.
-    pub fn is_subset(&self, other: &HashSet<T, B>) -> bool {
-        for item in other {
-            if !self.contains(item) {
-                return false;
-            }
-        }
-        true
-    }
-
-    /// Returns true if `other` contains all elements of self.
-    pub fn is_superset(&self, other: &HashSet<T, B>) -> bool {
-        other.is_subset(self)
+    fn contains(&self, item: &T) -> bool {
+        self.contains(item)
     }
 }
 
@@ -367,7 +325,9 @@ impl<T: Hash + Eq, B: BuildHasher + Default> FromIterator<T> for HashSet<T, B> {
 impl<T: Hash + Eq, B: BuildHasher> PartialEq for HashSet<T, B> {
     /// Two HashSets are considered equal if they contain exactly the same elements.
     fn eq(&self, other: &Self) -> bool {
-        self.is_subset(other) && self.is_superset(other)
+        self.len() == other.len()
+            && self.is_subset(other)
+            && self.is_superset(other)
     }
 }
 
