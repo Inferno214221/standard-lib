@@ -94,7 +94,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         }
     }
 
-    /// Returns the length of the HashMap.
+    /// Returns the length of the HashMap (the number of entries it contains).
     pub const fn len(&self) -> usize {
         self.len
     }
@@ -109,7 +109,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         self.arr.size
     }
 
-    /// Inserts the provided `key`-`value` pair into the HashMap, increasing the capacity if
+    /// Inserts the provided `key`-`value` pair into the HashMap, increasing its capacity if
     /// required. If the key was already associated with a value, the previous value is returned.
     ///
     /// As with the standard library, the key isn't changed if it already exists.
@@ -293,7 +293,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         self.realloc_with_cap(new_cap);
     }
 
-    /// Returns and iterator over all key-value pairs in the HashMap, as references.
+    /// Returns an iterator over all key-value pairs in the HashMap, as references.
     pub fn iter(&self) -> Iter<'_, K, V> {
         self.into_iter()
     }
@@ -303,7 +303,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         IntoKeys(self.into_iter())
     }
 
-    /// Returns and iterator over all keys in the HashMap, as references.
+    /// Returns an iterator over all keys in the HashMap, as references.
     pub fn keys<'a>(&'a self) -> Keys<'a, K, V> {
         Keys(self.iter())
     }
@@ -313,7 +313,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         IntoValues(self.into_iter())
     }
 
-    /// Returns and iterator over all values in the HashMap, as mutable references.
+    /// Returns an iterator over all values in the HashMap, as mutable references.
     pub fn values_mut<'a>(&'a mut self) -> ValuesMut<'a, K, V> {
         ValuesMut {
             len: self.len(),
@@ -321,7 +321,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         }
     }
 
-    /// Returns and iterator over all values in the HashMap, as references.
+    /// Returns an iterator over all values in the HashMap, as references.
     pub fn values<'a>(&'a self) -> Values<'a, K, V> {
         Values(self.iter())
     }
@@ -401,6 +401,8 @@ impl<K: Hash + Eq, V> Default for HashMap<K, V> {
         HashMap::new()
     }
 }
+
+// TODO: impl PartialEq and Eq
 
 impl<K: Hash + Eq + Debug, V: Debug, B: BuildHasher + Debug> Debug for HashMap<K, V, B> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {

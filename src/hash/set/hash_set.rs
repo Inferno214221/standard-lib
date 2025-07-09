@@ -8,10 +8,16 @@ use super::{Difference, Intersection, Iter, SymmetricDifference, Union};
 use crate::contiguous::Vector;
 use crate::hash::HashMap;
 use crate::util::fmt::DebugRaw;
+use crate::util::option::OptionExtension;
 
 /// A set of values that prevents duplicates with the help of the [`Hash`] trait.
 ///
 /// Relies on [`HashMap`] internally, see documentation there for additional details.
+///
+/// A custom load factor is not supported at this point, with the default being 4/5.
+///
+/// It is a logic error for keys in a HashSet to be manipulated in a way that changes their hash.
+/// Because of this, HashSet's API prevents mutable access to its keys.
 ///
 /// # Time Complexity
 /// See [`HashMap`] with the following additions.
@@ -46,12 +52,16 @@ pub struct HashSet<T: Hash + Eq, B: BuildHasher = RandomState> {
 }
 
 impl<T: Hash + Eq, B: BuildHasher + Default> HashSet<T, B> {
+    /// Creates a new HashSet with capacity 0 and the default value for `B`. Memory will be
+    /// allocated when the capacity changes.
     pub fn new() -> HashSet<T, B> {
         HashSet {
             inner: HashMap::new(),
         }
     }
 
+    /// Creates a new HashSet with the provided `cap`acity, allowing insertions without
+    /// reallocation. The default hasher will be used.
     pub fn with_cap(cap: usize) -> HashSet<T, B> {
         HashSet {
             inner: HashMap::with_cap(cap),
@@ -60,30 +70,38 @@ impl<T: Hash + Eq, B: BuildHasher + Default> HashSet<T, B> {
 }
 
 impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
+    /// Creates a new HashSet with capacity 0 and the provided `hasher`.
     pub fn with_hasher(hasher: B) -> HashSet<T, B> {
         HashSet {
             inner: HashMap::with_hasher(hasher),
         }
     }
 
+    /// Creates a new HashSet with the provided `cap`acity and `hasher`.
     pub fn with_cap_and_hasher(cap: usize, hasher: B) -> HashSet<T, B> {
         HashSet {
             inner: HashMap::with_cap_and_hasher(cap, hasher),
         }
     }
 
+    /// Returns the length of the HashSet (the number of elements it contains).
     pub const fn len(&self) -> usize {
         self.inner.len()
     }
 
+    /// Returns true if the HashSet contains no elements.
     pub const fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
 
+    /// Returns the current capacity of the HashSet.
     pub const fn cap(&self) -> usize {
         self.inner.cap()
     }
 
+    /// Inserts the provided item into the HashSet, increasing its capacity if required. If the item
+    /// was already included, no change is made and the method returns false. In other words, the
+    /// method reutrns true if the insertion changes the HashSet.
     pub fn insert(&mut self, item: T) -> bool {
         if self.inner.should_grow() {
             self.inner.grow()
@@ -104,6 +122,17 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
         }
     }
 
+    /// Inserts the provided item, without checking if the HashSet has enough capcity. If the item
+    /// was already included, no change is made and the method returns false.
+    /// 
+    /// # Safety
+    /// It is the responsibility of the caller to ensure that the HashSet has enough capacity to add
+    /// the provided item, using methods like [`reserve`][HashSet::reserve] or
+    /// [`with_cap`](HashSet::with_cap).
+    ///
+    /// # Panics
+    /// Panics if the HashSet has a capacity of 0, as it isn't possible to find a bucket associated
+    /// with the item.
     pub unsafe fn insert_unchecked(&mut self, item: T) -> bool {
         let index = self.inner.find_index_for_key(&item)
             .expect("Unchecked insertion into HashSet with capacity 0!");
@@ -120,6 +149,17 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
         }
     }
 
+    /// Returns a reference to the contained element equal to the provided `item` or None if there
+    /// isn't one.
+    pub fn get<Q>(&self, item: &Q) -> Option<&T>
+    where
+        T: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        self.inner.get_entry(item).map(|(k, _)| k)
+    }
+
+    /// Removes `item` from the HashSet, returning it if it exists.
     pub fn remove<Q>(&mut self, item: &Q) -> Option<T>
     where
         T: Borrow<Q>,
@@ -128,6 +168,7 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
         self.inner.remove_entry(item).map(|(k, _)| k)
     }
 
+    /// Returns true if the HashSet contains `item`.
     pub fn contains<Q>(&self, item: &Q) -> bool
     where
         T: Borrow<Q>,
@@ -136,14 +177,18 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
         self.inner.contains(item)
     }
 
+    /// Increases the capacity of the HashSet to ensure that len + `extra` elements will fit without
+    /// exceeding the load factor.
     pub fn reserve(&mut self, extra: usize) {
         self.inner.reserve(extra)
     }
 
+    /// Returns and iterator over all elements in the HashMap, as references.
     pub fn iter(&self) -> Iter<'_, T> {
         self.into_iter()
     }
 
+    /// Creates a borrowed iterator over all items that are in `self` but not `rhs`. (`self \ rhs`)
     pub fn difference<'a>(&'a self, other: &'a HashSet<T, B>) -> Difference<'a, T, B> {
         Difference {
             inner: self.iter(),
@@ -151,6 +196,8 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
         }
     }
 
+    /// Creates a borrowed iterator over all items that are in `self` or `rhs` but not both. (`self
+    /// △ rhs`)
     pub fn symmetric_difference<'a>(
         &'a self,
         other: &'a HashSet<T, B>,
@@ -160,6 +207,7 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
         }
     }
 
+    /// Creates a borrowed iterator over all items that are in both `self` and `rhs`. (`self ∩ rhs`)
     pub fn intersection<'a>(&'a self, other: &'a HashSet<T, B>) -> Intersection<'a, T, B> {
         Intersection {
             inner: self.iter(),
@@ -167,12 +215,15 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
         }
     }
 
+    /// Creates a borrowed iterator over all items that are in either `self` or `rhs`. (`self ∪
+    /// rhs`)
     pub fn union<'a>(&'a self, other: &'a HashSet<T, B>) -> Union<'a, T, B> {
         Union {
             inner: self.iter().chain(other.difference(self)),
         }
     }
 
+    /// Returns true if self contains all elements of `other`.
     pub fn is_subset(&self, other: &HashSet<T, B>) -> bool {
         for item in other {
             if !self.contains(item) {
@@ -182,8 +233,96 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
         true
     }
 
+    /// Returns true if `other` contains all elements of self.
     pub fn is_superset(&self, other: &HashSet<T, B>) -> bool {
         other.is_subset(self)
+    }
+}
+
+impl<T: Hash + Eq + Clone, B: BuildHasher + Default> BitOr for &HashSet<T, B> {
+    type Output = HashSet<T, B>;
+
+    /// Returns the union of `self` and `rhs`, as a HashSet.
+    fn bitor(self, rhs: Self) -> Self::Output {
+        self.union(rhs).cloned().collect()
+    }
+}
+
+impl<T: Hash + Eq, B: BuildHasher> BitOrAssign for HashSet<T, B> {
+    /// Adds all items from `rhs` to `self` to form a union in place.
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.reserve(rhs.cap());
+        for item in rhs {
+            // SAFETY: self has capacity for all items in rhs because we just called reserve.
+            unsafe { self.insert_unchecked(item); }
+        }
+    }
+}
+
+impl<T: Hash + Eq + Clone, B: BuildHasher + Default> BitAnd for &HashSet<T, B> {
+    type Output = HashSet<T, B>;
+
+    /// Returns the intersection of `self` and `rhs`, as a HashSet.
+    fn bitand(self, rhs: Self) -> Self::Output {
+        self.intersection(rhs).cloned().collect()
+    }
+}
+
+impl<T: Hash + Eq, B: BuildHasher> BitAndAssign for HashSet<T, B> {
+    /// Removes all items not in `rhs` from `self` to form an intersection in place.
+    fn bitand_assign(&mut self, rhs: Self) {
+        let mut to_remove = Vector::with_cap(self.cap());
+        for item in self.iter() {
+            if !rhs.contains(item) {
+                // UNREACHABLE: We are in a loop over self, so cap > 0.
+                to_remove.push(self.inner.find_index_for_key(item).unreachable());
+            }
+        }
+        for index in to_remove {
+            if self.inner.arr[index].is_some() {
+                self.inner.arr[index] = None;
+                self.inner.len -= 1;
+            }
+        }
+    }
+}
+
+impl<T: Hash + Eq + Clone, B: BuildHasher + Default> BitXor for &HashSet<T, B> {
+    type Output = HashSet<T, B>;
+
+    /// Returns the symmetric difference of `self` and `rhs`, as a HashSet.
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        self.symmetric_difference(rhs).cloned().collect()
+    }
+}
+
+impl<T: Hash + Eq, B: BuildHasher> BitXorAssign for HashSet<T, B> {
+    /// Removes all items in both `rhs` and `self` from `self` to form the symmetric difference of
+    /// the two in place.
+    fn bitxor_assign(&mut self, rhs: Self) {
+        for item in rhs {
+            if self.remove(&item).is_none() {
+                self.insert(item);
+            }
+        }
+    }
+}
+
+impl<T: Hash + Eq + Clone, B: BuildHasher + Default> Sub for &HashSet<T, B> {
+    type Output = HashSet<T, B>;
+
+    /// Returns the difference of `self` and `rhs`, as a HashSet.
+    fn sub(self, rhs: Self) -> Self::Output {
+        self.difference(rhs).cloned().collect()
+    }
+}
+
+impl<T: Hash + Eq, B: BuildHasher> SubAssign for HashSet<T, B> {
+    /// Removes all items in `rhs` from `self` to form the difference of the two in place.
+    fn sub_assign(&mut self, rhs: Self) {
+        for item in rhs {
+            self.remove(&item);
+        }
     }
 }
 
@@ -225,84 +364,8 @@ impl<T: Hash + Eq, B: BuildHasher + Default> FromIterator<T> for HashSet<T, B> {
     }
 }
 
-impl<T: Hash + Eq + Clone, B: BuildHasher + Default> BitOr for &HashSet<T, B> {
-    type Output = HashSet<T, B>;
-
-    fn bitor(self, rhs: Self) -> Self::Output {
-        self.union(rhs).cloned().collect()
-    }
-}
-
-impl<T: Hash + Eq, B: BuildHasher> BitOrAssign for HashSet<T, B> {
-    fn bitor_assign(&mut self, rhs: Self) {
-        self.reserve(rhs.cap());
-        for item in rhs {
-            unsafe { self.insert_unchecked(item); }
-        }
-    }
-}
-
-impl<T: Hash + Eq + Clone, B: BuildHasher + Default> BitAnd for &HashSet<T, B> {
-    type Output = HashSet<T, B>;
-
-    fn bitand(self, rhs: Self) -> Self::Output {
-        self.intersection(rhs).cloned().collect()
-    }
-}
-
-impl<T: Hash + Eq, B: BuildHasher> BitAndAssign for HashSet<T, B> {
-    fn bitand_assign(&mut self, rhs: Self) {
-        let mut to_remove = Vector::with_cap(self.cap());
-        for item in self.iter() {
-            if !rhs.contains(item) {
-                // UNREACHABLE: We are in a loop over self, so cap > 0.
-                to_remove.push(self.inner.find_index_for_key(item).unreachable());
-            }
-        }
-        for index in to_remove {
-            if self.inner.arr[index].is_some() {
-                self.inner.arr[index] = None;
-                self.inner.len -= 1;
-            }
-        }
-    }
-}
-
-impl<T: Hash + Eq + Clone, B: BuildHasher + Default> BitXor for &HashSet<T, B> {
-    type Output = HashSet<T, B>;
-
-    fn bitxor(self, rhs: Self) -> Self::Output {
-        self.symmetric_difference(rhs).cloned().collect()
-    }
-}
-
-impl<T: Hash + Eq, B: BuildHasher> BitXorAssign for HashSet<T, B> {
-    fn bitxor_assign(&mut self, rhs: Self) {
-        for item in rhs {
-            if self.remove(&item).is_none() {
-                self.insert(item);
-            }
-        }
-    }
-}
-
-impl<T: Hash + Eq + Clone, B: BuildHasher + Default> Sub for &HashSet<T, B> {
-    type Output = HashSet<T, B>;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        self.difference(rhs).cloned().collect()
-    }
-}
-
-impl<T: Hash + Eq, B: BuildHasher> SubAssign for HashSet<T, B> {
-    fn sub_assign(&mut self, rhs: Self) {
-        for item in rhs {
-            self.remove(&item);
-        }
-    }
-}
-
 impl<T: Hash + Eq, B: BuildHasher> PartialEq for HashSet<T, B> {
+    /// Two HashSets are considered equal if they contain exactly the same elements.
     fn eq(&self, other: &Self) -> bool {
         self.is_subset(other) && self.is_superset(other)
     }
