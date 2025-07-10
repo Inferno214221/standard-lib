@@ -108,8 +108,8 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
             self.inner.grow()
         }
 
-        // UNREACHABLE: We've just grown if necessary.
-        let index = self.inner.find_index_for_key(&item).unreachable();
+        // SAFETY: We've just grown if necessary.
+        let index = unsafe { self.inner.find_index_for_key(&item).unreachable() };
 
         // The Bucket at index is either empty or contains an equal item.
         match self.inner.arr[index] {
@@ -232,8 +232,10 @@ impl<T: Hash + Eq, B: BuildHasher> BitAndAssign for HashSet<T, B> {
         let mut to_remove = Vector::with_cap(self.cap());
         for item in self.iter() {
             if !rhs.contains(item) {
-                // UNREACHABLE: We are in a loop over self, so cap > 0.
-                to_remove.push(self.inner.find_index_for_key(item).unreachable());
+                to_remove.push(
+                    // SAFETY: We are in a loop over self, so cap > 0.
+                    unsafe { self.inner.find_index_for_key(item).unreachable() }
+                );
             }
         }
         for index in to_remove {

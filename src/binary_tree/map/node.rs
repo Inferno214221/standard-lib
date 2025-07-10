@@ -54,9 +54,11 @@ impl<K: Ord, V> Branch<K, V> {
             Some(node) => match key.cmp(node.key.borrow()) {
                 Ordering::Less => node.left.remove_entry(key),
                 Ordering::Greater => node.right.remove_entry(key),
-                // UNREACHABLE: We've already matched self.0 as a Some, but we need the mutable
-                // reference here.
-                Ordering::Equal => Some(mem::take(&mut self.0).unreachable().into_tuple()),
+                Ordering::Equal => Some(
+                    // SAFETY: We've already matched self.0 as a Some, but we need the mutable
+                    // reference here.
+                    unsafe { mem::take(&mut self.0).unreachable().into_tuple() }
+                ),
             },
             None => None,
         }
@@ -136,9 +138,11 @@ impl<K: Ord, V> Branch<K, V> {
         match &mut self.0 {
             Some(node) => match node.left.take_first_entry() {
                 Some(e) => Some(e),
-                // UNREACHABLE: We've already matched self.0 as a Some, but we need the mutable
-                // reference here.
-                None => Some(mem::take(&mut self.0).unreachable().into_tuple()),
+                None => Some(
+                    // SAFETY: We've already matched self.0 as a Some, but we need the mutable
+                    // reference here.
+                    unsafe { mem::take(&mut self.0).unreachable().into_tuple() }
+                ),
             },
             None => None,
         }
@@ -158,9 +162,11 @@ impl<K: Ord, V> Branch<K, V> {
         match &mut self.0 {
             Some(node) => match node.right.take_last_entry() {
                 Some(e) => Some(e),
-                // UNREACHABLE: We've already matched self.0 as a Some, but we need the mutable
-                // reference here.
-                None => Some(mem::take(&mut self.0).unreachable().into_tuple()),
+                None => Some(
+                    // SAFETY: We've already matched self.0 as a Some, but we need the mutable
+                    // reference here.
+                    unsafe { mem::take(&mut self.0).unreachable().into_tuple() }
+                ),
             },
             None => None,
         }

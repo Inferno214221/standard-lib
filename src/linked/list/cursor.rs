@@ -179,9 +179,9 @@ impl<T> Cursor<T> {
                             Some(next_node) => {
                                 *next_node.prev_mut() = None;
                                 list.head = next_node;
-                                // UNREACHABLE: We've removed 1 node from a list we know to have at
-                                // least two: node and next_node.
-                                list.len = list.len.checked_sub(1).unreachable();
+                                // SAFETY: We've removed 1 node from a list we know to have at least
+                                // two: node and next_node.
+                                list.len = unsafe { list.len.checked_sub(1).unreachable() };
                             },
                             None => self.state = Empty,
                         }
@@ -202,9 +202,9 @@ impl<T> Cursor<T> {
                                         *ptr.next_mut() = None;
                                     },
                                 }
-                                // UNREACHABLE: We've removed 1 node from a list we know to have at
-                                // least two, pointed to by: ptr and next_ptr.
-                                list.len = list.len.checked_sub(1).unreachable();
+                                // SAFETY: We've removed 1 node from a list we know to have at least
+                                // two, pointed to by ptr and next_ptr.
+                                list.len = unsafe { list.len.checked_sub(1).unreachable() };
                                 Some(next_node.value)
                             },
                             // We are on a node without a next value, so we return None, despite not
