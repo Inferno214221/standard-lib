@@ -4,7 +4,7 @@ use std::ptr;
 
 use ListState::*;
 
-use super::{DoublyLinkedList, Inner, Link, ListState};
+use super::{DoublyLinkedList, ListContents, Link, ListState};
 
 // TODO: Make a new DoubleEndedIterator?
 
@@ -17,7 +17,7 @@ impl<T> IntoIterator for DoublyLinkedList<T> {
         IntoIter {
             curr: match self.state {
                 Empty => None,
-                Full(Inner { head, .. }) => Some(head),
+                Full(ListContents { head, .. }) => Some(head),
             },
             len: self.len(),
             _phantom: PhantomData,
@@ -78,7 +78,7 @@ impl<'a, T> IntoIterator for &'a mut DoublyLinkedList<T> {
         IterMut {
             curr: match self.state {
                 Empty => None,
-                Full(Inner { head, .. }) => Some(head),
+                Full(ListContents { head, .. }) => Some(head),
             },
             len: self.len(),
             _phantom: PhantomData,
@@ -128,7 +128,7 @@ impl<'a, T> IntoIterator for &'a DoublyLinkedList<T> {
         Iter {
             curr: match self.state {
                 Empty => None,
-                Full(Inner { head, .. }) => Some(head),
+                Full(ListContents { head, .. }) => Some(head),
             },
             len: self.len(),
             _phantom: PhantomData,
