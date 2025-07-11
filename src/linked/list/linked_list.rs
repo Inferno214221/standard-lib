@@ -1,12 +1,16 @@
 use std::fmt::{self, Debug, Display, Formatter};
 use std::marker::PhantomData;
 use std::mem;
+use std::ops::{Index, IndexMut};
 use std::ptr;
 
 use super::{Iter, IterMut, Length, Node, NodePtr, ONE};
 use crate::linked::cursor::{Cursor, CursorContents, CursorPosition, CursorState};
 use crate::contiguous::Vector;
 use crate::util::option::OptionExtension;
+use crate::util::result::ResultExtension;
+#[doc(inline)]
+pub use crate::util::error::IndexOutOfBounds;
 
 /// A list with links in both directions. See also: [`Cursor`] for bi-directional iteration and
 /// traversal.
@@ -168,15 +172,23 @@ impl<T> LinkedList<T> {
     }
 
     pub fn get(&self, index: usize) -> &T {
-        self.checked_seek(index).value()
+        self.checked_seek(index).throw().value()
+    }
+
+    pub fn try_get(&self, index: usize) -> Option<&T> {
+        Some(self.checked_seek(index).ok()?.value())
     }
 
     pub fn get_mut(&mut self, index: usize) -> &mut T {
-        self.checked_seek(index).value_mut()
+        self.checked_seek(index).throw().value_mut()
+    }
+
+    pub fn try_get_mut(&mut self, index: usize) -> Option<&mut T> {
+        Some(self.checked_seek(index).ok()?.value_mut())
     }
 
     pub fn insert(&mut self, index: usize, value: T) {
-        let contents = self.checked_contents_for_index_mut(index - 1);
+        let contents = self.checked_contents_for_index_mut(index - 1).throw();
         match index {
             0 => self.push_front(value),
             val if val == contents.len.get() => self.push_back(value),
@@ -199,8 +211,10 @@ impl<T> LinkedList<T> {
         }
     }
 
+    // TODO: pub fn try_insert(&mut self, index: usize, value: T) -> ?
+
     pub fn remove(&mut self, index: usize) -> T {
-        let contents = self.checked_contents_for_index_mut(index);
+        let contents = self.checked_contents_for_index_mut(index).throw();
         match index {
             0 => {
                 // UNWRAP: contents is already checked to be valid for the provided index.
@@ -225,12 +239,16 @@ impl<T> LinkedList<T> {
         }
     }
 
+    // TODO: pub fn try_remove(&mut self, index: usize) -> Option<T>
+
     pub fn replace(&mut self, index: usize, new_value: T) -> T {
         mem::replace(
-            self.checked_seek(index).value_mut(),
+            self.checked_seek(index).throw().value_mut(),
             new_value
         )
     }
+
+    // TODO: pub fn try_replace(&mut self, index: usize, new_value: T) -> Option<T>
 
     pub fn append(&mut self, other: LinkedList<T>) {
         match &mut self.state {
@@ -289,36 +307,40 @@ impl<T> LinkedList<T> {
 }
 
 impl<T> LinkedList<T> {
-    pub(crate) fn checked_seek(&self, index: usize) -> NodePtr<T> {
-        self.checked_contents_for_index(index).seek(index)
+    pub(crate) fn checked_seek(&self, index: usize) -> Result<NodePtr<T>, IndexOutOfBounds> {
+        Ok(self.checked_contents_for_index(index)?.seek(index))
     }
 
-    pub(crate) fn checked_contents_for_index(&self, index: usize) -> &ListContents<T> {
+    pub(crate) const fn checked_contents_for_index(
+        &self,
+        index: usize,
+    ) -> Result<&ListContents<T>, IndexOutOfBounds> {
         match &self.state {
-            Empty => panic!("failed to index empty collection"),
+            Empty => Err(IndexOutOfBounds { index, len: 0 }),
             Full(contents) => {
-                assert!(
-                    index < contents.len.get(),
-                    "index {} out of bounds for collection with {} elements",
-                    index,
-                    contents.len.get()
-                );
-                contents
+                let len = contents.len.get();
+                if index < len {
+                    Ok(contents)
+                } else {
+                    Err(IndexOutOfBounds { index, len })
+                }
             },
         }
     }
 
-    pub(crate) fn checked_contents_for_index_mut(&mut self, index: usize) -> &mut ListContents<T> {
+    pub(crate) const fn checked_contents_for_index_mut(
+        &mut self,
+        index: usize,
+    ) -> Result<&mut ListContents<T>, IndexOutOfBounds> {
         match &mut self.state {
-            Empty => panic!("failed to index empty collection"),
+            Empty => Err(IndexOutOfBounds { index, len: 0 }),
             Full(contents) => {
-                assert!(
-                    index < contents.len.get(),
-                    "index {} out of bounds for collection with {} elements",
-                    index,
-                    contents.len.get()
-                );
-                contents
+                let len = contents.len.get();
+                if index < len {
+                    Ok(contents)
+                } else {
+                    Err(IndexOutOfBounds { index, len })
+                }
             },
         }
     }
@@ -411,6 +433,31 @@ impl<T> ListState<T> {
     }
 }
 
+impl<T> Index<usize> for LinkedList<T> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.get(index)
+    }
+}
+
+
+impl<T> IndexMut<usize> for LinkedList<T> {    
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.get_mut(index)
+    }
+}
+
+impl<T> FromIterator<T> for LinkedList<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut list = LinkedList::new();
+        for item in iter.into_iter() {
+            list.push_back(item);
+        }
+        list
+    }
+}
+
 impl<T> Default for LinkedList<T> {
     fn default() -> Self {
         Self::new()
@@ -429,16 +476,6 @@ impl<T> Drop for LinkedList<T> {
                 }
             },
         }
-    }
-}
-
-impl<T> FromIterator<T> for LinkedList<T> {
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut list = LinkedList::new();
-        for item in iter.into_iter() {
-            list.push_back(item);
-        }
-        list
     }
 }
 

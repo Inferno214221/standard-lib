@@ -1,9 +1,11 @@
+use std::ops::{Index, IndexMut};
 use std::{hint, marker::PhantomData};
 
-use super::State as PubState;
-use super::StateMut as PubStateMut;
+use super::{State, StateMut};
 use crate::linked::list::{LinkedList, ListContents, ListState, Node, NodePtr};
+use crate::util::error::IndexOutOfBounds;
 use crate::util::option::OptionExtension;
+use crate::util::result::ResultExtension;
 
 /// A type for bi-directional traversal and mutation of [`LinkedList`]s. See
 /// [`LinkedList::cursor_front`] and [`LinkedList::cursor_back`] to create one.
@@ -186,6 +188,28 @@ impl<T> Cursor<T> {
     }
 
     // TODO: prev methods
+
+    pub const fn state<'a>(&'a self) -> State<'a, T> {
+        match &self.state {
+            Empty => State::Empty,
+            Full(CursorContents { pos, .. }) => match pos {
+                Head => State::Head,
+                Tail => State::Tail,
+                Ptr(ptr) => State::Node(ptr.value()),
+            },
+        }
+    }
+
+    pub const fn state_mut<'a>(&'a mut self) -> StateMut<'a, T> {
+        match &mut self.state {
+            Empty => StateMut::Empty,
+            Full(CursorContents { pos, .. }) => match pos {
+                Head => StateMut::Head,
+                Tail => StateMut::Tail,
+                Ptr(ptr) => StateMut::Node(ptr.value_mut()),
+            },
+        }
+    }
     
     pub const fn is_head(&self) -> bool {
         match &self.state {
@@ -201,29 +225,7 @@ impl<T> Cursor<T> {
         }
     }
 
-    pub const fn state<'a>(&'a self) -> PubState<'a, T> {
-        match &self.state {
-            Empty => PubState::Empty,
-            Full(CursorContents { pos, .. }) => match pos {
-                Head => PubState::Head,
-                Tail => PubState::Tail,
-                Ptr(ptr) => PubState::Node(ptr.value()),
-            },
-        }
-    }
-
-    pub const fn state_mut<'a>(&'a mut self) -> PubStateMut<'a, T> {
-        match &mut self.state {
-            Empty => PubStateMut::Empty,
-            Full(CursorContents { pos, .. }) => match pos {
-                Head => PubStateMut::Head,
-                Tail => PubStateMut::Tail,
-                Ptr(ptr) => PubStateMut::Node(ptr.value_mut()),
-            },
-        }
-    }
-
-    pub fn get_rel(&self, offset: isize) -> Option<&T> {
+    pub fn read_offset(&self, offset: isize) -> Option<&T> {
         match &self.state {
             Empty => None,
             Full(CursorContents { list, pos }) => match offset.signum() {
@@ -265,7 +267,7 @@ impl<T> Cursor<T> {
         }
     }
 
-    pub fn get_rel_mut(&mut self, offset: isize) -> Option<&mut T> {
+    pub fn read_offset_mut(&mut self, offset: isize) -> Option<&mut T> {
         match &mut self.state {
             Empty => None,
             Full(CursorContents { list, pos }) => match offset.signum() {
@@ -306,9 +308,66 @@ impl<T> Cursor<T> {
             },
         }
     }
+
+    pub const fn move_offset(&mut self, offset: isize) -> &mut Self {
+        match &mut self.state {
+            Empty => (),
+            Full(CursorContents { list, pos }) => match offset.signum() {
+                0 => (),
+                -1 => {
+                    let (mut ptr, mut steps) = match pos {
+                        Head => return self,
+                        Tail => (list.tail, offset.abs() - 1),
+                        Ptr(ptr) => (*ptr, offset.abs()),
+                    };
+                    
+                    while steps > 0 {
+                        ptr = match *ptr.prev() {
+                            Some(p) => p,
+                            None => {
+                                *pos = Tail;
+                                return self;
+                            },
+                        };
+                        steps -= 1;
+                    }
+
+                    *pos = Ptr(ptr)
+                },
+                1 => {
+                    let (mut ptr, mut steps) = match pos {
+                        Head => return self,
+                        Tail => (list.head, offset),
+                        Ptr(ptr) => (*ptr, offset),
+                    };
+                    
+                    while steps > 0 {
+                        ptr = match *ptr.next() {
+                            Some(p) => p,
+                            None => {
+                                *pos = Head;
+                                return self;
+                            },
+                        };
+                        steps -= 1;
+                    }
+
+                    *pos = Ptr(ptr)
+                },
+                // SAFETY: signum returns only one of the options above.
+                _ => unsafe { hint::unreachable_unchecked() },
+            },
+        }
+        self
+    }
+
+    // Needs to track the cursor's index to calculate len. Get could also be optimised by tracking
+    // the index.
+    // pub fn split_before(self) -> (LinkedList<T>, LinkedList<T>)
+
+    // pub fn split_after(self) -> (LinkedList<T>, LinkedList<T>)
 }
 
-// Wrapping LinkedList.
 impl<T> Cursor<T> {
     pub const fn len(&self) -> usize {
         match &self.state {
@@ -393,36 +452,71 @@ impl<T> Cursor<T> {
         }
     }
 
-    // TODO: pub fn pop_back(&mut self) -> Option<T>
+    pub fn pop_back(&mut self) -> Option<T> {
+        match &mut self.state {
+            Empty => None,
+            Full(CursorContents { list, pos }) => {
+                match pos {
+                    Ptr(node) if *node == list.tail => *pos = Tail,
+                    _ => (),
+                }
+                
+                let node = list.tail.take_node();
 
-    // TODO: Should this return an Option<&T>?
+                match list.len.checked_sub(1) {
+                    Some(new_len) => {
+                        // SAFETY: Previous length is greater than 1, so the last element is
+                        // preceded by at least one more.
+                        let new_tail = unsafe { node.prev.unreachable() };
+                        list.tail = new_tail;
+                        *new_tail.prev_mut() = None;
+                        list.len = new_len;
+                    },
+                    None => self.state = Empty,
+                }
+
+                Some(node.value)
+            },
+        }
+    }
+
     pub fn get(&self, index: usize) -> &T {
-        self.checked_seek(index).value()
+        self.checked_seek(index).throw().value()
+    }
+
+    pub fn try_get(&self, index: usize) -> Option<&T> {
+        Some(self.checked_seek(index).ok()?.value())
     }
 
     pub fn get_mut(&mut self, index: usize) -> &mut T {
-        self.checked_seek(index).value_mut()
+        self.checked_seek(index).throw().value_mut()
+    }
+
+    pub fn try_get_mut(&mut self, index: usize) -> Option<&mut T> {
+        Some(self.checked_seek(index).ok()?.value_mut())
     }
 
     // TODO: more redirection to list functions
 }
 
 impl<T> Cursor<T> {
-    pub(crate) fn checked_seek(&self, index: usize) -> NodePtr<T> {
-        self.checked_contents_for_index(index).seek(index)
+    pub(crate) fn checked_seek(&self, index: usize) -> Result<NodePtr<T>, IndexOutOfBounds> {
+        Ok(self.checked_contents_for_index(index)?.list.seek(index))
     }
 
-    pub(crate) fn checked_contents_for_index(&self, index: usize) -> &ListContents<T> {
+    pub(crate) const fn checked_contents_for_index(
+        &self,
+        index: usize,
+    ) -> Result<&CursorContents<T>, IndexOutOfBounds> {
         match &self.state {
-            Empty => panic!("failed to index empty collection"),
-            Full(CursorContents { list, .. }) => {
-                assert!(
-                    index < list.len.get(),
-                    "index {} out of bounds for collection with {} elements",
-                    index,
-                    list.len.get()
-                );
-                list
+            Empty => Err(IndexOutOfBounds { index, len: 0 }),
+            Full(contents) => {
+                let len = contents.list.len.get();
+                if index < len {
+                    Ok(contents)
+                } else {
+                    Err(IndexOutOfBounds { index, len })
+                }
             },
         }
     }
@@ -434,6 +528,21 @@ impl<T> CursorState<T> {
             list: ListContents::wrap_one(value),
             pos,
         })
+    }
+}
+
+impl<T> Index<usize> for Cursor<T> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.get(index)
+    }
+}
+
+
+impl<T> IndexMut<usize> for Cursor<T> {    
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.get_mut(index)
     }
 }
 

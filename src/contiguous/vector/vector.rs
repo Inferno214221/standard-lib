@@ -379,6 +379,7 @@ impl<T> Vector<T> {
     /// # Panics
     /// Panics if the provided index is out of bounds.
     pub(crate) fn check_index(&self, index: usize) {
+        // TODO: use IndexOutOfBounds
         assert!(
             index < self.len,
             "index {} out of bounds for collection with {} elements",
