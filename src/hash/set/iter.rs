@@ -3,6 +3,8 @@ use std::iter::{FusedIterator};
 
 use super::HashSet;
 use crate::hash::map::{IntoKeys, Keys};
+#[allow(unused)]
+use crate::traits::Set;
 
 impl<T: Hash + Eq, B: BuildHasher> IntoIterator for HashSet<T, B> {
     type Item = T;
@@ -14,6 +16,9 @@ impl<T: Hash + Eq, B: BuildHasher> IntoIterator for HashSet<T, B> {
     }
 }
 
+/// A type for owned iteration over a [`HashSet`]. Produces values of type `T`.
+///
+/// See [`HashSet::into_iter`].
 pub struct IntoIter<T: Hash + Eq>(pub(crate) IntoKeys<T, ()>);
 
 impl<T: Hash + Eq> Iterator for IntoIter<T> {
@@ -40,6 +45,9 @@ impl<'a, T: Hash + Eq, B: BuildHasher> IntoIterator for &'a HashSet<T, B> {
     }
 }
 
+/// A type for borrowed iteration over a [`HashSet`]. Produces values of type `&T`.
+///
+/// See [`HashSet::iter`].
 pub struct Iter<'a, T: Hash + Eq>(pub(crate) Keys<'a, T, ()>);
 
 impl<'a, T: Hash + Eq> Iterator for Iter<'a, T> {

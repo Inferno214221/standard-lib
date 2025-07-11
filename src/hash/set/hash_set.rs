@@ -7,7 +7,7 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, S
 use super::Iter;
 use crate::contiguous::Vector;
 use crate::hash::HashMap;
-use crate::traits::set::Set;
+use crate::traits::Set;
 use crate::util::fmt::DebugRaw;
 use crate::util::option::OptionExtension;
 
