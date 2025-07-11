@@ -3,7 +3,8 @@ use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
 
-use super::{Cursor, CursorContents, CursorPosition, CursorState, Iter, IterMut, Length, Node, NodePtr, ONE};
+use super::{Iter, IterMut, Length, Node, NodePtr, ONE};
+use crate::linked::cursor::{Cursor, CursorContents, CursorPosition, CursorState};
 use crate::contiguous::Vector;
 use crate::util::option::OptionExtension;
 
@@ -12,7 +13,7 @@ use crate::util::option::OptionExtension;
 ///
 /// # Time Complexity
 /// For this analysis of time complexity, variables are defined as follows:
-/// - `n`: The number of items in the DoublyLinkedList.
+/// - `n`: The number of items in the LinkedList.
 /// - `i`: The index of the item in question.
 ///
 /// | Method | Complexity |
@@ -34,9 +35,9 @@ use crate::util::option::OptionExtension;
 /// As a general note, modern computer architecture isn't kind to linked lists, (or more
 /// importantly, favours contiguous collections) because all `O(i)` or `O(n)` operations will
 /// consist primarily of cache misses. For this reason, [`Vector`] should be preferred for most
-/// applications unless DoublyLinkedList and the accompanying [`Cursor`] type's `O(1)` methods are
-/// being heavily utilized.
-pub struct DoublyLinkedList<T> {
+/// applications unless LinkedList and the accompanying [`Cursor`] type's `O(1)` methods are being
+/// heavily utilized.
+pub struct LinkedList<T> {
     pub(crate) state: ListState<T>,
     pub(crate) _phantom: PhantomData<T>,
 }
@@ -56,9 +57,9 @@ pub(crate) struct ListContents<T> {
     pub tail: NodePtr<T>,
 }
 
-impl<T> DoublyLinkedList<T> {
-    pub const fn new() -> DoublyLinkedList<T> {
-        DoublyLinkedList {
+impl<T> LinkedList<T> {
+    pub const fn new() -> LinkedList<T> {
+        LinkedList {
             state: Empty,
             _phantom: PhantomData,
         }
@@ -231,7 +232,7 @@ impl<T> DoublyLinkedList<T> {
         )
     }
 
-    pub fn append(&mut self, other: DoublyLinkedList<T>) {
+    pub fn append(&mut self, other: LinkedList<T>) {
         match &mut self.state {
             Empty => *self = other,
             Full(self_contents) => match &other.state {
@@ -287,7 +288,7 @@ impl<T> DoublyLinkedList<T> {
     }
 }
 
-impl<T> DoublyLinkedList<T> {
+impl<T> LinkedList<T> {
     pub(crate) fn checked_seek(&self, index: usize) -> NodePtr<T> {
         self.checked_contents_for_index(index).seek(index)
     }
@@ -410,13 +411,13 @@ impl<T> ListState<T> {
     }
 }
 
-impl<T> Default for DoublyLinkedList<T> {
+impl<T> Default for LinkedList<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> Drop for DoublyLinkedList<T> {
+impl<T> Drop for LinkedList<T> {
     fn drop(&mut self) {
         match self.state {
             Empty => {},
@@ -431,9 +432,9 @@ impl<T> Drop for DoublyLinkedList<T> {
     }
 }
 
-impl<T> FromIterator<T> for DoublyLinkedList<T> {
+impl<T> FromIterator<T> for LinkedList<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut list = DoublyLinkedList::new();
+        let mut list = LinkedList::new();
         for item in iter.into_iter() {
             list.push_back(item);
         }
@@ -441,7 +442,7 @@ impl<T> FromIterator<T> for DoublyLinkedList<T> {
     }
 }
 
-impl<T: Debug> Debug for DoublyLinkedList<T> {
+impl<T: Debug> Debug for LinkedList<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("DLinkedList")
             .field_with("contents", |f| f.debug_list().entries(self.iter()).finish())
@@ -450,7 +451,7 @@ impl<T: Debug> Debug for DoublyLinkedList<T> {
     }
 }
 
-impl<T: Debug> Display for DoublyLinkedList<T> {
+impl<T: Debug> Display for LinkedList<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,

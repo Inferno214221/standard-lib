@@ -1,10 +1,12 @@
 use std::{hint, marker::PhantomData};
 
-use super::{DoublyLinkedList, ListContents, ListState, Node, NodePtr};
 use super::State as PubState;
 use super::StateMut as PubStateMut;
+use crate::linked::list::{LinkedList, ListContents, ListState, Node, NodePtr};
 use crate::util::option::OptionExtension;
 
+/// A type for bi-directional traversal and mutation of [`LinkedList`]s. See
+/// [`LinkedList::cursor_front`] and [`LinkedList::cursor_back`] to create one.
 pub struct Cursor<T> {
     pub(crate) state: CursorState<T>,
     pub(crate) _phantom: PhantomData<T>,
@@ -31,13 +33,13 @@ pub(crate) enum CursorPosition<T> {
 use CursorPosition::*;
 
 impl<T> Cursor<T> {
-    pub const fn list(self) -> DoublyLinkedList<T> {
+    pub const fn list(self) -> LinkedList<T> {
         match self.state {
-            Empty => DoublyLinkedList {
+            Empty => LinkedList {
                 state: ListState::Empty,
                 _phantom: PhantomData,
             },
-            Full(CursorContents { list, .. }) => DoublyLinkedList {
+            Full(CursorContents { list, .. }) => LinkedList {
                 state: ListState::Full(list),
                 _phantom: PhantomData,
             },
@@ -306,7 +308,7 @@ impl<T> Cursor<T> {
     }
 }
 
-// Wrapping DoublyLinkedList.
+// Wrapping LinkedList.
 impl<T> Cursor<T> {
     pub const fn len(&self) -> usize {
         match &self.state {

@@ -18,7 +18,7 @@ pub(crate) mod util;
 use binary_tree::map::BinaryTreeMap;
 use contiguous::{Array, Vector};
 use hash::{HashMap, HashSet};
-use linked::DoublyLinkedList;
+use linked::LinkedList;
 
 fn main() {
     let mut map: HashMap<String, usize> = dbg!(HashMap::new());
@@ -103,11 +103,11 @@ fn main() {
     println!("{}", Vector::from([0_u8, 1, 2, 3].into_iter()));
     println!(
         "{:?}",
-        [0_u8, 1, 2, 3].into_iter().collect::<DoublyLinkedList<_>>()
+        [0_u8, 1, 2, 3].into_iter().collect::<LinkedList<_>>()
     );
     println!(
         "{}",
-        [0_u8, 1, 2, 3].into_iter().collect::<DoublyLinkedList<_>>()
+        [0_u8, 1, 2, 3].into_iter().collect::<LinkedList<_>>()
     );
     println!("{:?}", &map);
     println!("{}", &map);

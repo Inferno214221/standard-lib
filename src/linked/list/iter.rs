@@ -4,11 +4,11 @@ use std::ptr;
 
 use ListState::*;
 
-use super::{DoublyLinkedList, ListContents, Link, ListState};
+use super::{LinkedList, ListContents, Link, ListState};
 
 // TODO: Make a new DoubleEndedIterator?
 
-impl<T> IntoIterator for DoublyLinkedList<T> {
+impl<T> IntoIterator for LinkedList<T> {
     type Item = T;
 
     type IntoIter = IntoIter<T>;
@@ -69,7 +69,7 @@ impl<T> ExactSizeIterator for IntoIter<T> {
 // SAFETY: IntoIter::size_hint returns the exact length of the iterator.
 unsafe impl<T> TrustedLen for IntoIter<T> {}
 
-impl<'a, T> IntoIterator for &'a mut DoublyLinkedList<T> {
+impl<'a, T> IntoIterator for &'a mut LinkedList<T> {
     type Item = &'a mut T;
 
     type IntoIter = IterMut<'a, T>;
@@ -119,7 +119,7 @@ impl<'a, T> ExactSizeIterator for IterMut<'a, T> {
 // SAFETY: IterMut::size_hint returns the exact length of the iterator.
 unsafe impl<'a, T> TrustedLen for IterMut<'a, T> {}
 
-impl<'a, T> IntoIterator for &'a DoublyLinkedList<T> {
+impl<'a, T> IntoIterator for &'a LinkedList<T> {
     type Item = &'a T;
 
     type IntoIter = Iter<'a, T>;
