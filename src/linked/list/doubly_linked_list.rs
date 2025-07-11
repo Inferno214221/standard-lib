@@ -3,8 +3,9 @@ use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
 
-use super::{Cursor, CursorPosition, CursorState, Iter, IterMut, Length, Node, NodePtr, ONE};
+use super::{Cursor, CursorContents, CursorPosition, CursorState, Iter, IterMut, Length, Node, NodePtr, ONE};
 use crate::contiguous::Vector;
+use crate::util::option::OptionExtension;
 
 /// A list with links in both directions. See also: [`Cursor`] for bi-directional iteration and
 /// traversal.
@@ -71,7 +72,10 @@ impl<T> DoublyLinkedList<T> {
     }
 
     pub const fn is_empty(&self) -> bool {
-        self.len() == 0
+        match &self.state {
+            Empty => true,
+            Full { .. } => false,
+        }
     }
 
     pub const fn front(&self) -> Option<&T> {
@@ -103,54 +107,16 @@ impl<T> DoublyLinkedList<T> {
     }
 
     pub fn push_front(&mut self, value: T) {
-        let new_node = NodePtr::from_node(
-            Node {
-                value,
-                prev: None,
-                next: None
-            }
-        );
-
         match &mut self.state {
-            Empty => {
-                self.state = Full(ListContents {
-                    len: ONE,
-                    head: new_node,
-                    tail: new_node,
-                });
-            },
-            Full(ListContents { len, head, .. }) => {
-                *head.prev_mut() = Some(new_node);
-                *new_node.next_mut() = Some(*head);
-                *head = new_node;
-                *len = len.checked_add(1).unwrap(); // TODO: proper handling
-            },
+            Empty => self.state = ListState::single(value),
+            Full(contents) => contents.push_front(value),
         }
     }
 
     pub fn push_back(&mut self, value: T) {
-        let new_node = NodePtr::from_node(
-            Node {
-                value,
-                prev: None,
-                next: None
-            }
-        );
-
         match &mut self.state {
-            Empty => {
-                self.state = Full(ListContents {
-                    len: ONE,
-                    head: new_node,
-                    tail: new_node,
-                });
-            },
-            Full(ListContents { len, tail, .. }) => {
-                *tail.next_mut() = Some(new_node);
-                *new_node.prev_mut() = Some(*tail);
-                *tail = new_node;
-                *len = len.checked_add(1).unwrap(); // TODO: proper handling
-            },
+            Empty => self.state = ListState::single(value),
+            Full(contents) => contents.push_back(value),
         }
     }
 
@@ -162,16 +128,14 @@ impl<T> DoublyLinkedList<T> {
 
                 match len.checked_sub(1) {
                     Some(new_len) => {
-                        // UNWRAP: Previous length is greater than 1, so the first element is
-                        // followed by at least one more.
-                        let new_head = node.next.unwrap();
+                        // SAFETY: Previous length is greater than 1, so the first element is
+                        // preceded by at least one more.
+                        let new_head = unsafe { node.next.unreachable() };
                         *head = new_head;
                         *new_head.prev_mut() = None;
                         *len = new_len;
                     },
-                    None => {
-                        self.state = Empty;
-                    },
+                    None => self.state = Empty,
                 }
 
                 Some(node.value)
@@ -182,28 +146,19 @@ impl<T> DoublyLinkedList<T> {
     pub fn pop_back(&mut self) -> Option<T> {
         match &mut self.state {
             Empty => None,
-            Full(ListContents { len, tail, .. }) if *len == ONE => {
-                let node = tail.take_node();
-
-                self.state = Empty;
-
-                Some(node.value)
-            },
             Full(ListContents { len, tail, .. }) => {
                 let node = tail.take_node();
 
                 match len.checked_sub(1) {
                     Some(new_len) => {
-                        // UNWRAP: Previous length is greater than 1, so the last element is
+                        // SAFETY: Previous length is greater than 1, so the last element is
                         // preceded by at least one more.
-                        let new_tail = node.prev.unwrap();
+                        let new_tail = unsafe { node.prev.unreachable() };
                         *tail = new_tail;
                         *new_tail.next_mut() = None;
                         *len = new_len;
                     },
-                    None => {
-                        self.state = Empty;
-                    },
+                    None => self.state = Empty,
                 }
 
                 Some(node.value)
@@ -301,10 +256,10 @@ impl<T> DoublyLinkedList<T> {
         Cursor {
             state: match mem::take(&mut self.state) {
                 Empty => CursorState::Empty,
-                Full(contents) => CursorState::Full {
+                Full(contents) => CursorState::Full(CursorContents {
                     pos: CursorPosition::Head, // TODO: Should the cursor start before head?
                     list: contents,
-                },
+                }),
             },
             _phantom: PhantomData,
         }
@@ -314,10 +269,10 @@ impl<T> DoublyLinkedList<T> {
         Cursor {
             state: match mem::take(&mut self.state) {
                 Empty => CursorState::Empty,
-                Full(contents) => CursorState::Full {
+                Full(contents) => CursorState::Full(CursorContents {
                     pos: CursorPosition::Tail, // TODO: Should the cursor start after tail?
                     list: contents,
-                },
+                }),
             },
             _phantom: PhantomData,
         }
@@ -406,6 +361,52 @@ impl<T> ListContents<T> {
             curr = curr.prev().unwrap();
         }
         curr
+    }
+
+    pub(crate) fn push_front(&mut self, value: T) {
+        self.len = self.len.checked_add(1).expect("Capacity overflow!");
+
+        let node = NodePtr::from_node(Node {
+            value,
+            prev: None,
+            next: Some(self.head),
+        });
+
+        *self.head.prev_mut() = Some(node);
+        self.head = node;
+    }
+
+    pub(crate) fn push_back(&mut self, value: T) {
+        self.len = self.len.checked_add(1).expect("Capacity overflow!");
+
+        let node = NodePtr::from_node(Node {
+            value,
+            prev: Some(self.tail),
+            next: None,
+        });
+
+        *self.tail.next_mut() = Some(node);
+        self.tail = node;
+    }
+
+    pub(crate) fn wrap_one(value: T) -> ListContents<T> {
+        let node = NodePtr::from_node(Node {
+            value,
+            prev: None,
+            next: None,
+        });
+
+        ListContents {
+            len: ONE,
+            head: node,
+            tail: node,
+        }
+    }
+}
+
+impl<T> ListState<T> {
+    pub(crate) fn single(value: T) -> ListState<T> {
+        Full(ListContents::wrap_one(value))
     }
 }
 
