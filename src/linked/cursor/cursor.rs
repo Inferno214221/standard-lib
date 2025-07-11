@@ -4,7 +4,6 @@ use std::{hint, marker::PhantomData};
 use super::{State, StateMut};
 use crate::linked::list::{LinkedList, ListContents, ListState, Node, NodePtr};
 use crate::util::error::IndexOutOfBounds;
-use crate::util::option::OptionExtension;
 use crate::util::result::ResultExtension;
 
 /// A type for bi-directional traversal and mutation of [`LinkedList`]s. See
@@ -151,7 +150,7 @@ impl<T> Cursor<T> {
                                 list.head = next_node;
                                 // SAFETY: We've removed 1 node from a list we know to have at least
                                 // two: node and next_node.
-                                list.len = unsafe { list.len.checked_sub(1).unreachable() };
+                                list.len = unsafe { list.len.checked_sub(1).unwrap_unchecked() };
                             },
                             None => self.state = Empty,
                         }
@@ -174,7 +173,7 @@ impl<T> Cursor<T> {
                                 }
                                 // SAFETY: We've removed 1 node from a list we know to have at least
                                 // two, pointed to by ptr and next_ptr.
-                                list.len = unsafe { list.len.checked_sub(1).unreachable() };
+                                list.len = unsafe { list.len.checked_sub(1).unwrap_unchecked() };
                                 Some(next_node.value)
                             },
                             // We are on a node without a next value, so we return None, despite not
@@ -439,7 +438,7 @@ impl<T> Cursor<T> {
                     Some(new_len) => {
                         // SAFETY: Previous length is greater than 1, so the last element is
                         // preceded by at least one more.
-                        let new_head = unsafe { node.next.unreachable() };
+                        let new_head = unsafe { node.next.unwrap_unchecked() };
                         list.head = new_head;
                         *new_head.prev_mut() = None;
                         list.len = new_len;
@@ -467,7 +466,7 @@ impl<T> Cursor<T> {
                     Some(new_len) => {
                         // SAFETY: Previous length is greater than 1, so the last element is
                         // preceded by at least one more.
-                        let new_tail = unsafe { node.prev.unreachable() };
+                        let new_tail = unsafe { node.prev.unwrap_unchecked() };
                         list.tail = new_tail;
                         *new_tail.prev_mut() = None;
                         list.len = new_len;

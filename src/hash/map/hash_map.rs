@@ -7,7 +7,6 @@ use std::{cmp, fmt};
 use super::{IntoKeys, IntoValues, Iter, Keys, Values, ValuesMut};
 use crate::contiguous::Array;
 use crate::util::fmt::DebugRaw;
-use crate::util::option::OptionExtension;
 
 const MIN_ALLOCATED_CAP: usize = 2;
 
@@ -119,7 +118,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         }
 
         // SAFETY: We've just grown if necessary.
-        let index = unsafe { self.find_index_for_key(&key).unreachable() };
+        let index = unsafe { self.find_index_for_key(&key).unwrap_unchecked() };
 
         // The bucket at index is either empty or contains an equal key.
         match &mut self.arr[index] {
@@ -249,7 +248,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         while let Some(next) = &self.arr[next_index]
             // SAFETY: We've already propagated a None from find_index_for_key, so
             // index_from_key will return Some.
-            && unsafe { self.index_from_key(&next.0).unreachable() } != next_index
+            && unsafe { self.index_from_key(&next.0).unwrap_unchecked() } != next_index
         {
             let moving = mem::take(&mut self.arr[next_index]);
             let _none = mem::replace(&mut self.arr[index], moving);
@@ -354,7 +353,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         for entry in old_arr.into_iter().flatten() {
             // SAFETY: If the new capacity is 0, the old_arr has no items and we can't enter
             // this loop.
-            let index = unsafe { self.find_index_for_key(&entry.0).unreachable() };
+            let index = unsafe { self.find_index_for_key(&entry.0).unwrap_unchecked() };
 
             // Move the bucket into the new Array.
             self.arr[index] = Some(entry);

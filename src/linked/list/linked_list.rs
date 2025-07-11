@@ -7,7 +7,6 @@ use std::ptr;
 use super::{Iter, IterMut, Length, Node, NodePtr, ONE};
 use crate::linked::cursor::{Cursor, CursorContents, CursorPosition, CursorState};
 use crate::contiguous::Vector;
-use crate::util::option::OptionExtension;
 use crate::util::result::ResultExtension;
 #[doc(inline)]
 pub use crate::util::error::IndexOutOfBounds;
@@ -135,7 +134,7 @@ impl<T> LinkedList<T> {
                     Some(new_len) => {
                         // SAFETY: Previous length is greater than 1, so the first element is
                         // preceded by at least one more.
-                        let new_head = unsafe { node.next.unreachable() };
+                        let new_head = unsafe { node.next.unwrap_unchecked() };
                         *head = new_head;
                         *new_head.prev_mut() = None;
                         *len = new_len;
@@ -158,7 +157,7 @@ impl<T> LinkedList<T> {
                     Some(new_len) => {
                         // SAFETY: Previous length is greater than 1, so the last element is
                         // preceded by at least one more.
-                        let new_tail = unsafe { node.prev.unreachable() };
+                        let new_tail = unsafe { node.prev.unwrap_unchecked() };
                         *tail = new_tail;
                         *new_tail.next_mut() = None;
                         *len = new_len;

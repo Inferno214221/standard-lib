@@ -4,7 +4,6 @@ use std::fmt::{self, Debug, Formatter};
 use std::mem;
 use std::ops::{Deref, DerefMut};
 
-use crate::util::option::OptionExtension;
 
 pub(crate) struct Branch<K: Ord, V>(pub Option<Box<Node<K, V>>>);
 
@@ -57,7 +56,7 @@ impl<K: Ord, V> Branch<K, V> {
                 Ordering::Equal => Some(
                     // SAFETY: We've already matched self.0 as a Some, but we need the mutable
                     // reference here.
-                    unsafe { mem::take(&mut self.0).unreachable().into_tuple() }
+                    unsafe { mem::take(&mut self.0).unwrap_unchecked().into_tuple() }
                 ),
             },
             None => None,
@@ -141,7 +140,7 @@ impl<K: Ord, V> Branch<K, V> {
                 None => Some(
                     // SAFETY: We've already matched self.0 as a Some, but we need the mutable
                     // reference here.
-                    unsafe { mem::take(&mut self.0).unreachable().into_tuple() }
+                    unsafe { mem::take(&mut self.0).unwrap_unchecked().into_tuple() }
                 ),
             },
             None => None,
@@ -165,7 +164,7 @@ impl<K: Ord, V> Branch<K, V> {
                 None => Some(
                     // SAFETY: We've already matched self.0 as a Some, but we need the mutable
                     // reference here.
-                    unsafe { mem::take(&mut self.0).unreachable().into_tuple() }
+                    unsafe { mem::take(&mut self.0).unwrap_unchecked().into_tuple() }
                 ),
             },
             None => None,

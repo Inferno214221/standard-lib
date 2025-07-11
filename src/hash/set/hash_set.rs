@@ -9,7 +9,6 @@ use crate::contiguous::Vector;
 use crate::hash::HashMap;
 use crate::traits::Set;
 use crate::util::fmt::DebugRaw;
-use crate::util::option::OptionExtension;
 
 /// A set of values that prevents duplicates with the help of the [`Hash`] trait.
 ///
@@ -109,7 +108,7 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
         }
 
         // SAFETY: We've just grown if necessary.
-        let index = unsafe { self.inner.find_index_for_key(&item).unreachable() };
+        let index = unsafe { self.inner.find_index_for_key(&item).unwrap_unchecked() };
 
         // The Bucket at index is either empty or contains an equal item.
         match self.inner.arr[index] {
@@ -234,7 +233,7 @@ impl<T: Hash + Eq, B: BuildHasher> BitAndAssign for HashSet<T, B> {
             if !rhs.contains(item) {
                 to_remove.push(
                     // SAFETY: We are in a loop over self, so cap > 0.
-                    unsafe { self.inner.find_index_for_key(item).unreachable() }
+                    unsafe { self.inner.find_index_for_key(item).unwrap_unchecked() }
                 );
             }
         }
