@@ -1,5 +1,7 @@
+use derive_more::IsVariant;
+
 /// An enum to represent the state of a [`Cursor`](super::Cursor).
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, IsVariant)]
 pub enum State<'a, T> {
     /// The cursor holds an empty list and therefore doesn't point anywhere.
     Empty,
@@ -12,7 +14,7 @@ pub enum State<'a, T> {
 }
 
 /// An enum to represent the state of a [`Cursor`](super::Cursor) while allowing for mutation.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, IsVariant)]
 pub enum StateMut<'a, T> {
     /// The cursor holds an empty list and therefore doesn't point anywhere.
     Empty,

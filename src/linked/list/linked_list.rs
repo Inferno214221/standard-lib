@@ -9,7 +9,9 @@ use crate::linked::cursor::{Cursor, CursorContents, CursorPosition, CursorState}
 use crate::contiguous::Vector;
 use crate::util::result::ResultExtension;
 #[doc(inline)]
-pub use crate::util::error::IndexOutOfBounds;
+pub use crate::util::error::{CapacityOverflow, IndexOrCapOverflow, IndexOutOfBounds};
+
+use derive_more::IsVariant;
 
 /// A list with links in both directions. See also: [`Cursor`] for bi-directional iteration and
 /// traversal.
@@ -45,7 +47,7 @@ pub struct LinkedList<T> {
     pub(crate) _phantom: PhantomData<T>,
 }
 
-#[derive(Default)]
+#[derive(Default, IsVariant)]
 pub(crate) enum ListState<T> {
     #[default]
     Empty,
@@ -76,10 +78,7 @@ impl<T> LinkedList<T> {
     }
 
     pub const fn is_empty(&self) -> bool {
-        match &self.state {
-            Empty => true,
-            Full { .. } => false,
-        }
+        self.state.is_empty()
     }
 
     pub const fn front(&self) -> Option<&T> {
@@ -171,28 +170,36 @@ impl<T> LinkedList<T> {
     }
 
     pub fn get(&self, index: usize) -> &T {
-        self.checked_seek(index).throw().value()
+        self.try_get(index).throw()
     }
 
-    pub fn try_get(&self, index: usize) -> Option<&T> {
-        Some(self.checked_seek(index).ok()?.value())
+    pub fn try_get(&self, index: usize) -> Result<&T, IndexOutOfBounds> {
+        Ok(self.checked_seek(index)?.value())
     }
 
     pub fn get_mut(&mut self, index: usize) -> &mut T {
-        self.checked_seek(index).throw().value_mut()
+        self.try_get_mut(index).throw()
     }
 
-    pub fn try_get_mut(&mut self, index: usize) -> Option<&mut T> {
-        Some(self.checked_seek(index).ok()?.value_mut())
+    pub fn try_get_mut(&mut self, index: usize) -> Result<&mut T, IndexOutOfBounds> {
+        Ok(self.checked_seek(index)?.value_mut())
     }
 
     pub fn insert(&mut self, index: usize, value: T) {
-        let contents = self.checked_contents_for_index_mut(index - 1).throw();
+        self.try_insert(index, value).throw();
+    }
+
+    // TODO: all try functions should throw before mutating internal state.
+
+    pub fn try_insert(&mut self, index: usize, value: T) -> Result<(), IndexOrCapOverflow> {
+        let contents = self.checked_contents_for_index_mut(index - 1)?;
         match index {
             0 => self.push_front(value),
             val if val == contents.len.get() => self.push_back(value),
             val => {
                 let prev_node = contents.seek(val - 1);
+
+                contents.len = contents.len.checked_add(1).ok_or(CapacityOverflow)?;
 
                 let node = NodePtr::from_node(Node {
                     value,
@@ -200,54 +207,57 @@ impl<T> LinkedList<T> {
                     next: *prev_node.next(),
                 });
 
-                // UNWRAP: For this branch, we aren't adding at the front or back, so the node
+                // SAFETY: For this branch, we aren't adding at the front or back, so the node
                 // before the given index has a next node.
-                *prev_node.next().unwrap().prev_mut() = Some(node);
+                unsafe { *prev_node.next().unwrap_unchecked().prev_mut() = Some(node); }
                 *prev_node.next_mut() = Some(node);
-
-                contents.len = contents.len.checked_add(1).unwrap(); // TODO: proper handling
             },
         }
+        Ok(())
     }
 
-    // TODO: pub fn try_insert(&mut self, index: usize, value: T) -> ?
-
     pub fn remove(&mut self, index: usize) -> T {
-        let contents = self.checked_contents_for_index_mut(index).throw();
+        self.try_remove(index).throw()
+    }
+
+    pub fn try_remove(&mut self, index: usize) -> Result<T, IndexOutOfBounds> {
+    let contents = self.checked_contents_for_index_mut(index).throw();
         match index {
             0 => {
-                // UNWRAP: contents is already checked to be valid for the provided index.
-                self.pop_front().unwrap()
+                // SAFETY: contents is already checked to be valid for the provided index.
+                Ok(unsafe { self.pop_front().unwrap_unchecked() })
             },
             val if val == contents.len.get() - 1 => {
-                // UNWRAP: contents is already checked to be valid for the provided index.
-                self.pop_back().unwrap()
+                // SAFETY: contents is already checked to be valid for the provided index.
+                Ok(unsafe { self.pop_back().unwrap_unchecked() })
             },
             val => {
                 let node = contents.seek(val).take_node();
 
-                // UNWRAP: For this branch, both prev and next must be defined. Head and tail
+                // SAFETY: For this branch, both prev and next must be defined. Head and tail
                 // versions are handled with pop front / back branches.
-                *node.prev.unwrap().next_mut() = node.next;
-                *node.next.unwrap().prev_mut() = node.prev;
-                // UNWRAP: If the length was 1, we would have matched one of the previous branches.
-                contents.len = contents.len.checked_sub(1).unwrap();
+                unsafe {
+                    *node.prev.unwrap_unchecked().next_mut() = node.next;
+                    *node.next.unwrap_unchecked().prev_mut() = node.prev;
+                }
+                // SAFETY: If the length was 1, we would have matched one of the previous branches.
+                contents.len = unsafe { contents.len.checked_sub(1).unwrap_unchecked() };
 
-                node.value
+                Ok(node.value)
             },
         }
     }
 
-    // TODO: pub fn try_remove(&mut self, index: usize) -> Option<T>
-
     pub fn replace(&mut self, index: usize, new_value: T) -> T {
-        mem::replace(
-            self.checked_seek(index).throw().value_mut(),
-            new_value
-        )
+        self.try_replace(index, new_value).throw()
     }
 
-    // TODO: pub fn try_replace(&mut self, index: usize, new_value: T) -> Option<T>
+    pub fn try_replace(&mut self, index: usize, new_value: T) -> Result<T, IndexOutOfBounds> {
+        Ok(mem::replace(
+            self.checked_seek(index)?.value_mut(),
+            new_value
+        ))
+    }
 
     pub fn append(&mut self, other: LinkedList<T>) {
         match &mut self.state {

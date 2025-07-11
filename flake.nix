@@ -15,27 +15,35 @@
           inherit system overlays;
         };
         rustVersion = "2025-06-18";
-        buildInputs = with pkgs; [
-          (rust-bin.nightly."${rustVersion}".default.override {
-            extensions = [ "rust-src" ];
-          })
+        rust = (pkgs.rust-bin.nightly."${rustVersion}".default.override {
+          extensions = [ "rust-src" ];
+        });
+        buildInputs = with pkgs; [];
+        nativeBuildInputs = with pkgs; [
+          rust
           pkg-config
           gcc
           cargo-expand
-        ];
+        ] ++ buildInputs;
+        rustPlatform = pkgs.makeRustPlatform {
+          cargo = rust;
+          rustc = rust;
+        };
       in with pkgs; rec
       {
         devShells.default = mkShell {
-          inherit buildInputs;
+          inherit nativeBuildInputs;
         };
 
-        packages.docs = stdenv.mkDerivation {
-          name = "rust-basic-types-doc";
+        packages.docs = rustPlatform.buildRustPackage {
+          name = "standard-collections-doc";
           version = "0.1.0";
 
-          inherit buildInputs;
-
           src = ./.;
+
+          cargoHash = "sha256-kfas6SNFVNlb7bjFsJzS/V1vx4XfV7GaYx8nbHeiwdI=";
+
+          inherit nativeBuildInputs;
 
           buildPhase = ''
             cargo rustdoc -- \

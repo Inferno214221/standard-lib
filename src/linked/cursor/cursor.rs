@@ -6,6 +6,8 @@ use crate::linked::list::{LinkedList, ListContents, ListState, Node, NodePtr};
 use crate::util::error::IndexOutOfBounds;
 use crate::util::result::ResultExtension;
 
+use derive_more::IsVariant;
+
 /// A type for bi-directional traversal and mutation of [`LinkedList`]s. See
 /// [`LinkedList::cursor_front`] and [`LinkedList::cursor_back`] to create one.
 pub struct Cursor<T> {
@@ -13,6 +15,7 @@ pub struct Cursor<T> {
     pub(crate) _phantom: PhantomData<T>,
 }
 
+#[derive(IsVariant)]
 pub(crate) enum CursorState<T> {
     Empty,
     Full(CursorContents<T>),
@@ -25,6 +28,8 @@ pub(crate) struct CursorContents<T> {
 
 use CursorState::*;
 
+
+#[derive(IsVariant)]
 pub(crate) enum CursorPosition<T> {
     Head,
     Tail,
@@ -213,14 +218,14 @@ impl<T> Cursor<T> {
     pub const fn is_head(&self) -> bool {
         match &self.state {
             Empty => false,
-            Full(CursorContents { pos, .. }) => matches!(pos, Head),
+            Full(CursorContents { pos, .. }) => pos.is_head(),
         }
     }
 
     pub const fn is_tail(&self) -> bool {
         match &self.state {
             Empty => false,
-            Full(CursorContents { pos, .. }) => matches!(pos, Tail),
+            Full(CursorContents { pos, .. }) => pos.is_tail(),
         }
     }
 
@@ -360,7 +365,7 @@ impl<T> Cursor<T> {
         self
     }
 
-    // Needs to track the cursor's index to calculate len. Get could also be optimised by tracking
+    // Needs to track the cursor's index to calculate len. Get could also be optimized by tracking
     // the index.
     // pub fn split_before(self) -> (LinkedList<T>, LinkedList<T>)
 
@@ -376,7 +381,7 @@ impl<T> Cursor<T> {
     }
 
     pub const fn is_empty(&self) -> bool {
-        matches!(self.state, Empty)
+        self.state.is_empty()
     }
 
     pub const fn front(&self) -> Option<&T> {
