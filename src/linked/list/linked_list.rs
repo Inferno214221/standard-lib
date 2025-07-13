@@ -24,12 +24,9 @@ use derive_more::IsVariant;
 /// | Method | Complexity |
 /// |-|-|
 /// | `len` | `O(1)` |
-/// | `front` | `O(1)` |
-/// | `back` | `O(1)` |
-/// | `push_front` | `O(1)` |
-/// | `push_back` | `O(1)` |
-/// | `pop_front` | `O(1)` |
-/// | `pop_back` | `O(1)` |
+/// | `front/back` | `O(1)` |
+/// | `push_front/back` | `O(1)` |
+/// | `pop_front/back` | `O(1)` |
 /// | `get` | `O(min(i, n-i))` |
 /// | `insert` | `O(min(i, n-i))` |
 /// | `remove` | `O(min(i, n-i))` |
@@ -186,10 +183,8 @@ impl<T> LinkedList<T> {
     }
 
     pub fn insert(&mut self, index: usize, value: T) {
-        self.try_insert(index, value).throw();
+        self.try_insert(index, value).throw()
     }
-
-    // TODO: all try functions should throw before mutating internal state.
 
     pub fn try_insert(&mut self, index: usize, value: T) -> Result<(), IndexOrCapOverflow> {
         let contents = self.checked_contents_for_index_mut(index - 1)?;
@@ -227,7 +222,7 @@ impl<T> LinkedList<T> {
                 // SAFETY: contents is already checked to be valid for the provided index.
                 Ok(unsafe { self.pop_front().unwrap_unchecked() })
             },
-            val if val == contents.len.get() - 1 => {
+            val if val == contents.last_index() => {
                 // SAFETY: contents is already checked to be valid for the provided index.
                 Ok(unsafe { self.pop_back().unwrap_unchecked() })
             },
@@ -260,32 +255,65 @@ impl<T> LinkedList<T> {
     }
 
     pub fn append(&mut self, other: LinkedList<T>) {
+        self.try_append(other).throw()
+    }
+
+    pub fn try_append(&mut self, other: LinkedList<T>) -> Result<(), CapacityOverflow> {
         match &mut self.state {
             Empty => *self = other,
             Full(self_contents) => match &other.state {
                 Empty => {},
                 Full(other_contents) => {
+                    self_contents.len = self_contents.len.checked_add(
+                        other_contents.len.get()
+                    ).ok_or(CapacityOverflow)?;
+
                     *self_contents.tail.next_mut() = Some(other_contents.head);
                     *other_contents.head.prev_mut() = Some(self_contents.tail);
                     self_contents.tail = other_contents.tail;
-
-                    // TODO: proper handling
-                    self_contents.len = self_contents.len.checked_add(
-                        other_contents.len.get()
-                    ).unwrap();
                 },
             },
         }
+        Ok(())
     }
 
     // TODO: pub fn contains(&self, item: T)
+
+    pub fn cursor_head(mut self) -> Cursor<T> {
+        Cursor {
+            state: match mem::take(&mut self.state) {
+                Empty => CursorState::Empty,
+                Full(contents) => CursorState::Full(CursorContents {
+                    pos: CursorPosition::Head,
+                    list: contents,
+                }),
+            },
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn cursor_tail(mut self) -> Cursor<T> {
+        Cursor {
+            state: match mem::take(&mut self.state) {
+                Empty => CursorState::Empty,
+                Full(contents) => CursorState::Full(CursorContents {
+                    pos: CursorPosition::Tail,
+                    list: contents,
+                }),
+            },
+            _phantom: PhantomData,
+        }
+    }
 
     pub fn cursor_front(mut self) -> Cursor<T> {
         Cursor {
             state: match mem::take(&mut self.state) {
                 Empty => CursorState::Empty,
                 Full(contents) => CursorState::Full(CursorContents {
-                    pos: CursorPosition::Head, // TODO: Should the cursor start before head?
+                    pos: CursorPosition::Ptr {
+                        ptr: contents.head,
+                        index: 0
+                    },
                     list: contents,
                 }),
             },
@@ -298,7 +326,10 @@ impl<T> LinkedList<T> {
             state: match mem::take(&mut self.state) {
                 Empty => CursorState::Empty,
                 Full(contents) => CursorState::Full(CursorContents {
-                    pos: CursorPosition::Tail, // TODO: Should the cursor start after tail?
+                    pos: CursorPosition::Ptr {
+                        ptr: contents.tail,
+                        index: contents.last_index()
+                    },
                     list: contents,
                 }),
             },
@@ -354,12 +385,14 @@ impl<T> LinkedList<T> {
         }
     }
 
+    #[allow(clippy::unwrap_used)]
     pub(crate) fn verify_double_links(&self) {
         match self.state {
             Empty => {},
             Full(ListContents { head, tail, .. }) => {
                 let mut curr = head;
                 while let Some(next) = curr.next() {
+                    // UNWRAP: This needs to panic if prev is None.
                     assert!(next.prev().unwrap() == curr);
                     curr = *next;
                 }
@@ -370,33 +403,30 @@ impl<T> LinkedList<T> {
 }
 
 impl<T> ListContents<T> {
-    pub(crate) fn seek(&self, index: usize) -> NodePtr<T> {
+    pub fn seek(&self, index: usize) -> NodePtr<T> {
         if index < self.len.get() / 2 {
-            self.seek_fwd(index)
+            self.seek_fwd(index, self.head)
         } else {
-            self.seek_bwd(index)
+            self.seek_bwd(self.last_index() - index, self.tail)
         }
     }
 
-    pub(crate) fn seek_fwd(&self, index: usize) -> NodePtr<T> {
-        let mut curr = self.head;
-        for _ in 0..index {
-            curr = curr.next().unwrap();
+    pub fn seek_fwd(&self, count: usize, mut node: NodePtr<T>) -> NodePtr<T> {
+        for _ in 0..count {
+            node = node.next().unwrap();
         }
-        curr
+        node
     }
 
-    pub(crate) fn seek_bwd(&self, index: usize) -> NodePtr<T> {
-        let mut curr = self.tail;
-        let upper = self.len.checked_sub(index).unwrap().get();
-        for _ in 1..upper {
-            curr = curr.prev().unwrap();
+    pub fn seek_bwd(&self, count: usize, mut node: NodePtr<T>) -> NodePtr<T> {
+        for _ in 0..count {
+            node = node.prev().unwrap();
         }
-        curr
+        node
     }
 
-    pub(crate) fn push_front(&mut self, value: T) {
-        self.len = self.len.checked_add(1).expect("Capacity overflow!");
+    pub fn push_front(&mut self, value: T) {
+        self.len = self.len.checked_add(1).ok_or(CapacityOverflow).throw();
 
         let node = NodePtr::from_node(Node {
             value,
@@ -408,8 +438,8 @@ impl<T> ListContents<T> {
         self.head = node;
     }
 
-    pub(crate) fn push_back(&mut self, value: T) {
-        self.len = self.len.checked_add(1).expect("Capacity overflow!");
+    pub fn push_back(&mut self, value: T) {
+        self.len = self.len.checked_add(1).ok_or(CapacityOverflow).throw();
 
         let node = NodePtr::from_node(Node {
             value,
@@ -421,7 +451,7 @@ impl<T> ListContents<T> {
         self.tail = node;
     }
 
-    pub(crate) fn wrap_one(value: T) -> ListContents<T> {
+    pub fn wrap_one(value: T) -> ListContents<T> {
         let node = NodePtr::from_node(Node {
             value,
             prev: None,
@@ -434,10 +464,14 @@ impl<T> ListContents<T> {
             tail: node,
         }
     }
+
+    pub const fn last_index(&self) -> usize {
+        self.len.get() - 1
+    }
 }
 
 impl<T> ListState<T> {
-    pub(crate) fn single(value: T) -> ListState<T> {
+    pub fn single(value: T) -> ListState<T> {
         Full(ListContents::wrap_one(value))
     }
 }
@@ -490,7 +524,7 @@ impl<T> Drop for LinkedList<T> {
 
 impl<T: Debug> Debug for LinkedList<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("DLinkedList")
+        f.debug_struct("LinkedList")
             .field_with("contents", |f| f.debug_list().entries(self.iter()).finish())
             .field("len", &self.len())
             .finish()

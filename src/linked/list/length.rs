@@ -26,6 +26,14 @@ impl Length {
             None => None,
         }
     }
+
+    pub const fn new(value: usize) -> Option<Length> {
+        Length::wrap_non_zero(NonZero::new(value))
+    }
+
+    pub const unsafe fn new_unchecked(value: usize) -> Length {
+        Length(unsafe { NonZero::new_unchecked(value) })
+    }
 }
 
 pub(crate) const ONE: Length = Length(NonZero::<usize>::MIN);

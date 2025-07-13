@@ -96,6 +96,27 @@ fn main() {
     dbg!(bmap.get(&1));
     dbg!(bmap.get(&2));
 
+    let mut list = LinkedList::new();
+    list.push_back("zero");
+    list.push_back("one");
+    list.push_back("two");
+    list.push_back("three");
+    list.push_back("four");
+    list.push_back("five");
+    list.push_back("six");
+
+    let mut cursor = list.cursor_front();
+    cursor.move_next().move_next().move_next();
+    dbg!(cursor.index());
+
+    dbg!(cursor.get(0));
+    dbg!(cursor.get(1));
+    dbg!(cursor.get(2));
+    dbg!(cursor.get(3));
+    dbg!(cursor.get(4));
+    dbg!(cursor.get(5));
+    dbg!(cursor.get(6));
+
     println!("\n[Format Tests]\n");
     println!("{:?}", Array::from([0_u8, 1, 2, 3].into_iter()));
     println!("{}", Array::from([0_u8, 1, 2, 3].into_iter()));
