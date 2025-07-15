@@ -1,5 +1,6 @@
-use std::ops::{Index, IndexMut};
-use std::{hint, marker::PhantomData};
+use std::hash::{Hash, Hasher};
+use std::hint;
+use std::marker::PhantomData;
 
 use super::{State, StateMut};
 use crate::linked::list::{Length, LinkedList, ListContents, ListState, Node, NodePtr};
@@ -10,17 +11,19 @@ use derive_more::IsVariant;
 
 /// A type for bi-directional traversal and mutation of [`LinkedList`]s. See
 /// [`LinkedList::cursor_front`] and [`LinkedList::cursor_back`] to create one.
+#[derive(Hash)]
 pub struct Cursor<T> {
     pub(crate) state: CursorState<T>,
     pub(crate) _phantom: PhantomData<T>,
 }
 
-#[derive(IsVariant)]
+#[derive(Hash, IsVariant)]
 pub(crate) enum CursorState<T> {
     Empty,
     Full(CursorContents<T>),
 }
 
+#[derive(Hash)]
 pub(crate) struct CursorContents<T> {
     pub list: ListContents<T>,
     pub pos: CursorPosition<T>,
@@ -804,20 +807,14 @@ impl<T> CursorContents<T> {
     }
 }
 
-// impl<T> Index<usize> for Cursor<T> {
-//     type Output = T;
-
-//     fn index(&self, index: usize) -> &Self::Output {
-//         self.get(index)
-//     }
-// }
-
-
-// impl<T> IndexMut<usize> for Cursor<T> {    
-//     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-//         self.get_mut(index)
-//     }
-// }
+impl<T> Hash for CursorPosition<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Ptr { index, .. } => index.hash(state),
+            other => core::mem::discriminant(other).hash(state)
+        }
+    }
+}
 
 // impl<T: Debug> Debug for Cursor<T> {
 //     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {

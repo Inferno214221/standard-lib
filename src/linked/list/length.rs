@@ -1,7 +1,7 @@
 use std::num::NonZero;
 
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub(crate) struct Length(pub NonZero<usize>);
 
 impl Length {

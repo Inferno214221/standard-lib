@@ -1,6 +1,7 @@
 use std::borrow::{Borrow, BorrowMut};
 use std::cmp;
 use std::fmt::{self, Debug, Display, Formatter};
+use std::hash::{Hash, Hasher};
 use std::iter::TrustedLen;
 use std::mem::{self, MaybeUninit};
 use std::ops::{Deref, DerefMut};
@@ -13,6 +14,8 @@ const MIN_CAP: usize = 2;
 const MAX_CAP: usize = isize::MAX as usize;
 
 const GROWTH_FACTOR: usize = 2;
+
+// TODO: Replace panics with errors and add try methods.
 
 /// A variable size contiguous collection, based on [`Array<T>`].
 ///
@@ -328,7 +331,7 @@ impl<T> Vector<T> {
     /// Panics if the memory layout of the Vector would have a size that exceeds [`isize::MAX`].
     pub fn append(&mut self, other: Vector<T>) {
         let initial_len = self.len;
-        self.extend_reserve(other.len);
+        self.reserve(other.len);
 
         // SAFETY: self is valid from initial_len to initial_len + other.len and other is valid from
         // 0 to other.len. Both are properly aligned and don't overlap.
@@ -391,7 +394,7 @@ impl<T> Vector<T> {
 
 impl<T> Extend<T> for Vector<T> {
     fn extend<A: IntoIterator<Item = T>>(&mut self, iter: A) {
-        for item in iter.into_iter() {
+        for item in iter {
             self.push(item);
         }
     }
@@ -410,7 +413,7 @@ impl<T> Extend<T> for Vector<T> {
     {
         // SAFETY: extend_reserve is implemented correctly, so all other safety requirements are the
         // responsibility of the caller.
-        unsafe { self.push_unchecked(item) }
+        unsafe { self.push_unchecked(item); }
     }
 }
 
@@ -521,6 +524,30 @@ impl<T> BorrowMut<[T]> for Vector<T> {
     }
 }
 
+impl<T> AsRef<Array<T>> for Vector<T> {
+    fn as_ref(&self) -> &Array<T> {
+        unsafe { self.arr.assume_init_ref() }
+    }
+}
+
+impl<T> AsMut<Array<T>> for Vector<T> {
+    fn as_mut(&mut self) -> &mut Array<T> {
+        unsafe { self.arr.assume_init_mut() }
+    }
+}
+
+impl<T> Borrow<Array<T>> for Vector<T> {
+    fn borrow(&self) -> &Array<T> {
+        self.as_ref()
+    }
+}
+
+impl<T> BorrowMut<Array<T>> for Vector<T> {
+    fn borrow_mut(&mut self) -> &mut Array<T> {
+        self.as_mut()
+    }
+}
+
 // SAFETY: Vectors, when used safely rely on unique pointers and are therefore safe for Send when T:
 // Send.
 unsafe impl<T: Send> Send for Vector<T> {}
@@ -570,6 +597,12 @@ impl<T: PartialEq> PartialEq for Vector<T> {
 }
 
 impl<T: Eq> Eq for Vector<T> {}
+
+impl<T: Hash> Hash for Vector<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        (**self).hash(state);
+    }
+}
 
 impl<T: Debug> Debug for Vector<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {

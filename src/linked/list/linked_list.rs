@@ -1,4 +1,5 @@
 use std::fmt::{self, Debug, Display, Formatter};
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Index, IndexMut};
@@ -39,12 +40,13 @@ use derive_more::IsVariant;
 /// consist primarily of cache misses. For this reason, [`Vector`] should be preferred for most
 /// applications unless LinkedList and the accompanying [`Cursor`] type's `O(1)` methods are being
 /// heavily utilized.
+#[derive(PartialEq, Eq, Hash)]
 pub struct LinkedList<T> {
     pub(crate) state: ListState<T>,
     pub(crate) _phantom: PhantomData<T>,
 }
 
-#[derive(Default, IsVariant)]
+#[derive(Default, PartialEq, Eq, Hash, IsVariant)]
 pub(crate) enum ListState<T> {
     #[default]
     Empty,
@@ -519,6 +521,51 @@ impl<T> Drop for LinkedList<T> {
                 }
             },
         }
+    }
+}
+
+impl<T: PartialEq> PartialEq for ListContents<T> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.len != other.len { return false; }
+        let mut node_a = self.head;
+        let mut node_b = other.head;
+
+        loop {
+            if node_a.value() != node_b.value() {
+                break false;
+            }
+            match (node_a.next(), node_b.next()) {
+                (Some(next_a), Some(next_b)) => {
+                    node_a = *next_a;
+                    node_b = *next_b;
+                },
+                // Both sides have the same length, so if they aren't both Some, they are both None.
+                // It feels a little neater to do a catchall here then using unreachable_unchecked.
+                _ => break true,
+            }
+        }
+    }
+}
+
+impl<T: Eq> Eq for ListContents<T> {}
+
+impl<T: Hash> Hash for ListContents<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.len.hash(state);
+        let mut node = self.head;
+
+        loop {
+            node.value().hash(state);
+            match node.next() {
+                Some(next) => {
+                    node = *next;
+                },
+                _ => break,
+            }
+        }
+
+        // Terminate variable length hashing sequence.
+        0xFF.hash(state);
     }
 }
 

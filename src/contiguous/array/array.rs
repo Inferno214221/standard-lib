@@ -1,6 +1,7 @@
 use std::alloc::{self, Layout};
 use std::borrow::{Borrow, BorrowMut};
 use std::fmt::{self, Debug, Display, Formatter};
+use std::hash::{Hash, Hasher};
 use std::iter::TrustedLen;
 use std::marker::PhantomData;
 use std::mem::{self, MaybeUninit};
@@ -9,6 +10,8 @@ use std::ptr::{self, NonNull};
 use std::slice;
 
 const MAX_SIZE: usize = isize::MAX as usize;
+
+// TODO: Replace panics with errors and add try methods.
 
 /// An implementation of an array that is sized at runtime. Similar to a [`Box<[T]>`](Box<T>).
 ///
@@ -341,6 +344,16 @@ impl<T> Array<MaybeUninit<T>> {
         unsafe { mem::transmute(self) }
     }
 
+    pub fn transpose_mut(&mut self) -> &mut MaybeUninit<Array<T>> {
+        // SAFETY: &mut Array<MaybeUninit<T>> has the same layout as &mut MaybeUninit<Array<T>>.
+        unsafe { mem::transmute(self) }
+    }
+
+    pub fn transpose_ref(&self) -> &MaybeUninit<Array<T>> {
+        // SAFETY: &Array<MaybeUninit<T>> has the same layout as &MaybeUninit<Array<T>>.
+        unsafe { mem::transmute(self) }
+    }
+
     /// Assume that all values of an `Array<MaybeUninit<T>>` are initialized.
     ///
     /// # Safety
@@ -360,6 +373,16 @@ impl<T> Array<MaybeUninit<T>> {
     pub unsafe fn assume_init(self) -> Array<T> {
         // SAFETY: There are no safety guarantees here, responsibility it passed to the caller.
         unsafe { self.transpose().assume_init() }
+    }
+
+    pub unsafe fn assume_init_mut(&mut self) -> &mut Array<T> {
+        // SAFETY: There are no safety guarantees here, responsibility it passed to the caller.
+        unsafe { self.transpose_mut().assume_init_mut() }
+    }
+
+    pub unsafe fn assume_init_ref(&self) -> &Array<T> {
+        // SAFETY: There are no safety guarantees here, responsibility it passed to the caller.
+        unsafe { self.transpose_ref().assume_init_ref() }
     }
 
     /// Reallocate the Array to have size equal to new_size, with new locations uninitialized.
@@ -534,6 +557,12 @@ impl<T: PartialEq> PartialEq for Array<T> {
 }
 
 impl<T: Eq> Eq for Array<T> {}
+
+impl<T: Hash> Hash for Array<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        (**self).hash(state);
+    }
+}
 
 impl<T: Debug> Debug for Array<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
