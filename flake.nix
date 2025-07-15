@@ -2,7 +2,7 @@
   description = "Standard Collections";
 
   inputs = {
-    nixpkgs.url = "nixpkgs/nixos-24.11";
+    nixpkgs.url = "nixpkgs/nixos-25.05";
     rust-overlay.url = "github:oxalica/rust-overlay";
     flake-utils.url = "github:numtide/flake-utils";
   };
@@ -41,7 +41,7 @@
 
           src = ./.;
 
-          cargoHash = "sha256-kfas6SNFVNlb7bjFsJzS/V1vx4XfV7GaYx8nbHeiwdI=";
+          cargoHash = "sha256-Yl8Jv60TZTHb9FWvCk49wseehg5xet5LutxPm0Tpga8=";
 
           inherit nativeBuildInputs;
 
