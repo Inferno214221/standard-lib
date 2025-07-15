@@ -1,5 +1,6 @@
 use std::iter::{Chain, FusedIterator};
 use std::marker::PhantomData;
+use std::mem;
 
 pub trait Set<T>: IntoIterator<Item = T> + Sized {
     type Iter<'a>: Iterator<Item = &'a T> where Self: 'a, T: 'a;
@@ -62,13 +63,17 @@ pub trait Set<T>: IntoIterator<Item = T> + Sized {
         }
     }
 
-    // /// Creates an owned iterator over all items that are in either `self` or `rhs`. (`self ∪
-    // /// rhs`)
-    // fn into_union(self, other: Self) -> IntoUnion<Self, T> {
-    //     IntoUnion {
-    //         inner: self.iter().chain(other.difference(self)),
-    //     }
-    // }
+    /// Creates an owned iterator over all items that are in either `self` or `rhs`. (`self ∪
+    /// rhs`)
+    fn into_union(self, other: Self) -> IntoUnion<Self, T> {
+        IntoUnion {
+            state: FirstDifSecond {
+                iterator_a: self.into_iter(),
+                set_b: Some(other),
+                _phantom: PhantomData
+            },
+        }
+    }
 
     /// Creates a borrowed iterator over all items that are in either `self` or `rhs`. (`self ∪
     /// rhs`)
@@ -235,21 +240,70 @@ impl<'a, S: Set<T>, T: 'a> Iterator for Intersection<'a, S, T> {
 
 impl<'a, S: Set<T>, T: 'a> FusedIterator for Intersection<'a, S, T> {}
 
-// FIXME: Can't chain IntoIter and IntoDifference because it requires double ownership.
 pub struct IntoUnion<S: Set<T>, T> {
-    pub(crate) inner: Chain<S::IntoIter, IntoDifference<S, T>>,
+    pub(crate) state: IntoUnionState<S, T>,
 }
+
+pub(crate) enum IntoUnionState<S: Set<T>, T> {
+    FirstDifSecond {
+        iterator_a: S::IntoIter,
+        // We use Option<S> so that we can move out from behind a mutable reference when
+        // switching states. The value can be assumed to always be Some.
+        // We're using Option rather than MaybeUninit so that it drops correctly and because it
+        // implements Default.
+        set_b: Option<S>,
+        _phantom: PhantomData<T>,
+    },
+    Second {
+        iterator_b: S::IntoIter,
+        _phantom: PhantomData<T>,
+    },
+}
+
+use IntoUnionState::*;
 
 impl<S: Set<T>, T> Iterator for IntoUnion<S, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next()
+        match &mut self.state {
+            FirstDifSecond { iterator_a, set_b, .. } => {
+                let mut next = iterator_a.next();
+                while let Some(item) = &next
+                    // SAFETY: set_b is Some unless otherwise stated.
+                    && unsafe { set_b.as_ref().unwrap_unchecked().contains(item) }
+                {
+                    next = iterator_a.next();
+                }
+                match next {
+                    Some(val) => Some(val),
+                    None => {
+                        // SAFETY: set_b is always Some, except for the duration of this block where
+                        // its value is moved.
+                        let iterator_b = unsafe {
+                            mem::take(set_b)
+                                .unwrap_unchecked()
+                                .into_iter()
+                        };
+                        self.state = Second {
+                            iterator_b,
+                            _phantom: PhantomData,
+                        };
+                        // Call next afterwards so that the state is valid.
+                        self.next()
+                    },
+                }
+            },
+            Second { iterator_b, .. } => {
+                iterator_b.next()
+            },
+        }
     }
 
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.inner.size_hint()
-    }
+    // TODO: validate / update all size_hints.
+    // fn size_hint(&self) -> (usize, Option<usize>) {
+    //     self.inner.size_hint()
+    // }
 }
 
 impl<S: Set<T>, T> FusedIterator for IntoUnion<S, T> {}
