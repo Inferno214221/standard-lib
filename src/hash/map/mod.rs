@@ -10,6 +10,8 @@
 
 mod hash_map;
 mod iter;
+mod error;
 
 pub use hash_map::*;
 pub use iter::*;
+pub use error::*;

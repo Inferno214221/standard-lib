@@ -1,12 +1,16 @@
 use std::borrow::Borrow;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{BuildHasher, Hash, RandomState};
+use std::iter::TrustedLen;
 use std::mem;
+use std::ops::Index;
 use std::{cmp, fmt};
 
-use super::{IntoKeys, IntoValues, Iter, Keys, Values, ValuesMut};
+use super::{IndexNoCap, IntoKeys, IntoValues, Iter, Keys, Values, ValuesMut};
 use crate::contiguous::Array;
+use crate::util::error::NoValueForKey;
 use crate::util::fmt::DebugRaw;
+use crate::util::result::ResultExtension;
 
 const MIN_ALLOCATED_CAP: usize = 2;
 
@@ -152,8 +156,7 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     /// Panics if the HashMap has a capacity of 0, as it isn't possible to find a bucket associated
     /// with the key.
     pub unsafe fn insert_unchecked(&mut self, key: K, value: V) -> Option<V> {
-        let index = self.find_index_for_key(&key)
-            .expect("Unchecked insertion into HashMap with capacity 0!");
+        let index = self.find_index_for_key(&key).ok_or(IndexNoCap).throw();
 
         // The bucket at index is either empty or contains an equal key.
         match &mut self.arr[index] {
@@ -395,9 +398,81 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
     }
 }
 
-impl<K: Hash + Eq, V> Default for HashMap<K, V> {
+impl<K: Hash + Eq, V, B: BuildHasher + Default> Default for HashMap<K, V, B> {
     fn default() -> Self {
         HashMap::new()
+    }
+}
+
+impl<Q, K, V> Index<&Q> for HashMap<K, V>
+where
+    Q: Hash + Eq + ?Sized,
+    K: Hash + Eq + Borrow<Q>
+{
+    type Output = V;
+
+    fn index(&self, key: &Q) -> &Self::Output {
+        let index = self.find_index_for_key(key).ok_or(NoValueForKey).throw();
+
+        match &self.arr[index] {
+            Some((_, v)) => v,
+            None => Err(NoValueForKey).throw(),
+        }
+    }
+}
+
+impl<K: Hash + Eq, V, B: BuildHasher + Default> Extend<(K, V)> for HashMap<K, V, B> {
+    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
+        for (key, value) in iter {
+            self.insert(key, value);
+        }
+    }
+    
+    fn extend_one(&mut self, item: (K, V)) {
+        self.insert(item.0, item.1);
+    }
+    
+    fn extend_reserve(&mut self, additional: usize) {
+        self.reserve(additional);
+    }
+
+    unsafe fn extend_one_unchecked(&mut self, item: (K, V))
+    where
+        Self: Sized,
+    {
+        // SAFETY: extend_reserve is implemented correctly, so all other safety requirements are the
+        // responsibility of the caller.
+        unsafe { self.insert_unchecked(item.0, item.1); }
+    }
+}
+
+impl<K, V, B, I> From<I> for HashMap<K, V, B>
+where
+    K: Hash + Eq,
+    B: BuildHasher + Default,
+    I: Iterator<Item = (K, V)> + ExactSizeIterator + TrustedLen,
+{
+    fn from(value: I) -> Self {
+        let iter = value.into_iter();
+        let mut map = HashMap::with_cap(iter.len());
+
+        for (key, value) in iter {
+            // SAFETY: HashMap has been created with the right capacity.
+            unsafe { map.insert_unchecked(key, value); }
+        }
+
+        map
+    }
+}
+
+impl<K: Hash + Eq, V, B: BuildHasher + Default> FromIterator<(K, V)> for HashMap<K, V, B> {
+    fn from_iter<I: IntoIterator<Item = (K, V)>>(value: I) -> Self {
+        let iter = value.into_iter();
+        let mut map = HashMap::with_cap(iter.size_hint().0);
+        for (key, value) in iter {
+            map.insert(key, value);
+        }
+        map
     }
 }
 

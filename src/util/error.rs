@@ -33,3 +33,14 @@ pub enum IndexOrCapOverflow {
     IndexOutOfBounds(IndexOutOfBounds),
     CapacityOverflow(CapacityOverflow),
 }
+
+#[derive(Debug)]
+pub struct NoValueForKey;
+
+impl Display for NoValueForKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "No values is associated with the provided key.")
+    }
+}
+
+impl Error for NoValueForKey {}

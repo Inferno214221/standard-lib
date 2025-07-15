@@ -285,9 +285,34 @@ impl<T: Hash + Eq, B: BuildHasher> SubAssign for HashSet<T, B> {
     }
 }
 
-impl<T: Hash + Eq> Default for HashSet<T> {
+impl<T: Hash + Eq, B: BuildHasher + Default> Default for HashSet<T, B> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<T: Hash + Eq, B: BuildHasher> Extend<T> for HashSet<T, B> {
+    fn extend<A: IntoIterator<Item = T>>(&mut self, iter: A) {
+        for item in iter {
+            self.insert(item);
+        }
+    }
+
+    fn extend_one(&mut self, item: T) {
+        self.insert(item);
+    }
+
+    fn extend_reserve(&mut self, additional: usize) {
+        self.reserve(additional);
+    }
+
+    unsafe fn extend_one_unchecked(&mut self, item: T)
+    where
+        Self: Sized,
+    {
+        // SAFETY: extend_reserve is implemented correctly, so all other safety requirements are the
+        // responsibility of the caller.
+        unsafe { self.insert_unchecked(item); }
     }
 }
 
@@ -299,14 +324,14 @@ where
 {
     fn from(value: I) -> Self {
         let iter = value.into_iter();
-        let mut vec = HashSet::with_cap(iter.len());
+        let mut set = HashSet::with_cap(iter.len());
 
         for item in iter {
-            // SAFETY: Vec has been created with the right capacity.
-            unsafe { vec.insert_unchecked(item); }
+            // SAFETY: HashSet has been created with the right capacity.
+            unsafe { set.insert_unchecked(item); }
         }
 
-        vec
+        set
     }
 }
 
