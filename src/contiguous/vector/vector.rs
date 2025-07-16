@@ -461,8 +461,8 @@ impl<T> Drop for Vector<T> {
             unsafe { self.arr.ptr.add(i).as_mut().assume_init_drop(); }
         }
 
-        // We don't need to handle the Array, because it contains only MaybeUninit values, which
-        // do nothing when dropped. We know that everything important has already been dropped.
+        // Implicitly drop self.arr, containing only MaybeUninit values without a no-op drop.
+        // Doing so also deallocates the owned memory.
     }
 }
 
@@ -520,30 +520,6 @@ impl<T> Borrow<[T]> for Vector<T> {
 
 impl<T> BorrowMut<[T]> for Vector<T> {
     fn borrow_mut(&mut self) -> &mut [T] {
-        self.as_mut()
-    }
-}
-
-impl<T> AsRef<Array<T>> for Vector<T> {
-    fn as_ref(&self) -> &Array<T> {
-        unsafe { self.arr.assume_init_ref() }
-    }
-}
-
-impl<T> AsMut<Array<T>> for Vector<T> {
-    fn as_mut(&mut self) -> &mut Array<T> {
-        unsafe { self.arr.assume_init_mut() }
-    }
-}
-
-impl<T> Borrow<Array<T>> for Vector<T> {
-    fn borrow(&self) -> &Array<T> {
-        self.as_ref()
-    }
-}
-
-impl<T> BorrowMut<Array<T>> for Vector<T> {
-    fn borrow_mut(&mut self) -> &mut Array<T> {
         self.as_mut()
     }
 }

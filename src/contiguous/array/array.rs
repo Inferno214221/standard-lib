@@ -83,7 +83,6 @@ impl<T> Array<T> {
     /// Returns the pointer to the underlying data and the number of elements in the Array.
     ///
     /// # Safety
-    ///
     /// After calling this function, the caller is responsible for the safety of the allocated data.
     /// The parts can be used to reconstruct an Array with [`Array::from_parts`], allowing it to be
     /// used again and dropped normally.
@@ -100,7 +99,6 @@ impl<T> Array<T> {
     /// data and a [`usize`] representing the size.
     ///
     /// # Safety
-    ///
     /// This is extremely unsafe, nothing is checked during construction.
     ///
     /// For the produced value to be valid:
@@ -344,11 +342,13 @@ impl<T> Array<MaybeUninit<T>> {
         unsafe { mem::transmute(self) }
     }
 
+    /// Converts a `&mut Array<MaybeUninit<T>>` to `&mut MaybeUninit<Array<T>>`.
     pub fn transpose_mut(&mut self) -> &mut MaybeUninit<Array<T>> {
         // SAFETY: &mut Array<MaybeUninit<T>> has the same layout as &mut MaybeUninit<Array<T>>.
         unsafe { mem::transmute(self) }
     }
 
+    /// Converts a `&Array<MaybeUninit<T>>` to `&MaybeUninit<Array<T>>`.
     pub fn transpose_ref(&self) -> &MaybeUninit<Array<T>> {
         // SAFETY: &Array<MaybeUninit<T>> has the same layout as &MaybeUninit<Array<T>>.
         unsafe { mem::transmute(self) }
@@ -375,11 +375,21 @@ impl<T> Array<MaybeUninit<T>> {
         unsafe { self.transpose().assume_init() }
     }
 
+    /// Assume that all values of an `&mut Array<MaybeUninit<T>>` are initialized.
+    ///
+    /// # Safety
+    /// It is up to the caller to guarantee that the Array is properly initialized. Failing to do so
+    /// is undefined behavior.
     pub unsafe fn assume_init_mut(&mut self) -> &mut Array<T> {
         // SAFETY: There are no safety guarantees here, responsibility it passed to the caller.
         unsafe { self.transpose_mut().assume_init_mut() }
     }
 
+    /// Assume that all values of an `&Array<MaybeUninit<T>>` are initialized.
+    ///
+    /// # Safety
+    /// It is up to the caller to guarantee that the Array is properly initialized. Failing to do so
+    /// is undefined behavior.
     pub unsafe fn assume_init_ref(&self) -> &Array<T> {
         // SAFETY: There are no safety guarantees here, responsibility it passed to the caller.
         unsafe { self.transpose_ref().assume_init_ref() }
@@ -424,7 +434,15 @@ impl<T> Array<MaybeUninit<T>> {
                 )
             },
             (_, 0) => {
-                // If the new size is zero, we just need a dangling pointer.
+                // If the new size is zero, we just need to deallocate it and return a dangling
+                // pointer.
+                let layout = Array::<MaybeUninit<T>>::make_layout(self.size);
+
+
+                // SAFETY: ptr is always allocated in the global allocator and layout is the same as
+                // when allocated. Zero-sized layouts are guarded against by the first two branches.
+                unsafe { alloc::dealloc(self.ptr.as_ptr().cast(), layout); }
+
                 NonNull::dangling()
             },
             (_, _) => {
@@ -464,8 +482,6 @@ impl<T> Default for Array<T> {
 
 impl<T> Drop for Array<T> {
     fn drop(&mut self) {
-        let layout = Array::<T>::make_layout(self.size);
-
         for i in 0..self.size {
             // SAFETY: The pointer is nonnull, as well as properly aligned, initialized and
             // ready to drop.
@@ -475,6 +491,8 @@ impl<T> Drop for Array<T> {
                 ptr::drop_in_place(self.ptr.add(i).as_ptr());
             }
         }
+
+        let layout = Array::<T>::make_layout(self.size);
 
         if layout.size() != 0 {
             // SAFETY: ptr is always allocated in the global allocator and layout is the same as

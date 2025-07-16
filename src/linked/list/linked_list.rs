@@ -516,7 +516,7 @@ impl<T> Drop for LinkedList<T> {
             Full(ListContents { head, .. }) => {
                 let mut curr = Some(head);
                 while let Some(ptr) = curr {
-                    unsafe { ptr::drop_in_place(ptr.as_ptr()) };
+                    unsafe { ptr.drop_node(); }
                     curr = *ptr.next();
                 }
             },

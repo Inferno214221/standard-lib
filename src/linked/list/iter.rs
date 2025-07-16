@@ -1,6 +1,5 @@
 use std::iter::{FusedIterator, TrustedLen};
 use std::marker::PhantomData;
-use std::ptr;
 
 use ListState::*;
 
@@ -34,8 +33,10 @@ pub struct IntoIter<T> {
 impl<T> Drop for IntoIter<T> {
     fn drop(&mut self) {
         while let Some(ptr) = self.curr {
-            unsafe { ptr::drop_in_place(ptr.as_ptr()) };
             self.curr = *ptr.next();
+            // SAFETY: We only iterate forwards during this drop implementation, so all duplicate
+            // NodeRefs are ignored and dropped.
+            unsafe { ptr.drop_node(); }
         }
     }
 }

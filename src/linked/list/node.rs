@@ -17,12 +17,10 @@ pub(crate) struct NodePtr<T>(pub NonNull<Node<T>>);
 impl<T> NodePtr<T> {
     pub const fn value<'a>(&self) -> &'a T {
         unsafe { &(self.0.as_ref()).value }
-        // unsafe { &(*self.0.as_ptr()).value }
     }
 
     pub const fn value_mut<'a>(&mut self) -> &'a mut T {
         unsafe { &mut (self.0.as_mut()).value }
-        // unsafe { &mut (*self.0.as_ptr()).value }
     }
 
     pub const fn prev<'a>(&self) -> &'a Link<T> {
@@ -49,6 +47,18 @@ impl<T> NodePtr<T> {
 
     pub fn take_node(self) -> Node<T> {
         unsafe { *Box::from_non_null(self.0) }
+    }
+
+    /// Drops the pointed to node by reconstructing the [`Box`] and dropping that. This ensures that
+    /// the pointed to memory is deallocated correctly.
+    /// 
+    /// # Safety
+    /// The caller mut ensure that any duplicate `NodePtr`s aren't used or explicitly dropped after
+    /// calling this function.
+    pub unsafe fn drop_node(self) {
+        // SAFETY: The pointer originated from a Box and is therefore valid. The caller must ensure
+        // that the value isn't referenced again after dropping.
+        unsafe { drop(Box::from_non_null(self.0)) }
     }
 
     pub const fn as_non_null(self) -> NonNull<Node<T>> {
