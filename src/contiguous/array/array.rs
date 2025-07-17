@@ -2,16 +2,19 @@ use std::alloc::{self, Layout};
 use std::borrow::{Borrow, BorrowMut};
 use std::fmt::{self, Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
-use std::iter::TrustedLen;
+use std::iter::{self, TrustedLen};
 use std::marker::PhantomData;
 use std::mem::{self, MaybeUninit};
 use std::ops::{Deref, DerefMut};
 use std::ptr::{self, NonNull};
 use std::slice;
 
+use crate::util::error::CapacityOverflow;
+use crate::util::result::ResultExtension;
+
 const MAX_SIZE: usize = isize::MAX as usize;
 
-// TODO: Replace panics with errors and add try methods.
+// TODO: Add try methods.
 
 /// An implementation of an array that is sized at runtime. Similar to a [`Box<[T]>`](Box<T>).
 ///
@@ -157,7 +160,72 @@ impl<T> Array<T> {
     /// ```
     pub fn forget_init(self) -> Array<MaybeUninit<T>> {
         // SAFETY: Array<T> has the same layout as Array<MaybeUninit<T>>.
-        unsafe { mem::transmute::<Array<T>, Array<MaybeUninit<T>>>(self) }
+        unsafe { mem::transmute(self) }
+    }
+
+    /// Interprets &mut self as an `&mut Array<MaybeUninit<T>>`. See [`Array::forget_init`].
+    /// 
+    /// # Safety
+    /// When this mutable reference is dropped, self still need to be a valid and initialized
+    /// Array<T>. Failing to do so is undefined behavior, as it is effectively the same as calling
+    /// [`Array::assume_init`].
+    pub unsafe fn forget_init_mut(&mut self) -> &mut Array<MaybeUninit<T>> {
+        // SAFETY: &mut Array<T> has the same layout as &mut Array<MaybeUninit<T>>.
+        unsafe { mem::transmute(self) }
+    }
+
+    /// Interprets &self as an `&Array<MaybeUninit<T>>`. See [`Array::forget_init`].
+    pub fn forget_init_ref(&self) -> &Array<MaybeUninit<T>> {
+        // SAFETY: &Array<T> has the same layout as &Array<MaybeUninit<T>>.
+        unsafe { mem::transmute(self) }
+    }
+
+    /// Reallocate self with `new_size`, filling any extra elements with a value produced by
+    /// an invocation of `producer`.
+    ///
+    /// # Panics
+    /// Panics if the memory layout of the new allocation would have a size that exceeds
+    /// [`isize::MAX`]. (`new_size * size_of::<T>() > isize::MAX`)
+    pub fn realloc_with<F: Fn() -> T>(&mut self, producer: F, new_size: usize) {
+        if new_size < self.size {
+            for i in new_size..self.size {
+                // SAFETY: new_size is less than self.size, so i is in range of the Array.
+                // self.size * size_of::<T>() can't have overflown isize::MAX. self is  valid and
+                // fully initialized at this point.
+                unsafe {
+                    // We need to use self here so that we can drop initialized T values in place,
+                    // even though we're invalidating self. Can't drop a *mut MaybeUninit<T> in
+                    // place while assuming that it is initialized.
+                    ptr::drop_in_place(self.ptr.add(i).as_ptr());
+                }
+            }
+
+            // SAFETY: self is actually the one that is unsafe here, because it doesn't know that it
+            // is no longer entirely initialized. Forgetting this false information is the correct
+            // thing to do.
+            let wip_arr = unsafe { self.forget_init_mut() };
+
+            wip_arr.realloc(new_size);
+            // FIXME: What happens if the reallocation fails? Values have already been dropped.
+        } else {
+            let old_size = self.size;
+            // SAFETY: We are lying to self about being initialized, however a panic can't occur
+            // after the allocation so that isn't a problem.
+            let wip_arr = unsafe { self.forget_init_mut() };
+
+            wip_arr.realloc(new_size);
+
+            for i in old_size..new_size {
+                // SAFETY: size > isize::MAX / size_of::<T>() is already guarded against and all
+                // possible values are within the allocated range of the Array.
+                unsafe {
+                    wip_arr.ptr.add(i).write(MaybeUninit::new(producer()))
+                }
+            }
+        }
+
+        // wip_arr is a transmuted mutable reference to self, so we don't need to do anything to
+        // return ownership to self, now that the contents are valid.
     }
 }
 
@@ -168,7 +236,7 @@ impl<T> Array<T> {
     /// # Panics
     /// Panics if memory layout size exceeds [`isize::MAX`].
     pub(crate) fn make_layout(size: usize) -> Layout {
-        Layout::array::<T>(size).expect("Capacity overflow!")
+        Layout::array::<T>(size).or(Err(CapacityOverflow)).throw()
     }
 
     /// A helper function to create a [`NonNull`] for the provided [`Layout`]. Returns a dangling
@@ -187,11 +255,6 @@ impl<T> Array<T> {
             ).unwrap_or_else(|| alloc::handle_alloc_error(layout))
         }
     }
-
-    pub(crate) const unsafe fn clone_shallow(&mut self) -> Array<T> {
-        // SAFETY: There are no safety guarantees here, responsibility it passed to the caller.
-        unsafe { Array::from_parts(self.ptr, self.size) }
-    }
 }
 
 impl<T: Copy> Array<T> {
@@ -208,18 +271,7 @@ impl<T: Copy> Array<T> {
     /// assert_eq!(&*arr, &[5, 5, 5]);
     /// ```
     pub fn repeat_item(item: T, count: usize) -> Array<T> {
-        let arr = Self::new_uninit(count);
-
-        for i in 0..count {
-            // SAFETY: size > isize::MAX / size_of::<T>() is already guarded against and all
-            // possible values are within the allocated range of the Array.
-            unsafe {
-                arr.ptr.add(i).write(MaybeUninit::new(item))
-            }
-        }
-
-        // SAFETY: All values are initialized with a copy of item.
-        unsafe { arr.assume_init() }
+        Array::from(iter::repeat_n(item, count))
     }
 
     /// Reallocate self with `new_size`, filling any extra elements with a copy of `item`.
@@ -228,27 +280,7 @@ impl<T: Copy> Array<T> {
     /// Panics if the memory layout of the new allocation would have a size that exceeds
     /// [`isize::MAX`]. (`new_size * size_of::<T>() > isize::MAX`)
     pub fn realloc_with_copy(&mut self, item: T, new_size: usize) {
-        // SAFETY: We use a shallow clone here to allow us to change the type of the Array without
-        // moving it out from behind a mutable reference. Neither of the Arrays are dropped and self
-        // isn't used for the entire lifetime of the clone, except to access the original size
-        // without copying.
-        let mut wip_arr = unsafe { self.clone_shallow().forget_init() };
-        wip_arr.realloc(new_size);
-
-        for i in self.size..wip_arr.size {
-            // SAFETY: size > isize::MAX / size_of::<T>() is already guarded against and all
-            // possible values are within the allocated range of the new Array.
-            unsafe {
-                wip_arr.ptr.add(i).write(MaybeUninit::new(item))
-            }
-        }
-
-        // Forget the old value to prevent a double free.
-        mem::forget(mem::replace(
-            self,
-            // SAFETY: wip_arr is now initialized with copies of item.
-            unsafe { wip_arr.assume_init() }
-        ));
+        self.realloc_with(|| item, new_size);
     }
 }
 
@@ -258,18 +290,7 @@ impl<T: Default> Array<T> {
     /// # Panics
     /// Panics if memory layout size exceeds [`isize::MAX`].
     pub fn repeat_default(count: usize) -> Array<T> {
-        let arr = Self::new_uninit(count);
-
-        for i in 0..count {
-            // SAFETY: size > isize::MAX / size_of::<T>() is already guarded against and all
-            // possible values are within the allocated range of the Array.
-            unsafe {
-                arr.ptr.add(i).write(MaybeUninit::new(T::default()))
-            }
-        }
-
-        // SAFETY: All values are initialized with the default value for T.
-        unsafe { arr.assume_init() }
+        Array::from(iter::repeat_with(|| T::default()).take(count))
     }
 
     /// Reallocate self with `new_size`, filling any extra elements with the default value of `T`.
@@ -278,27 +299,7 @@ impl<T: Default> Array<T> {
     /// Panics if the memory layout of the new allocation would have a size that exceeds
     /// [`isize::MAX`]. (`new_size * size_of::<T>() > isize::MAX`)
     pub fn realloc_with_default(&mut self, new_size: usize) {
-        // SAFETY: We use a shallow clone here to allow us to change the type of the Array without
-        // moving it out from behind a mutable reference. Neither of the Arrays are dropped and self
-        // isn't used for the entire lifetime of the clone, except to access the original size
-        // without copying.
-        let mut wip_arr = unsafe { self.clone_shallow().forget_init() };
-        wip_arr.realloc(new_size);
-
-        for i in self.size..wip_arr.size {
-            // SAFETY: size > isize::MAX / size_of::<T>() is already guarded against and all
-            // possible values are within the allocated range of the Array.
-            unsafe {
-                wip_arr.ptr.add(i).write(MaybeUninit::new(T::default()))
-            }
-        }
-
-        // Forget the old value to prevent a double free.
-        mem::forget(mem::replace(
-            self,
-            // SAFETY: wip_arr is now initialized with the default value for T.
-            unsafe { wip_arr.assume_init() }
-        ));
+        self.realloc_with(|| T::default(), new_size);
     }
 }
 
@@ -420,6 +421,10 @@ impl<T> Array<MaybeUninit<T>> {
                 return;
             },
             (0, _) => {
+                if new_size.checked_mul(size_of::<T>()).is_none_or(|size| size > MAX_SIZE) {
+                    Err(CapacityOverflow).throw()
+                }
+
                 // If the Array previously had a capacity of zero, we need a new allocation.
                 let layout = Array::<MaybeUninit<T>>::make_layout(new_size);
 
@@ -446,12 +451,12 @@ impl<T> Array<MaybeUninit<T>> {
                 NonNull::dangling()
             },
             (_, _) => {
+                if new_size.checked_mul(size_of::<T>()).is_none_or(|size| size > MAX_SIZE) {
+                    Err(CapacityOverflow).throw()
+                }
+
                 // Otherwise, use realloc to handle moving or in-place size changing.
                 let layout = Array::<MaybeUninit<T>>::make_layout(self.size);
-
-                if new_size * size_of::<T>() > MAX_SIZE {
-                    panic!("Capacity overflow!")
-                }
 
                 // SAFETY: The same layout and allocator are used for the allocation, and the new
                 // layout size is > 0 and <= isize::MAX.
