@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug)]
-pub(crate) struct IndexNoCap;
+pub struct IndexNoCap;
 
 impl Display for IndexNoCap {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {

@@ -5,7 +5,7 @@ use ListState::*;
 
 use super::{LinkedList, ListContents, Link, ListState};
 
-// TODO: Make a new DoubleEndedIterator?
+// TODO: impl DoubleEndedIterator for all of these
 
 impl<T> IntoIterator for LinkedList<T> {
     type Item = T;

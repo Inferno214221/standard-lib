@@ -3,7 +3,6 @@ use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Index, IndexMut};
-use std::ptr;
 
 use super::{Iter, IterMut, Length, Node, NodePtr, ONE};
 use crate::linked::cursor::{Cursor, CursorContents, CursorPosition, CursorState};
@@ -279,8 +278,6 @@ impl<T> LinkedList<T> {
         Ok(())
     }
 
-    // TODO: pub fn contains(&self, item: T)
-
     pub fn cursor_head(mut self) -> Cursor<T> {
         Cursor {
             state: match mem::take(&mut self.state) {
@@ -345,6 +342,15 @@ impl<T> LinkedList<T> {
 
     pub fn iter(&self) -> Iter<'_, T> {
         self.into_iter()
+    }
+}
+
+impl<T: Eq> LinkedList<T> {
+    pub fn contains(&self, item: &T) -> bool {
+        for i in self.iter() {
+            if i == item { return true; }
+        }
+        false
     }
 }
 
@@ -516,8 +522,8 @@ impl<T> Drop for LinkedList<T> {
             Full(ListContents { head, .. }) => {
                 let mut curr = Some(head);
                 while let Some(ptr) = curr {
-                    unsafe { ptr.drop_node(); }
                     curr = *ptr.next();
+                    unsafe { ptr.drop_node(); }
                 }
             },
         }
