@@ -4,7 +4,6 @@ use std::fmt::{self, Debug, Formatter};
 use std::mem;
 use std::ops::{Deref, DerefMut};
 
-
 pub(crate) struct Branch<K: Ord, V>(pub Option<Box<Node<K, V>>>);
 
 pub(crate) struct Node<K: Ord, V> {

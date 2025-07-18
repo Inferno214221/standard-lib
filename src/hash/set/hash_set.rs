@@ -124,7 +124,7 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
 
     /// Inserts the provided item, without checking if the HashSet has enough capacity. If the item
     /// was already included, no change is made and the method returns false.
-    /// 
+    ///
     /// # Safety
     /// It is the responsibility of the caller to ensure that the HashSet has enough capacity to add
     /// the provided item, using methods like [`reserve`][HashSet::reserve] or

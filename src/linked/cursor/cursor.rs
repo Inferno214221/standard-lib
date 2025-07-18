@@ -2,12 +2,12 @@ use std::hash::{Hash, Hasher};
 use std::hint;
 use std::marker::PhantomData;
 
+use derive_more::IsVariant;
+
 use super::{State, StateMut};
 use crate::linked::list::{Length, LinkedList, ListContents, ListState, Node, NodePtr};
 use crate::util::error::{CapacityOverflow, IndexOutOfBounds};
 use crate::util::result::ResultExtension;
-
-use derive_more::IsVariant;
 
 /// A type for bi-directional traversal and mutation of [`LinkedList`]s. See
 /// [`LinkedList::cursor_front`] and [`LinkedList::cursor_back`] to create one.
@@ -31,15 +31,11 @@ pub(crate) struct CursorContents<T> {
 
 use CursorState::*;
 
-
 #[derive(IsVariant)]
 pub(crate) enum CursorPosition<T> {
     Head,
     Tail,
-    Ptr {
-        ptr: NodePtr<T>,
-        index: usize,
-    },
+    Ptr { ptr: NodePtr<T>, index: usize },
 }
 
 use CursorPosition::*;
@@ -153,14 +149,12 @@ impl<T> Cursor<T> {
                     index: 0,
                 },
                 Tail => (),
-                Ptr { ptr, index } => {
-                    match ptr.next() {
-                        Some(next_node) => *pos = Ptr {
-                            ptr: *next_node,
-                            index: *index + 1
-                        },
-                        None => *pos = Tail,
-                    }
+                Ptr { ptr, index } => *pos = match ptr.next() {
+                    Some(next_node) => Ptr {
+                        ptr: *next_node,
+                        index: *index + 1,
+                    },
+                    None => Tail,
                 },
             },
         }
@@ -176,14 +170,12 @@ impl<T> Cursor<T> {
                     ptr: list.tail,
                     index: list.last_index(),
                 },
-                Ptr { ptr, index } => {
-                    match ptr.prev() {
-                        Some(prev_node) => *pos = Ptr {
-                            ptr: *prev_node,
-                            index: *index - 1,
-                        },
-                        None => *pos = Head,
-                    }
+                Ptr { ptr, index } => *pos = match ptr.prev() {
+                    Some(prev_node) => Ptr {
+                        ptr: *prev_node,
+                        index: *index - 1,
+                    },
+                    None => Head,
                 },
             },
         }
@@ -359,7 +351,7 @@ impl<T> Cursor<T> {
             },
         }
     }
-    
+
     pub const fn is_head(&self) -> bool {
         match &self.state {
             Empty => false,
@@ -388,7 +380,7 @@ impl<T> Cursor<T> {
                         Tail => (list.tail, offset.abs() - 1),
                         Ptr { ptr, .. } => (*ptr, offset.abs()),
                     };
-                    
+
                     while steps > 0 {
                         ptr = (*ptr.prev())?;
                         steps -= 1;
@@ -402,7 +394,7 @@ impl<T> Cursor<T> {
                         Tail => (list.head, offset),
                         Ptr { ptr, .. } => (*ptr, offset),
                     };
-                    
+
                     while steps > 0 {
                         ptr = (*ptr.next())?;
                         steps -= 1;
@@ -430,7 +422,7 @@ impl<T> Cursor<T> {
                         Tail => (list.tail, offset.abs() - 1),
                         Ptr { ptr, .. } => (*ptr, offset.abs()),
                     };
-                    
+
                     while steps > 0 {
                         ptr = (*ptr.prev())?;
                         steps -= 1;
@@ -444,7 +436,7 @@ impl<T> Cursor<T> {
                         Tail => (list.head, offset),
                         Ptr { ptr, .. } => (*ptr, offset),
                     };
-                    
+
                     while steps > 0 {
                         ptr = (*ptr.next())?;
                         steps -= 1;
@@ -470,7 +462,7 @@ impl<T> Cursor<T> {
                         Ptr { ptr, index } => (*ptr, offset.unsigned_abs(), *index),
                     };
                     index -= steps;
-                    
+
                     while steps > 0 {
                         ptr = match *ptr.prev() {
                             Some(p) => p,
@@ -491,7 +483,7 @@ impl<T> Cursor<T> {
                         Ptr { ptr, index } => (*ptr, offset as usize, *index),
                     };
                     index += steps;
-                    
+
                     while steps > 0 {
                         ptr = match *ptr.next() {
                             Some(p) => p,
@@ -518,7 +510,10 @@ impl<T> Cursor<T> {
 
     pub fn try_move_to(&mut self, index: usize) -> Result<&mut Self, IndexOutOfBounds> {
         let contents = self.checked_contents_for_index_mut(index)?;
-        contents.pos = Ptr { ptr: contents.seek(index), index };
+        contents.pos = Ptr {
+            ptr: contents.seek(index),
+            index,
+        };
         Ok(self)
     }
 
@@ -528,8 +523,7 @@ impl<T> Cursor<T> {
             Full(CursorContents { list, pos }) => match pos {
                 Head => (LinkedList::new(), self.list()),
                 Tail => (self.list(), LinkedList::new()),
-                Ptr { index, .. }
-                    if *index == 0 => (LinkedList::new(), self.list()),
+                Ptr { index, .. } if *index == 0 => (LinkedList::new(), self.list()),
                 Ptr { ptr, index } => (
                     LinkedList {
                         state: ListState::Full(ListContents {
@@ -539,7 +533,7 @@ impl<T> Cursor<T> {
                             // SAFETY: index != 0, so prev is Some.
                             tail: unsafe { ptr.prev().unwrap_unchecked() },
                         }),
-                        _phantom: PhantomData
+                        _phantom: PhantomData,
                     },
                     LinkedList {
                         state: ListState::Full(ListContents {
@@ -549,7 +543,7 @@ impl<T> Cursor<T> {
                             head: *ptr,
                             tail: list.tail,
                         }),
-                        _phantom: PhantomData
+                        _phantom: PhantomData,
                     },
                 ),
             },
@@ -562,8 +556,9 @@ impl<T> Cursor<T> {
             Full(CursorContents { list, pos }) => match pos {
                 Head => (LinkedList::new(), self.list()),
                 Tail => (self.list(), LinkedList::new()),
-                Ptr { index, .. }
-                    if *index == list.last_index() => (LinkedList::new(), self.list()),
+                Ptr { index, .. } if *index == list.last_index() => {
+                    (LinkedList::new(), self.list())
+                },
                 Ptr { ptr, index } => (
                     LinkedList {
                         state: ListState::Full(ListContents {
@@ -572,7 +567,7 @@ impl<T> Cursor<T> {
                             head: list.head,
                             tail: *ptr,
                         }),
-                        _phantom: PhantomData
+                        _phantom: PhantomData,
                     },
                     LinkedList {
                         state: ListState::Full(ListContents {
@@ -584,7 +579,7 @@ impl<T> Cursor<T> {
                             head: unsafe { ptr.next().unwrap_unchecked() },
                             tail: list.tail,
                         }),
-                        _phantom: PhantomData
+                        _phantom: PhantomData,
                     },
                 ),
             },
@@ -656,7 +651,7 @@ impl<T> Cursor<T> {
                     Ptr { ptr, .. } if *ptr == list.head => *pos = Head,
                     _ => (),
                 }
-                
+
                 let node = list.head.take_node();
 
                 match list.len.checked_sub(1) {
@@ -684,7 +679,7 @@ impl<T> Cursor<T> {
                     Ptr { ptr, .. } if *ptr == list.tail => *pos = Tail,
                     _ => (),
                 }
-                
+
                 let node = list.tail.take_node();
 
                 match list.len.checked_sub(1) {
@@ -764,7 +759,7 @@ impl<T> Cursor<T> {
 }
 
 impl<T> CursorState<T> {
-    pub(crate) fn single(value: T, pos: CursorPosition<T>) -> CursorState<T>{
+    pub(crate) fn single(value: T, pos: CursorPosition<T>) -> CursorState<T> {
         Full(CursorContents {
             list: ListContents::wrap_one(value),
             pos,
@@ -788,7 +783,7 @@ impl<T> CursorContents<T> {
 
                 let offset_end = target as i128 - end.1 as i128;
                 let end_dist = offset_end.unsigned_abs() as usize;
-                
+
                 if ptr_dist < end_dist {
                     self.seek_n(ptr_dist, ptr, offset_ptr.is_positive())
                 } else {
@@ -811,7 +806,7 @@ impl<T> Hash for CursorPosition<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             Ptr { index, .. } => index.hash(state),
-            other => core::mem::discriminant(other).hash(state)
+            other => core::mem::discriminant(other).hash(state),
         }
     }
 }

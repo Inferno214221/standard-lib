@@ -4,14 +4,14 @@ use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Index, IndexMut};
 
+use derive_more::IsVariant;
+
 use super::{Iter, IterMut, Length, Node, NodePtr, ONE};
-use crate::linked::cursor::{Cursor, CursorContents, CursorPosition, CursorState};
 use crate::contiguous::Vector;
-use crate::util::result::ResultExtension;
+use crate::linked::cursor::{Cursor, CursorContents, CursorPosition, CursorState};
 #[doc(inline)]
 pub use crate::util::error::{CapacityOverflow, IndexOrCapOverflow, IndexOutOfBounds};
-
-use derive_more::IsVariant;
+use crate::util::result::ResultExtension;
 
 /// A list with links in both directions. See also: [`Cursor`] for bi-directional iteration and
 /// traversal.
@@ -217,7 +217,7 @@ impl<T> LinkedList<T> {
     }
 
     pub fn try_remove(&mut self, index: usize) -> Result<T, IndexOutOfBounds> {
-    let contents = self.checked_contents_for_index_mut(index).throw();
+        let contents = self.checked_contents_for_index_mut(index).throw();
         match index {
             0 => {
                 // SAFETY: contents is already checked to be valid for the provided index.
@@ -251,7 +251,7 @@ impl<T> LinkedList<T> {
     pub fn try_replace(&mut self, index: usize, new_value: T) -> Result<T, IndexOutOfBounds> {
         Ok(mem::replace(
             self.checked_seek(index)?.value_mut(),
-            new_value
+            new_value,
         ))
     }
 
@@ -265,9 +265,9 @@ impl<T> LinkedList<T> {
             Full(self_contents) => match &other.state {
                 Empty => {},
                 Full(other_contents) => {
-                    self_contents.len = self_contents.len.checked_add(
-                        other_contents.len.get()
-                    ).ok_or(CapacityOverflow)?;
+                    self_contents.len = self_contents.len
+                        .checked_add(other_contents.len.get())
+                        .ok_or(CapacityOverflow)?;
 
                     *self_contents.tail.next_mut() = Some(other_contents.head);
                     *other_contents.head.prev_mut() = Some(self_contents.tail);
@@ -311,7 +311,7 @@ impl<T> LinkedList<T> {
                 Full(contents) => CursorState::Full(CursorContents {
                     pos: CursorPosition::Ptr {
                         ptr: contents.head,
-                        index: 0
+                        index: 0,
                     },
                     list: contents,
                 }),
@@ -327,7 +327,7 @@ impl<T> LinkedList<T> {
                 Full(contents) => CursorState::Full(CursorContents {
                     pos: CursorPosition::Ptr {
                         ptr: contents.tail,
-                        index: contents.last_index()
+                        index: contents.last_index(),
                     },
                     list: contents,
                 }),
@@ -492,8 +492,7 @@ impl<T> Index<usize> for LinkedList<T> {
     }
 }
 
-
-impl<T> IndexMut<usize> for LinkedList<T> {    
+impl<T> IndexMut<usize> for LinkedList<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         self.get_mut(index)
     }

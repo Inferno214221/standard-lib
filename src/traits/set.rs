@@ -3,7 +3,10 @@ use std::marker::PhantomData;
 use std::mem;
 
 pub trait Set<T>: IntoIterator<Item = T> + Sized {
-    type Iter<'a>: Iterator<Item = &'a T> where Self: 'a, T: 'a;
+    type Iter<'a>: Iterator<Item = &'a T>
+    where
+        Self: 'a,
+        T: 'a;
 
     fn contains(&self, item: &T) -> bool;
 
@@ -37,10 +40,7 @@ pub trait Set<T>: IntoIterator<Item = T> + Sized {
 
     /// Creates a borrowed iterator over all items that are in `self` or `rhs` but not both. (`self
     /// △ rhs`)
-    fn symmetric_difference<'a>(
-        &'a self,
-        other: &'a Self,
-    ) -> SymmetricDifference<'a, Self, T> {
+    fn symmetric_difference<'a>(&'a self, other: &'a Self) -> SymmetricDifference<'a, Self, T> {
         SymmetricDifference {
             inner: self.difference(other).chain(other.difference(self)),
         }
@@ -70,7 +70,7 @@ pub trait Set<T>: IntoIterator<Item = T> + Sized {
             state: FirstDifSecond {
                 iterator_a: self.into_iter(),
                 set_b: Some(other),
-                _phantom: PhantomData
+                _phantom: PhantomData,
             },
         }
     }
@@ -294,9 +294,7 @@ impl<S: Set<T>, T> Iterator for IntoUnion<S, T> {
                     },
                 }
             },
-            Second { iterator_b, .. } => {
-                iterator_b.next()
-            },
+            Second { iterator_b, .. } => iterator_b.next(),
         }
     }
 

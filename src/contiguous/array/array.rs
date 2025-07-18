@@ -164,7 +164,7 @@ impl<T> Array<T> {
     }
 
     /// Interprets &mut self as an `&mut Array<MaybeUninit<T>>`. See [`Array::forget_init`].
-    /// 
+    ///
     /// # Safety
     /// When this mutable reference is dropped, self still need to be a valid and initialized
     /// Array<T>. Failing to do so is undefined behavior, as it is effectively the same as calling
@@ -421,7 +421,10 @@ impl<T> Array<MaybeUninit<T>> {
                 return;
             },
             (0, _) => {
-                if new_size.checked_mul(size_of::<T>()).is_none_or(|size| size > MAX_SIZE) {
+                if new_size
+                    .checked_mul(size_of::<T>())
+                    .is_none_or(|size| size > MAX_SIZE)
+                {
                     Err(CapacityOverflow).throw()
                 }
 
@@ -430,19 +433,14 @@ impl<T> Array<MaybeUninit<T>> {
 
                 // SAFETY: Layout will have non-zero size because both 0 capacity and zero-sized
                 // types are guarded against.
-                let raw_ptr: *mut MaybeUninit<T> = unsafe {
-                    alloc::alloc(layout).cast()
-                };
+                let raw_ptr: *mut MaybeUninit<T> = unsafe { alloc::alloc(layout).cast() };
 
-                NonNull::new(raw_ptr).unwrap_or_else(
-                    || alloc::handle_alloc_error(layout)
-                )
+                NonNull::new(raw_ptr).unwrap_or_else(|| alloc::handle_alloc_error(layout))
             },
             (_, 0) => {
                 // If the new size is zero, we just need to deallocate it and return a dangling
                 // pointer.
                 let layout = Array::<MaybeUninit<T>>::make_layout(self.size);
-
 
                 // SAFETY: ptr is always allocated in the global allocator and layout is the same as
                 // when allocated. Zero-sized layouts are guarded against by the first two branches.
@@ -451,7 +449,10 @@ impl<T> Array<MaybeUninit<T>> {
                 NonNull::dangling()
             },
             (_, _) => {
-                if new_size.checked_mul(size_of::<T>()).is_none_or(|size| size > MAX_SIZE) {
+                if new_size
+                    .checked_mul(size_of::<T>())
+                    .is_none_or(|size| size > MAX_SIZE)
+                {
                     Err(CapacityOverflow).throw()
                 }
 
@@ -468,9 +469,7 @@ impl<T> Array<MaybeUninit<T>> {
                     ).cast()
                 };
 
-                NonNull::new(raw_ptr).unwrap_or_else(
-                    || alloc::handle_alloc_error(layout)
-                )
+                NonNull::new(raw_ptr).unwrap_or_else(|| alloc::handle_alloc_error(layout))
             },
         };
 

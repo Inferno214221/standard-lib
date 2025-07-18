@@ -340,7 +340,7 @@ impl<T> Vector<T> {
             ptr::copy_nonoverlapping(
                 self.arr.ptr.add(initial_len).as_ptr().cast_const(),
                 other.arr.ptr.as_ptr(),
-                other.len
+                other.len,
             );
         }
 

@@ -1,6 +1,5 @@
 use std::num::NonZero;
 
-
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub(crate) struct Length(pub NonZero<usize>);
 

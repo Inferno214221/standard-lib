@@ -51,7 +51,7 @@ impl<T> NodePtr<T> {
 
     /// Drops the pointed to node by reconstructing the [`Box`] and dropping that. This ensures that
     /// the pointed to memory is deallocated correctly.
-    /// 
+    ///
     /// # Safety
     /// The caller mut ensure that any duplicate `NodePtr`s aren't used or explicitly dropped after
     /// calling this function.

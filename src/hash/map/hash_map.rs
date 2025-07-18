@@ -407,7 +407,7 @@ impl<K: Hash + Eq, V, B: BuildHasher + Default> Default for HashMap<K, V, B> {
 impl<Q, K, V> Index<&Q> for HashMap<K, V>
 where
     Q: Hash + Eq + ?Sized,
-    K: Hash + Eq + Borrow<Q>
+    K: Hash + Eq + Borrow<Q>,
 {
     type Output = V;
 
@@ -427,11 +427,11 @@ impl<K: Hash + Eq, V, B: BuildHasher + Default> Extend<(K, V)> for HashMap<K, V,
             self.insert(key, value);
         }
     }
-    
+
     fn extend_one(&mut self, item: (K, V)) {
         self.insert(item.0, item.1);
     }
-    
+
     fn extend_reserve(&mut self, additional: usize) {
         self.reserve(additional);
     }

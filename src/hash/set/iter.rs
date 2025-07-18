@@ -1,5 +1,5 @@
 use std::hash::{BuildHasher, Hash};
-use std::iter::{FusedIterator};
+use std::iter::FusedIterator;
 
 use super::HashSet;
 use crate::hash::map::{IntoKeys, Keys};

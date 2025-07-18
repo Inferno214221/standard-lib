@@ -4,7 +4,6 @@
 #![feature(extend_one_unchecked)]
 #![feature(trusted_len)]
 #![feature(debug_closure_helpers)]
-
 #![allow(clippy::module_inception)]
 
 pub mod binary_tree;

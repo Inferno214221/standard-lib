@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 
 use ListState::*;
 
-use super::{LinkedList, ListContents, Link, ListState};
+use super::{Link, LinkedList, ListContents, ListState};
 
 // TODO: impl DoubleEndedIterator for all of these
 
