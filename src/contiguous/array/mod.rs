@@ -8,6 +8,7 @@
 
 mod array;
 mod iter;
+mod tests;
 
 pub use array::*;
 pub use iter::*;
