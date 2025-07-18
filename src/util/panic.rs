@@ -1,3 +1,4 @@
+#[allow(unused_macros)]
 macro_rules! assert_panics {
     ($run:block) => {
         assert_panics!($run, "assertion failed to panic")
@@ -8,4 +9,5 @@ macro_rules! assert_panics {
     };
 }
 
+#[allow(unused_imports)]
 pub(crate) use assert_panics;

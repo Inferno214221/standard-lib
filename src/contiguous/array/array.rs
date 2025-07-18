@@ -420,23 +420,6 @@ impl<T> Array<MaybeUninit<T>> {
                 // SAFETY: Array<T> has the same layout as Array<MaybeUninit<T>>.
                 return;
             },
-            (0, _) => {
-                if new_size
-                    .checked_mul(size_of::<T>())
-                    .is_none_or(|size| size > MAX_SIZE)
-                {
-                    Err(CapacityOverflow).throw()
-                }
-
-                // If the Array previously had a capacity of zero, we need a new allocation.
-                let layout = Array::<MaybeUninit<T>>::make_layout(new_size);
-
-                // SAFETY: Layout will have non-zero size because both 0 capacity and zero-sized
-                // types are guarded against.
-                let raw_ptr: *mut MaybeUninit<T> = unsafe { alloc::alloc(layout).cast() };
-
-                NonNull::new(raw_ptr).unwrap_or_else(|| alloc::handle_alloc_error(layout))
-            },
             (_, 0) => {
                 // If the new size is zero, we just need to deallocate it and return a dangling
                 // pointer.
@@ -448,14 +431,22 @@ impl<T> Array<MaybeUninit<T>> {
 
                 NonNull::dangling()
             },
-            (_, _) => {
-                if new_size
-                    .checked_mul(size_of::<T>())
-                    .is_none_or(|size| size > MAX_SIZE)
-                {
-                    Err(CapacityOverflow).throw()
-                }
+            (_, new) if new.checked_mul(size_of::<T>())
+                .is_none_or(|size| size > MAX_SIZE) => {
+                // Throw an error if the new size would overflow.
+                Err(CapacityOverflow).throw()
+            },
+            (0, _) => {
+                // If the Array previously had a capacity of zero, we need a new allocation.
+                let layout = Array::<MaybeUninit<T>>::make_layout(new_size);
 
+                // SAFETY: Layout will have non-zero size because both 0 capacity and zero-sized
+                // types are guarded against.
+                let raw_ptr: *mut MaybeUninit<T> = unsafe { alloc::alloc(layout).cast() };
+
+                NonNull::new(raw_ptr).unwrap_or_else(|| alloc::handle_alloc_error(layout))
+            },
+            (_, _) => {
                 // Otherwise, use realloc to handle moving or in-place size changing.
                 let layout = Array::<MaybeUninit<T>>::make_layout(self.size);
 
