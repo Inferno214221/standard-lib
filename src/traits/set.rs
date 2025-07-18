@@ -1,14 +1,25 @@
+use std::borrow::Borrow;
 use std::iter::{Chain, FusedIterator};
 use std::marker::PhantomData;
 use std::mem;
 
-pub trait Set<T>: IntoIterator<Item = T> + Sized {
+pub trait SetInterface<T: Borrow<Q>, Q: ?Sized>: Sized {
+    /// Returns true if the Set contains `item`.
+    fn contains(&self, item: &Q) -> bool;
+
+    /// Returns a reference to the contained element equal to the provided `item` or None if there
+    /// isn't one.
+    fn get(&self, item: &Q) -> Option<&T>;
+
+    /// Removes `item` from the Set, returning it if it exists.
+    fn remove(&mut self, item: &Q) -> Option<T>;
+}
+
+pub trait SetIterator<T>: IntoIterator<Item = T> + SetInterface<T, T> + Sized {
     type Iter<'a>: Iterator<Item = &'a T>
     where
         Self: 'a,
         T: 'a;
-
-    fn contains(&self, item: &T) -> bool;
 
     /// Returns and iterator over all elements in the HashMap, as references.
     fn iter<'a>(&'a self) -> Self::Iter<'a>;
@@ -99,14 +110,14 @@ pub trait Set<T>: IntoIterator<Item = T> + Sized {
     }
 }
 
-pub struct IntoDifference<S: Set<T>, T> {
+pub struct IntoDifference<S: SetIterator<T>, T> {
     pub(crate) inner: S::IntoIter,
     pub(crate) other: S,
-    // We need the type parameter T for Set, despite not directly owning any T.
+    // We need the type parameters T for SetIterator, despite not directly owning any Ts.
     pub(crate) _phantom: PhantomData<T>,
 }
 
-impl<S: Set<T>, T> Iterator for IntoDifference<S, T> {
+impl<S: SetIterator<T>, T> Iterator for IntoDifference<S, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -124,19 +135,19 @@ impl<S: Set<T>, T> Iterator for IntoDifference<S, T> {
     }
 }
 
-impl<S: Set<T>, T> FusedIterator for IntoDifference<S, T> {}
+impl<S: SetIterator<T>, T> FusedIterator for IntoDifference<S, T> {}
 
-pub struct Difference<'a, S: Set<T>, T: 'a> {
+pub struct Difference<'a, S: SetIterator<T>, T: 'a> {
     pub(crate) inner: S::Iter<'a>,
     pub(crate) other: &'a S,
 }
 
-impl<'a, S: Set<T>, T: 'a> Iterator for Difference<'a, S, T> {
+impl<'a, S: SetIterator<T>, T: 'a> Iterator for Difference<'a, S, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut next = self.inner.next();
-        while let Some(item) = &next
+        while let Some(item) = next
             && self.other.contains(item)
         {
             next = self.inner.next();
@@ -149,14 +160,14 @@ impl<'a, S: Set<T>, T: 'a> Iterator for Difference<'a, S, T> {
     }
 }
 
-impl<'a, S: Set<T>, T: 'a> FusedIterator for Difference<'a, S, T> {}
+impl<'a, S: SetIterator<T>, T: 'a> FusedIterator for Difference<'a, S, T> {}
 
 // FIXME: Can't chain IntoDifference because it requires double ownership.
-pub struct IntoSymmetricDifference<S: Set<T>, T> {
+pub struct IntoSymmetricDifference<S: SetIterator<T>, T> {
     pub(crate) inner: Chain<IntoDifference<S, T>, IntoDifference<S, T>>,
 }
 
-impl<S: Set<T>, T> Iterator for IntoSymmetricDifference<S, T> {
+impl<S: SetIterator<T>, T> Iterator for IntoSymmetricDifference<S, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -168,13 +179,13 @@ impl<S: Set<T>, T> Iterator for IntoSymmetricDifference<S, T> {
     }
 }
 
-impl<S: Set<T>, T> FusedIterator for IntoSymmetricDifference<S, T> {}
+impl<S: SetIterator<T>, T> FusedIterator for IntoSymmetricDifference<S, T> {}
 
-pub struct SymmetricDifference<'a, S: Set<T>, T: 'a> {
+pub struct SymmetricDifference<'a, S: SetIterator<T>, T: 'a> {
     pub(crate) inner: Chain<Difference<'a, S, T>, Difference<'a, S, T>>,
 }
 
-impl<'a, S: Set<T>, T: 'a> Iterator for SymmetricDifference<'a, S, T> {
+impl<'a, S: SetIterator<T>, T: 'a> Iterator for SymmetricDifference<'a, S, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -186,16 +197,15 @@ impl<'a, S: Set<T>, T: 'a> Iterator for SymmetricDifference<'a, S, T> {
     }
 }
 
-impl<'a, S: Set<T>, T: 'a> FusedIterator for SymmetricDifference<'a, S, T> {}
+impl<'a, S: SetIterator<T>, T: 'a> FusedIterator for SymmetricDifference<'a, S, T> {}
 
-pub struct IntoIntersection<S: Set<T>, T> {
+pub struct IntoIntersection<S: SetIterator<T>, T> {
     pub(crate) inner: S::IntoIter,
     pub(crate) other: S,
-    // We need the type parameter T for Set, despite not directly owning any T.
     pub(crate) _phantom: PhantomData<T>,
 }
 
-impl<S: Set<T>, T> Iterator for IntoIntersection<S, T> {
+impl<S: SetIterator<T>, T> Iterator for IntoIntersection<S, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -213,19 +223,19 @@ impl<S: Set<T>, T> Iterator for IntoIntersection<S, T> {
     }
 }
 
-impl<S: Set<T>, T> FusedIterator for IntoIntersection<S, T> {}
+impl<S: SetIterator<T>, T> FusedIterator for IntoIntersection<S, T> {}
 
-pub struct Intersection<'a, S: Set<T>, T: 'a> {
+pub struct Intersection<'a, S: SetIterator<T>, T: 'a> {
     pub(crate) inner: S::Iter<'a>,
     pub(crate) other: &'a S,
 }
 
-impl<'a, S: Set<T>, T: 'a> Iterator for Intersection<'a, S, T> {
+impl<'a, S: SetIterator<T>, T: 'a> Iterator for Intersection<'a, S, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut next = self.inner.next();
-        while let Some(item) = &next
+        while let Some(item) = next
             && !self.other.contains(item)
         {
             next = self.inner.next();
@@ -238,13 +248,13 @@ impl<'a, S: Set<T>, T: 'a> Iterator for Intersection<'a, S, T> {
     }
 }
 
-impl<'a, S: Set<T>, T: 'a> FusedIterator for Intersection<'a, S, T> {}
+impl<'a, S: SetIterator<T>, T: 'a> FusedIterator for Intersection<'a, S, T> {}
 
-pub struct IntoUnion<S: Set<T>, T> {
+pub struct IntoUnion<S: SetIterator<T>, T> {
     pub(crate) state: IntoUnionState<S, T>,
 }
 
-pub(crate) enum IntoUnionState<S: Set<T>, T> {
+pub(crate) enum IntoUnionState<S: SetIterator<T>, T> {
     FirstDifSecond {
         iterator_a: S::IntoIter,
         // We use Option<S> so that we can move out from behind a mutable reference when
@@ -262,7 +272,7 @@ pub(crate) enum IntoUnionState<S: Set<T>, T> {
 
 use IntoUnionState::*;
 
-impl<S: Set<T>, T> Iterator for IntoUnion<S, T> {
+impl<S: SetIterator<T>, T> Iterator for IntoUnion<S, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -304,13 +314,13 @@ impl<S: Set<T>, T> Iterator for IntoUnion<S, T> {
     // }
 }
 
-impl<S: Set<T>, T> FusedIterator for IntoUnion<S, T> {}
+impl<S: SetIterator<T>, T> FusedIterator for IntoUnion<S, T> {}
 
-pub struct Union<'a, S: Set<T>, T: 'a> {
+pub struct Union<'a, S: SetIterator<T>, T: 'a> {
     pub(crate) inner: Chain<S::Iter<'a>, Difference<'a, S, T>>,
 }
 
-impl<'a, S: Set<T>, T: 'a> Iterator for Union<'a, S, T> {
+impl<'a, S: SetIterator<T>, T: 'a> Iterator for Union<'a, S, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -322,4 +332,4 @@ impl<'a, S: Set<T>, T: 'a> Iterator for Union<'a, S, T> {
     }
 }
 
-impl<'a, S: Set<T>, T: 'a> FusedIterator for Union<'a, S, T> {}
+impl<'a, S: SetIterator<T>, T: 'a> FusedIterator for Union<'a, S, T> {}

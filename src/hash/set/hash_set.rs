@@ -4,11 +4,13 @@ use std::hash::{BuildHasher, Hash, RandomState};
 use std::iter::TrustedLen;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Sub, SubAssign};
 
-use super::Iter;
+use super::{IndexNoCap, Iter};
 use crate::contiguous::Vector;
 use crate::hash::HashMap;
-use crate::traits::Set;
+#[doc(inline)]
+pub use crate::traits::set::{SetInterface, SetIterator};
 use crate::util::fmt::DebugRaw;
+use crate::util::result::ResultExtension;
 
 /// A set of values that prevents duplicates with the help of the [`Hash`] trait.
 ///
@@ -134,8 +136,7 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
     /// Panics if the HashSet has a capacity of 0, as it isn't possible to find a bucket associated
     /// with the item.
     pub unsafe fn insert_unchecked(&mut self, item: T) -> bool {
-        let index = self.inner.find_index_for_key(&item)
-            .expect("Unchecked insertion into HashSet with capacity 0!");
+        let index = self.inner.find_index_for_key(&item).ok_or(IndexNoCap).throw();
 
         // The Bucket at index is either empty or contains an equal item.
         match &mut self.inner.arr[index] {
@@ -149,34 +150,6 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
         }
     }
 
-    /// Returns a reference to the contained element equal to the provided `item` or None if there
-    /// isn't one.
-    pub fn get<Q>(&self, item: &Q) -> Option<&T>
-    where
-        T: Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
-    {
-        self.inner.get_entry(item).map(|(k, _)| k)
-    }
-
-    /// Removes `item` from the HashSet, returning it if it exists.
-    pub fn remove<Q>(&mut self, item: &Q) -> Option<T>
-    where
-        T: Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
-    {
-        self.inner.remove_entry(item).map(|(k, _)| k)
-    }
-
-    /// Returns true if the HashSet contains `item`.
-    pub fn contains<Q>(&self, item: &Q) -> bool
-    where
-        T: Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
-    {
-        self.inner.contains(item)
-    }
-
     /// Increases the capacity of the HashSet to ensure that len + `extra` elements will fit without
     /// exceeding the load factor.
     pub fn reserve(&mut self, extra: usize) {
@@ -184,15 +157,25 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
     }
 }
 
-impl<T: Hash + Eq, B: BuildHasher> Set<T> for HashSet<T, B> {
+impl<T: Hash + Eq + Borrow<Q>, B: BuildHasher, Q: Hash + Eq> SetInterface<T, Q> for HashSet<T, B> {
+    fn contains(&self, item: &Q) -> bool {
+        self.inner.contains(item)
+    }
+
+    fn get(&self, item: &Q) -> Option<&T> {
+        self.inner.get_entry(item).map(|(k, _)| k)
+    }
+
+    fn remove(&mut self, item: &Q) -> Option<T> {
+        self.inner.remove_entry(item).map(|(k, _)| k)
+    }
+}
+
+impl<T: Hash + Eq, B: BuildHasher> SetIterator<T> for HashSet<T, B> {
     type Iter<'a> = Iter<'a, T> where Self: 'a;
 
     fn iter<'a>(&'a self) -> Self::Iter<'a> {
         self.into_iter()
-    }
-
-    fn contains(&self, item: &T) -> bool {
-        self.contains(item)
     }
 }
 

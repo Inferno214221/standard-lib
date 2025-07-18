@@ -13,3 +13,6 @@ mod iter;
 
 pub use hash_set::*;
 pub use iter::*;
+
+#[doc(inline)]
+pub use super::map::IndexNoCap;

@@ -4,7 +4,7 @@ use std::iter::FusedIterator;
 use super::HashSet;
 use crate::hash::map::{IntoKeys, Keys};
 #[allow(unused)]
-use crate::traits::Set;
+use crate::traits::set::SetIterator;
 
 impl<T: Hash + Eq, B: BuildHasher> IntoIterator for HashSet<T, B> {
     type Item = T;

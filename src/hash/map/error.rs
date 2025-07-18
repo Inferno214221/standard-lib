@@ -6,7 +6,7 @@ pub struct IndexNoCap;
 
 impl Display for IndexNoCap {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "Unable to index HashMap with capacity 0!")
+        write!(f, "Unable to calculate indicies for hash-based collection with capacity 0!")
     }
 }
 
