@@ -69,10 +69,7 @@ impl<T> LinkedList<T> {
     }
 
     pub const fn len(&self) -> usize {
-        match self.state {
-            Empty => 0,
-            Full(ListContents { len, .. }) => len.get(),
-        }
+        self.state.len()
     }
 
     pub const fn is_empty(&self) -> bool {
@@ -571,6 +568,34 @@ impl<T: Hash> Hash for ListContents<T> {
 
         // Terminate variable length hashing sequence.
         0xFF.hash(state);
+    }
+}
+
+impl<T> Clone for ListContents<T> {
+    fn clone(&self) -> Self {
+        ListContents {
+            len: self.len,
+            head: self.head,
+            tail: self.tail,
+        }
+    }
+}
+
+impl<T> ListState<T> {
+    pub const fn len(&self) -> usize {
+        match self {
+            Empty => 0,
+            Full(ListContents { len, .. }) => len.get(),
+        }
+    }
+}
+
+impl<T> Clone for ListState<T> {
+    fn clone(&self) -> Self {
+        match self {
+            Empty => Empty,
+            Full(contents) => Full(contents.clone()),
+        }
     }
 }
 

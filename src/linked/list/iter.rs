@@ -3,9 +3,7 @@ use std::marker::PhantomData;
 
 use ListState::*;
 
-use super::{Link, LinkedList, ListContents, ListState};
-
-// TODO: impl DoubleEndedIterator for all of these
+use super::{LinkedList, ListContents, ListState};
 
 impl<T> IntoIterator for LinkedList<T> {
     type Item = T;
@@ -14,48 +12,32 @@ impl<T> IntoIterator for LinkedList<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         IntoIter {
-            curr: match self.state {
-                Empty => None,
-                Full(ListContents { head, .. }) => Some(head),
-            },
-            len: self.len(),
-            _phantom: PhantomData,
+            list: self,
         }
     }
 }
 
 pub struct IntoIter<T> {
-    pub(crate) curr: Link<T>,
-    pub(crate) len: usize,
-    pub(crate) _phantom: PhantomData<T>,
-}
-
-impl<T> Drop for IntoIter<T> {
-    fn drop(&mut self) {
-        while let Some(ptr) = self.curr {
-            self.curr = *ptr.next();
-            // SAFETY: We only iterate forwards during this drop implementation, so all duplicate
-            // NodeRefs are ignored and dropped.
-            unsafe { ptr.drop_node(); }
-        }
-    }
+    // There is no point me rewriting all of this when the iterator can just hold the list and call
+    // pop front/back.
+    pub(crate) list: LinkedList<T>,
 }
 
 impl<T> Iterator for IntoIter<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.curr.map(|ptr| {
-            // Use a box to move the value and clean up.
-            let node = ptr.take_node();
-            self.curr = node.next;
-            self.len -= 1;
-            node.value
-        })
+        self.list.pop_front()
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.len, Some(self.len))
+        (self.len(), Some(self.len()))
+    }
+}
+
+impl<T> DoubleEndedIterator for IntoIter<T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.list.pop_back()
     }
 }
 
@@ -63,7 +45,7 @@ impl<T> FusedIterator for IntoIter<T> {}
 
 impl<T> ExactSizeIterator for IntoIter<T> {
     fn len(&self) -> usize {
-        self.len
+        self.list.len()
     }
 }
 
@@ -77,19 +59,16 @@ impl<'a, T> IntoIterator for &'a mut LinkedList<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         IterMut {
-            curr: match self.state {
-                Empty => None,
-                Full(ListContents { head, .. }) => Some(head),
-            },
-            len: self.len(),
+            state: self.state.clone(),
             _phantom: PhantomData,
         }
     }
 }
 
 pub struct IterMut<'a, T> {
-    pub(crate) curr: Link<T>,
-    pub(crate) len: usize,
+    // Although ths fields are exactly the same as a list, this structure doesn't modify the
+    // underlying nodes and uses len to track the number of items left to yield.
+    pub(crate) state: ListState<T>,
     pub(crate) _phantom: PhantomData<&'a mut T>,
 }
 
@@ -97,15 +76,55 @@ impl<'a, T> Iterator for IterMut<'a, T> {
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.curr.map(|ptr| {
-            self.curr = *ptr.next();
-            self.len -= 1;
-            unsafe { &mut ptr.as_non_null().as_mut().value }
-        })
+        match &mut self.state {
+            Empty => None,
+            Full(ListContents { len, head, .. }) => {
+                let value = head.value_mut();
+
+                match len.checked_sub(1) {
+                    Some(new_len) => {
+                        // SAFETY: Previous length is greater than 1, so the first element is
+                        // preceded by at least one more.
+                        let new_head = unsafe { head.next().unwrap_unchecked() };
+                        *head = new_head;
+                        // Never actually modify the node itself.
+                        *len = new_len;
+                    },
+                    None => self.state = Empty,
+                }
+
+                Some(value)
+            },
+        }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.len, Some(self.len))
+        (self.len(), Some(self.len()))
+    }
+}
+
+impl<'a, T> DoubleEndedIterator for IterMut<'a, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        match &mut self.state {
+            Empty => None,
+            Full(ListContents { len, tail, .. }) => {
+                let value = tail.value_mut();
+
+                match len.checked_sub(1) {
+                    Some(new_len) => {
+                        // SAFETY: Previous length is greater than 1, so the last element is
+                        // preceded by at least one more.
+                        let new_tail = unsafe { tail.prev().unwrap_unchecked() };
+                        *tail = new_tail;
+                        // Never actually modify the node itself.
+                        *len = new_len;
+                    },
+                    None => self.state = Empty,
+                }
+
+                Some(value)
+            },
+        }
     }
 }
 
@@ -113,7 +132,7 @@ impl<'a, T> FusedIterator for IterMut<'a, T> {}
 
 impl<'a, T> ExactSizeIterator for IterMut<'a, T> {
     fn len(&self) -> usize {
-        self.len
+        self.state.len()
     }
 }
 
@@ -127,19 +146,14 @@ impl<'a, T> IntoIterator for &'a LinkedList<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         Iter {
-            curr: match self.state {
-                Empty => None,
-                Full(ListContents { head, .. }) => Some(head),
-            },
-            len: self.len(),
+            state: self.state.clone(),
             _phantom: PhantomData,
         }
     }
 }
 
 pub struct Iter<'a, T> {
-    pub(crate) curr: Link<T>,
-    pub(crate) len: usize,
+    pub(crate) state: ListState<T>,
     pub(crate) _phantom: PhantomData<&'a T>,
 }
 
@@ -147,15 +161,55 @@ impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.curr.map(|ptr| {
-            self.curr = *ptr.next();
-            self.len -= 1;
-            unsafe { &ptr.as_non_null().as_ref().value }
-        })
+        match &mut self.state {
+            Empty => None,
+            Full(ListContents { len, head, .. }) => {
+                let value = head.value();
+
+                match len.checked_sub(1) {
+                    Some(new_len) => {
+                        // SAFETY: Previous length is greater than 1, so the first element is
+                        // preceded by at least one more.
+                        let new_head = unsafe { head.next().unwrap_unchecked() };
+                        *head = new_head;
+                        // Never actually modify the node itself.
+                        *len = new_len;
+                    },
+                    None => self.state = Empty,
+                }
+
+                Some(value)
+            },
+        }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.len, Some(self.len))
+        (self.len(), Some(self.len()))
+    }
+}
+
+impl<'a, T> DoubleEndedIterator for Iter<'a, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        match &mut self.state {
+            Empty => None,
+            Full(ListContents { len, tail, .. }) => {
+                let value = tail.value();
+
+                match len.checked_sub(1) {
+                    Some(new_len) => {
+                        // SAFETY: Previous length is greater than 1, so the last element is
+                        // preceded by at least one more.
+                        let new_tail = unsafe { tail.prev().unwrap_unchecked() };
+                        *tail = new_tail;
+                        // Never actually modify the node itself.
+                        *len = new_len;
+                    },
+                    None => self.state = Empty,
+                }
+
+                Some(value)
+            },
+        }
     }
 }
 
@@ -163,7 +217,7 @@ impl<'a, T> FusedIterator for Iter<'a, T> {}
 
 impl<'a, T> ExactSizeIterator for Iter<'a, T> {
     fn len(&self) -> usize {
-        self.len
+        self.state.len()
     }
 }
 
