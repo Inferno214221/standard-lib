@@ -41,13 +41,17 @@ pub trait SetIterator<T>: IntoIterator<Item = T> + SetInterface<T, T> + Sized {
         }
     }
 
-    // /// Creates an owned iterator over all items that are in `self` or `rhs` but not both. (`self △
-    // /// rhs`)
-    // fn into_symmetric_difference(self, other: Self) -> IntoSymmetricDifference<Self, T> {
-    //     IntoSymmetricDifference {
-    //         inner: self.into_difference(other).chain(other.into_difference(self)),
-    //     }
-    // }
+    /// Creates an owned iterator over all items that are in `self` or `rhs` but not both. (`self △
+    /// rhs`)
+    fn into_symmetric_difference(self, other: Self) -> IntoSymmetricDifference<Self, T> {
+        IntoSymmetricDifference {
+            state: IterAndSet {
+                iterator_a: self.into_iter(),
+                set_b: Some(other),
+                _phantom: PhantomData,
+            },
+        }
+    }
 
     /// Creates a borrowed iterator over all items that are in `self` or `rhs` but not both. (`self
     /// △ rhs`)
@@ -78,7 +82,7 @@ pub trait SetIterator<T>: IntoIterator<Item = T> + SetInterface<T, T> + Sized {
     /// rhs`)
     fn into_union(self, other: Self) -> IntoUnion<Self, T> {
         IntoUnion {
-            state: FirstDifSecond {
+            state: IterAndSet {
                 iterator_a: self.into_iter(),
                 set_b: Some(other),
                 _phantom: PhantomData,
@@ -109,6 +113,24 @@ pub trait SetIterator<T>: IntoIterator<Item = T> + SetInterface<T, T> + Sized {
         true
     }
 }
+
+pub(crate) enum SetIterToggle<S: SetIterator<T>, T> {
+    IterAndSet {
+        iterator_a: S::IntoIter,
+        // We use Option<S> so that we can move out from behind a mutable reference when
+        // switching states. The value can be assumed to always be Some.
+        // We're using Option rather than MaybeUninit so that it drops correctly and because it
+        // implements Default.
+        set_b: Option<S>,
+        _phantom: PhantomData<T>,
+    },
+    OtherSet {
+        iterator_b: S::IntoIter,
+        _phantom: PhantomData<T>,
+    },
+}
+
+use SetIterToggle::*;
 
 pub struct IntoDifference<S: SetIterator<T>, T> {
     pub(crate) inner: S::IntoIter,
@@ -162,21 +184,54 @@ impl<'a, S: SetIterator<T>, T: 'a> Iterator for Difference<'a, S, T> {
 
 impl<'a, S: SetIterator<T>, T: 'a> FusedIterator for Difference<'a, S, T> {}
 
-// FIXME: Can't chain IntoDifference because it requires double ownership.
 pub struct IntoSymmetricDifference<S: SetIterator<T>, T> {
-    pub(crate) inner: Chain<IntoDifference<S, T>, IntoDifference<S, T>>,
+    pub(crate) state: SetIterToggle<S, T>,
 }
 
 impl<S: SetIterator<T>, T> Iterator for IntoSymmetricDifference<S, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next()
+        match &mut self.state {
+            IterAndSet { iterator_a, set_b, .. } => {
+                let mut next = iterator_a.next();
+                while let Some(item) = &next
+                    // SAFETY: set_b is Some unless otherwise stated.
+                    && unsafe {
+                        set_b.as_mut()
+                            .unwrap_unchecked()
+                            .remove(item)
+                            .is_some()
+                    }
+                {
+                    next = iterator_a.next();
+                }
+                match next {
+                    Some(val) => Some(val),
+                    None => {
+                        // SAFETY: set_b is always Some, except for the duration of this block where
+                        // its value is moved.
+                        let iterator_b = unsafe {
+                            mem::take(set_b)
+                                .unwrap_unchecked()
+                                .into_iter()
+                        };
+                        self.state = OtherSet {
+                            iterator_b,
+                            _phantom: PhantomData,
+                        };
+                        // Call next once the state is valid.
+                        self.next()
+                    },
+                }
+            },
+            OtherSet { iterator_b, .. } => iterator_b.next(),
+        }
     }
 
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.inner.size_hint()
-    }
+    // fn size_hint(&self) -> (usize, Option<usize>) {
+    //     self.inner.size_hint()
+    // }
 }
 
 impl<S: SetIterator<T>, T> FusedIterator for IntoSymmetricDifference<S, T> {}
@@ -251,33 +306,15 @@ impl<'a, S: SetIterator<T>, T: 'a> Iterator for Intersection<'a, S, T> {
 impl<'a, S: SetIterator<T>, T: 'a> FusedIterator for Intersection<'a, S, T> {}
 
 pub struct IntoUnion<S: SetIterator<T>, T> {
-    pub(crate) state: IntoUnionState<S, T>,
+    pub(crate) state: SetIterToggle<S, T>,
 }
-
-pub(crate) enum IntoUnionState<S: SetIterator<T>, T> {
-    FirstDifSecond {
-        iterator_a: S::IntoIter,
-        // We use Option<S> so that we can move out from behind a mutable reference when
-        // switching states. The value can be assumed to always be Some.
-        // We're using Option rather than MaybeUninit so that it drops correctly and because it
-        // implements Default.
-        set_b: Option<S>,
-        _phantom: PhantomData<T>,
-    },
-    Second {
-        iterator_b: S::IntoIter,
-        _phantom: PhantomData<T>,
-    },
-}
-
-use IntoUnionState::*;
 
 impl<S: SetIterator<T>, T> Iterator for IntoUnion<S, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
         match &mut self.state {
-            FirstDifSecond { iterator_a, set_b, .. } => {
+            IterAndSet { iterator_a, set_b, .. } => {
                 let mut next = iterator_a.next();
                 while let Some(item) = &next
                     // SAFETY: set_b is Some unless otherwise stated.
@@ -295,16 +332,16 @@ impl<S: SetIterator<T>, T> Iterator for IntoUnion<S, T> {
                                 .unwrap_unchecked()
                                 .into_iter()
                         };
-                        self.state = Second {
+                        self.state = OtherSet {
                             iterator_b,
                             _phantom: PhantomData,
                         };
-                        // Call next afterwards so that the state is valid.
+                        // Call next once the state is valid.
                         self.next()
                     },
                 }
             },
-            Second { iterator_b, .. } => iterator_b.next(),
+            OtherSet { iterator_b, .. } => iterator_b.next(),
         }
     }
 
