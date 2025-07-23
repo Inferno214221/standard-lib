@@ -7,7 +7,7 @@ use std::ops::Index;
 use std::{cmp, fmt};
 
 use super::{IndexNoCap, IntoKeys, IntoValues, Iter, Keys, Values, ValuesMut};
-use crate::contiguous::Array;
+use crate::contiguous::{Array, Vector};
 use crate::util::error::NoValueForKey;
 use crate::util::fmt::DebugRaw;
 use crate::util::result::ResultExtension;
@@ -70,6 +70,7 @@ impl<K: Hash + Eq, V, B: BuildHasher + Default> HashMap<K, V, B> {
     /// Creates a new HashMap with the provided `cap`acity, allowing insertions without
     /// reallocation. The default hasher will be used.
     pub fn with_cap(cap: usize) -> HashMap<K, V, B> {
+        // TODO: Adjust this to prevent reallocation during `cap` insertions.
         HashMap {
             arr: Array::repeat_default(cap),
             len: 0,
@@ -231,36 +232,50 @@ impl<K: Hash + Eq, V, B: BuildHasher> HashMap<K, V, B> {
         K: Borrow<Q>,
         Q: Hash + Eq + ?Sized,
     {
-        let mut index = self.find_index_for_key(key)?;
+        let start = self.find_index_for_key(key)?;
 
         // If the bucket at index is empty, the map doesn't contain the key.
-        let removed = match mem::take(&mut self.arr[index]) {
+        let removed = match mem::take(&mut self.arr[start]) {
             Some(entry) => {
                 self.len -= 1;
-                Some(entry)
+                entry
             },
-            None => None,
+            None => None?,
         };
 
-        // UNCHECKED: find_index_for_key returned some, so the cap is not 0.
-        let mut next_index = (index + 1) % self.cap();
+        let mut potential_collisions = Vector::new();
 
-        // If the next bucket isn't empty and isn't in the correct position, it has been moved to
-        // the right at least once. Therefore, move it left once, either putting it in the correct
-        // location or improving the proximity to the correct location.
-        while let Some(next) = &self.arr[next_index]
-            // SAFETY: We've already propagated a None from find_index_for_key, so
-            // index_from_key will return Some.
-            && unsafe { self.index_from_key(&next.0).unwrap_unchecked() } != next_index
-        {
-            let moving = mem::take(&mut self.arr[next_index]);
-            let _none = mem::replace(&mut self.arr[index], moving);
-            index = next_index;
-            // UNCHECKED: find_index_for_key returned some, so the cap is not 0.
-            next_index = (index + 1) % self.cap();
+        // UNCHECKED: find_index_for_key returned some, so the cap is not 0.
+        let mut index = (start + 1) % self.cap();
+
+        while self.arr[index].is_some() {
+            // SAFETY: We know that the value at index is some given the loop condition.
+            let entry = unsafe { mem::take(&mut self.arr[index]).unwrap_unchecked() };
+            potential_collisions.push((
+                // SAFETY: We've already propagated a None from find_index_for_key, so
+                // index_from_key will return Some.
+                unsafe { self.index_from_key(&entry.0).unwrap_unchecked() },
+                entry
+            ));
+            index = (index + 1) % self.cap();
         }
 
-        removed
+        // Sort by distance to the right from the starting index.
+        potential_collisions.sort_by_key(|(ideal, _)| (*ideal as isize - start as isize).rem_euclid(self.cap() as isize));
+
+        for (ideal, entry) in potential_collisions {
+            let mut index = ideal;
+
+            // Find the closest index on the right of the ideal one, remaining within the original
+            // block naturally.
+            while self.arr[index].is_some() {
+                index = (index + 1) % self.cap();
+            }
+
+            self.arr[index] = Some(entry);
+        }
+
+        Some(removed)
     }
 
     /// Removes the entry associated with `key`, returning the value if it exists.
@@ -485,7 +500,7 @@ impl<K: Hash + Eq + Debug, V: Debug, B: BuildHasher + Debug> Debug for HashMap<K
                 self.arr.iter()
                     .map(|o| DebugRaw(match o {
                         Some((k, v)) => format!("({k:?}: {v:?})"),
-                        None => "-".into(),
+                        None => "_".into(),
                     }))
             ).finish())
             .field("len", &self.len)

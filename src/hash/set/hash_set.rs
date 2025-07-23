@@ -349,7 +349,7 @@ impl<T: Hash + Eq + Debug, B: BuildHasher + Debug> Debug for HashSet<T, B> {
                 self.inner.arr.iter()
                     .map(|o| DebugRaw(match o {
                         Some((t, _)) => format!("{t:?}"),
-                        None => "-".into(),
+                        None => "_".into(),
                     }))
             ).finish())
             .field("len", &self.len())

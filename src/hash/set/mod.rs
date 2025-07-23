@@ -10,6 +10,7 @@
 
 mod hash_set;
 mod iter;
+mod tests;
 
 pub use hash_set::*;
 pub use iter::*;
