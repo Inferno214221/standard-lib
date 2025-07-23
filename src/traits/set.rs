@@ -4,14 +4,14 @@ use std::marker::PhantomData;
 use std::mem;
 
 pub trait SetInterface<T: Borrow<Q>, Q: ?Sized>: Sized {
-    /// Returns true if the Set contains `item`.
+    /// Returns true if the set contains `item`.
     fn contains(&self, item: &Q) -> bool;
 
     /// Returns a reference to the contained element equal to the provided `item` or None if there
     /// isn't one.
     fn get(&self, item: &Q) -> Option<&T>;
 
-    /// Removes `item` from the Set, returning it if it exists.
+    /// Removes `item` from the set, returning it if it exists.
     fn remove(&mut self, item: &Q) -> Option<T>;
 }
 
@@ -21,10 +21,11 @@ pub trait SetIterator<T>: IntoIterator<Item = T> + SetInterface<T, T> + Sized {
         Self: 'a,
         T: 'a;
 
-    /// Returns and iterator over all elements in the HashMap, as references.
+    /// Returns an iterator over all elements in the set, as references.
     fn iter<'a>(&'a self) -> Self::Iter<'a>;
 
-    /// Creates an owned iterator over all items that are in `self` but not `rhs`. (`self \ rhs`)
+    /// Creates an owned iterator over all items that are in `self` but not `other`. (`self \
+    /// other`)
     fn into_difference(self, other: Self) -> IntoDifference<Self, T> {
         IntoDifference {
             inner: self.into_iter(),
@@ -33,7 +34,8 @@ pub trait SetIterator<T>: IntoIterator<Item = T> + SetInterface<T, T> + Sized {
         }
     }
 
-    /// Creates a borrowed iterator over all items that are in `self` but not `rhs`. (`self \ rhs`)
+    /// Creates a borrowed iterator over all items that are in `self` but not `other`. (`self \
+    /// other`)
     fn difference<'a>(&'a self, other: &'a Self) -> Difference<'a, Self, T> {
         Difference {
             inner: self.iter(),
@@ -41,8 +43,8 @@ pub trait SetIterator<T>: IntoIterator<Item = T> + SetInterface<T, T> + Sized {
         }
     }
 
-    /// Creates an owned iterator over all items that are in `self` or `rhs` but not both. (`self △
-    /// rhs`)
+    /// Creates an owned iterator over all items that are in `self` or `other` but not both. (`self
+    /// △ other`)
     fn into_symmetric_difference(self, other: Self) -> IntoSymmetricDifference<Self, T> {
         IntoSymmetricDifference {
             state: IterAndSet {
@@ -53,15 +55,16 @@ pub trait SetIterator<T>: IntoIterator<Item = T> + SetInterface<T, T> + Sized {
         }
     }
 
-    /// Creates a borrowed iterator over all items that are in `self` or `rhs` but not both. (`self
-    /// △ rhs`)
+    /// Creates a borrowed iterator over all items that are in `self` or `other` but not both.
+    /// (`self △ other`)
     fn symmetric_difference<'a>(&'a self, other: &'a Self) -> SymmetricDifference<'a, Self, T> {
         SymmetricDifference {
             inner: self.difference(other).chain(other.difference(self)),
         }
     }
 
-    /// Creates an owned iterator over all items that are in both `self` and `rhs`. (`self ∩ rhs`)
+    /// Creates an owned iterator over all items that are in both `self` and `other`. (`self ∩
+    /// other`)
     fn into_intersection(self, other: Self) -> IntoIntersection<Self, T> {
         IntoIntersection {
             inner: self.into_iter(),
@@ -70,7 +73,8 @@ pub trait SetIterator<T>: IntoIterator<Item = T> + SetInterface<T, T> + Sized {
         }
     }
 
-    /// Creates a borrowed iterator over all items that are in both `self` and `rhs`. (`self ∩ rhs`)
+    /// Creates a borrowed iterator over all items that are in both `self` and `other`. (`self ∩
+    /// other`)
     fn intersection<'a>(&'a self, other: &'a Self) -> Intersection<'a, Self, T> {
         Intersection {
             inner: self.iter(),
@@ -78,8 +82,8 @@ pub trait SetIterator<T>: IntoIterator<Item = T> + SetInterface<T, T> + Sized {
         }
     }
 
-    /// Creates an owned iterator over all items that are in either `self` or `rhs`. (`self ∪
-    /// rhs`)
+    /// Creates an owned iterator over all items that are in either `self` or `other`. (`self ∪
+    /// other`)
     fn into_union(self, other: Self) -> IntoUnion<Self, T> {
         IntoUnion {
             state: IterAndSet {
@@ -90,8 +94,8 @@ pub trait SetIterator<T>: IntoIterator<Item = T> + SetInterface<T, T> + Sized {
         }
     }
 
-    /// Creates a borrowed iterator over all items that are in either `self` or `rhs`. (`self ∪
-    /// rhs`)
+    /// Creates a borrowed iterator over all items that are in either `self` or `other`. (`self ∪
+    /// other`)
     fn union<'a>(&'a self, other: &'a Self) -> Union<'a, Self, T> {
         Union {
             inner: self.iter().chain(other.difference(self)),

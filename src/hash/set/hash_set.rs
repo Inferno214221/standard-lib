@@ -4,9 +4,11 @@ use std::hash::{BuildHasher, Hash, RandomState};
 use std::iter::TrustedLen;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Sub, SubAssign};
 
-use super::{IndexNoCap, Iter};
+use super::Iter;
 use crate::contiguous::Vector;
 use crate::hash::HashMap;
+#[doc(inline)]
+pub use crate::hash::map::IndexNoCap;
 #[doc(inline)]
 pub use crate::traits::set::{SetInterface, SetIterator};
 use crate::util::fmt::DebugRaw;
@@ -150,14 +152,51 @@ impl<T: Hash + Eq, B: BuildHasher> HashSet<T, B> {
         }
     }
 
+    /// Returns true if the HashSet contains `item`.
+    #[inline(always)]
+    pub fn contains<Q>(&self, item: &Q) -> bool
+    where
+        T: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        <HashSet<T, B> as SetInterface<T, Q>>::contains(self, item)
+    }
+
+    /// Returns a reference to the contained element equal to the provided `item` or None if there
+    /// isn't one.
+    #[inline(always)]
+    pub fn get<Q>(&self, item: &Q) -> Option<&T>
+    where
+        T: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        <HashSet<T, B> as SetInterface<T, Q>>::get(self, item)
+    }
+
+    /// Removes `item` from the HashSet, returning it if it exists.
+    #[inline(always)]
+    pub fn remove<Q>(&mut self, item: &Q) -> Option<T>
+    where
+        T: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        <HashSet<T, B> as SetInterface<T, Q>>::remove(self, item)
+    }
+
     /// Increases the capacity of the HashSet to ensure that len + `extra` elements will fit without
     /// exceeding the load factor.
     pub fn reserve(&mut self, extra: usize) {
         self.inner.reserve(extra)
     }
+
+    /// Returns an iterator over all elements in the HashSet, as references.
+    #[inline(always)]
+    pub fn iter<'a>(&'a self) -> Iter<'a, T> {
+        <HashSet<T, B> as SetIterator<T>>::iter(self)
+    }
 }
 
-impl<T: Hash + Eq + Borrow<Q>, B: BuildHasher, Q: Hash + Eq> SetInterface<T, Q> for HashSet<T, B> {
+impl<T: Hash + Eq + Borrow<Q>, B: BuildHasher, Q: Hash + Eq + ?Sized> SetInterface<T, Q> for HashSet<T, B> {
     fn contains(&self, item: &Q) -> bool {
         self.inner.contains(item)
     }
@@ -179,12 +218,12 @@ impl<T: Hash + Eq, B: BuildHasher> SetIterator<T> for HashSet<T, B> {
     }
 }
 
-impl<T: Hash + Eq + Clone, B: BuildHasher + Default> BitOr for &HashSet<T, B> {
+impl<T: Hash + Eq + Clone, B: BuildHasher + Default> BitOr for HashSet<T, B> {
     type Output = HashSet<T, B>;
 
-    /// Returns the union of `self` and `rhs`, as a HashSet.
+    /// Returns the union of `self` and `rhs`, as a HashSet. (`self ∪ other`)
     fn bitor(self, rhs: Self) -> Self::Output {
-        self.union(rhs).cloned().collect()
+        self.into_union(rhs).collect()
     }
 }
 
@@ -199,12 +238,12 @@ impl<T: Hash + Eq, B: BuildHasher> BitOrAssign for HashSet<T, B> {
     }
 }
 
-impl<T: Hash + Eq + Clone, B: BuildHasher + Default> BitAnd for &HashSet<T, B> {
+impl<T: Hash + Eq + Clone, B: BuildHasher + Default> BitAnd for HashSet<T, B> {
     type Output = HashSet<T, B>;
 
-    /// Returns the intersection of `self` and `rhs`, as a HashSet.
+    /// Returns the intersection of `self` and `rhs`, as a HashSet. (`self ∩ other`)
     fn bitand(self, rhs: Self) -> Self::Output {
-        self.intersection(rhs).cloned().collect()
+        self.into_intersection(rhs).collect()
     }
 }
 
@@ -229,12 +268,12 @@ impl<T: Hash + Eq, B: BuildHasher> BitAndAssign for HashSet<T, B> {
     }
 }
 
-impl<T: Hash + Eq + Clone, B: BuildHasher + Default> BitXor for &HashSet<T, B> {
+impl<T: Hash + Eq + Clone, B: BuildHasher + Default> BitXor for HashSet<T, B> {
     type Output = HashSet<T, B>;
 
-    /// Returns the symmetric difference of `self` and `rhs`, as a HashSet.
+    /// Returns the symmetric difference of `self` and `rhs`, as a HashSet. (`self △ other`)
     fn bitxor(self, rhs: Self) -> Self::Output {
-        self.symmetric_difference(rhs).cloned().collect()
+        self.into_symmetric_difference(rhs).collect()
     }
 }
 
@@ -250,12 +289,12 @@ impl<T: Hash + Eq, B: BuildHasher> BitXorAssign for HashSet<T, B> {
     }
 }
 
-impl<T: Hash + Eq + Clone, B: BuildHasher + Default> Sub for &HashSet<T, B> {
+impl<T: Hash + Eq + Clone, B: BuildHasher + Default> Sub for HashSet<T, B> {
     type Output = HashSet<T, B>;
 
-    /// Returns the difference of `self` and `rhs`, as a HashSet.
+    /// Returns the difference of `self` and `rhs`, as a HashSet. (`self \ other`)
     fn sub(self, rhs: Self) -> Self::Output {
-        self.difference(rhs).cloned().collect()
+        self.into_difference(rhs).collect()
     }
 }
 
