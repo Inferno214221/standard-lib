@@ -1,11 +1,13 @@
-use standard_lib::collections::*;
+use std::path::PathBuf;
 
-use binary_tree::map::BinaryTreeMap;
+use standard_lib::{collections::*, fs::*};
+
 use contiguous::{Array, Vector};
 use hash::{HashMap, HashSet};
 use linked::LinkedList;
-
 use traits::set::SetIterator;
+
+use file::File;
 
 fn main() {
     let mut map: HashMap<String, usize> = dbg!(HashMap::new());
@@ -74,15 +76,6 @@ fn main() {
     // a.remove(&BadHash(1, 0));
     // dbg!(&a);
 
-    let mut bmap: BinaryTreeMap<usize, String> = BinaryTreeMap::new();
-    bmap.insert(3, "three".into());
-    bmap.insert(1, "one".into());
-    bmap.insert(2, "two".into());
-    bmap.insert(4, "four".into());
-
-    dbg!(bmap.get(&1));
-    dbg!(bmap.get(&2));
-
     let mut list = LinkedList::new();
     list.push_back("zero");
     list.push_back("one");
@@ -121,5 +114,7 @@ fn main() {
     println!("{}", &map);
     println!("{:#?}", &set);
     println!("{}", &set);
-    // println!("{:?}", &bmap);
+
+    let f = File::open(PathBuf::from("./hello.txt").as_path()).unwrap();
+    println!("{}", f.read_all_string().unwrap());
 }

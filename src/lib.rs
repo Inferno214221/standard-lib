@@ -19,7 +19,7 @@
 //! 
 //! # Error Handling
 //! I'm still pretty new to Rust, so I'm still trying to pin down when and how to use [`Result`]s
-//! effectively. Specfically for a standard library, it is more ergonomic for functions to panic in
+//! effectively. Specifically for a standard library, it is more ergonomic for functions to panic in
 //! some cases, because users don't want to be forced to handle an error every time the invoke a
 //! method. For example, imagine having to handle the possibility of a capacity overflow every time
 //! you push into a Vector. (The maximum capacity of a Vector on a 64-bit system is `9,223,372`
@@ -37,6 +37,9 @@
 //! [`Vector`](collections::contiguous::Vector) or anything. In fact, this library doesn't use
 //! [`Vec`] at all.
 //! 
+//! The [`fs`] module of this crate relies on `libc` for its thin syscall wrappers, providing strong
+//! typing and portability.
+//! 
 //! This crate also depends on some derive macros because they're helpful and remove the need for
 //! some very repetitive programming.
 #![feature(strict_overflow_ops)]
@@ -45,6 +48,8 @@
 #![feature(extend_one_unchecked)]
 #![feature(trusted_len)]
 #![feature(debug_closure_helpers)]
+#![feature(raw_os_error_ty)]
+
 // #![warn(missing_docs)]
 #![warn(clippy::missing_safety_doc)]
 #![warn(clippy::undocumented_unsafe_blocks)]

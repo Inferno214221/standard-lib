@@ -5,7 +5,7 @@ use std::hash::{Hash, Hasher};
 use std::iter::TrustedLen;
 use std::mem::{self, MaybeUninit};
 use std::ops::{Deref, DerefMut};
-use std::ptr;
+use std::ptr::{self, NonNull};
 use std::slice;
 
 use crate::collections::contiguous::Array;
@@ -351,6 +351,19 @@ impl<T> Vector<T> {
         // Forget about other because we have copied all values.
         mem::forget(other);
     }
+    
+    pub fn into_parts(self) -> (NonNull<MaybeUninit<T>>, usize, usize) {
+        let ret = (self.arr.ptr, self.len, self.arr.size);
+        mem::forget(self);
+        ret
+    }
+
+    pub unsafe fn from_parts(ptr: NonNull<MaybeUninit<T>>, len: usize, cap: usize) -> Vector<T> {
+        Vector {
+            arr: unsafe { Array::from_parts(ptr, cap) },
+            len,
+        }
+    }
 }
 
 impl<T> Vector<T> {
@@ -564,6 +577,13 @@ impl<T> From<Array<T>> for Vector<T> {
             arr: value.forget_init(),
             len,
         }
+    }
+}
+
+impl<T> From<Vector<T>> for Vec<T> {
+    fn from(value: Vector<T>) -> Self {
+        let (ptr, len, cap) = value.into_parts();
+        unsafe { Vec::from_parts(ptr.cast(), len, cap) }
     }
 }
 
