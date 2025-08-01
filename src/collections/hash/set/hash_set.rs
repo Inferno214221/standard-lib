@@ -5,12 +5,12 @@ use std::iter::TrustedLen;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Sub, SubAssign};
 
 use super::Iter;
-use crate::contiguous::Vector;
-use crate::hash::HashMap;
+use crate::collections::contiguous::Vector;
+use crate::collections::hash::HashMap;
 #[doc(inline)]
-pub use crate::hash::map::IndexNoCap;
+pub use crate::collections::hash::map::IndexNoCap;
 #[doc(inline)]
-pub use crate::traits::set::{SetInterface, SetIterator};
+pub use crate::collections::traits::set::{SetInterface, SetIterator};
 use crate::util::fmt::DebugRaw;
 use crate::util::result::ResultExtension;
 

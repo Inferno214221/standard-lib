@@ -1,7 +1,7 @@
 use super::Vector;
-use crate::contiguous::Array;
+use crate::collections::contiguous::Array;
 #[doc(inline)]
-pub use crate::contiguous::array::IntoIter;
+pub use crate::collections::contiguous::array::IntoIter;
 
 impl<T> IntoIterator for Vector<T> {
     type Item = T;

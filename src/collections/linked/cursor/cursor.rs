@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use derive_more::IsVariant;
 
 use super::{State, StateMut};
-use crate::linked::list::{Length, LinkedList, ListContents, ListState, Node, NodePtr};
+use crate::collections::linked::list::{Length, LinkedList, ListContents, ListState, Node, NodePtr};
 use crate::util::error::{CapacityOverflow, IndexOutOfBounds};
 use crate::util::result::ResultExtension;
 

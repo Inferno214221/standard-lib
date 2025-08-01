@@ -9,8 +9,8 @@ use std::ops::{Index, IndexMut};
 use derive_more::IsVariant;
 
 use super::{Iter, IterMut, Length, Node, NodePtr, ONE};
-use crate::contiguous::Vector;
-use crate::linked::cursor::{Cursor, CursorContents, CursorPosition, CursorState};
+use crate::collections::contiguous::Vector;
+use crate::collections::linked::cursor::{Cursor, CursorContents, CursorPosition, CursorState};
 #[doc(inline)]
 pub use crate::util::error::{CapacityOverflow, IndexOutOfBounds};
 use crate::util::result::ResultExtension;

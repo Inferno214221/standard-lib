@@ -4,6 +4,8 @@ use std::fmt::{self, Debug, Formatter};
 use std::mem;
 use std::ops::{Deref, DerefMut};
 
+use crate::collections::contiguous::Vector;
+
 pub(crate) struct Branch<K: Ord, V>(pub Option<Box<Node<K, V>>>);
 
 pub(crate) struct Node<K: Ord, V> {
@@ -200,14 +202,14 @@ impl<K: Ord + Debug, V: Debug> Debug for Branch<K, V> {
                 format!("{:?}", node.left)
                     .lines()
                     .map(|l| String::from("┌    ") + l)
-                    .collect::<Vec<_>>()
+                    .collect::<Vector<_>>()
                     .join("\n"),
                 node.key,
                 node.value,
                 format!("{:?}", node.right)
                     .lines()
                     .map(|l| String::from("└    ") + l)
-                    .collect::<Vec<_>>()
+                    .collect::<Vector<_>>()
                     .join("\n")
             ),
             None => write!(f, "-"),

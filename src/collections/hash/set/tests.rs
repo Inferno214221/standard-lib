@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use super::*;
-use crate::contiguous::Vector;
+use crate::collections::contiguous::Vector;
 use crate::util::hash::{ManualHash, BadHasherBuilder};
 
 #[test]

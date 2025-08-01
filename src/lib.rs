@@ -12,10 +12,7 @@
 #![warn(clippy::unwrap_used)]
 #![allow(clippy::module_inception)]
 
-pub mod binary_tree;
-pub mod contiguous;
-pub mod hash;
-pub mod linked;
-pub mod traits;
+pub mod collections;
+pub mod fs;
 
 pub(crate) mod util;

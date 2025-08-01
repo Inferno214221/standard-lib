@@ -4,7 +4,7 @@ use std::slice::Iter as ArrIter;
 use std::slice::IterMut as ArrIterMut;
 
 use super::{Bucket, HashMap};
-use crate::contiguous::array::IntoIter as ArrIntoIter;
+use crate::collections::contiguous::array::IntoIter as ArrIntoIter;
 
 impl<K: Hash + Eq, V, B: BuildHasher> IntoIterator for HashMap<K, V, B> {
     type Item = (K, V);

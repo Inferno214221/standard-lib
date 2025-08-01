@@ -8,7 +8,7 @@ use std::mem;
 use std::ops::Index;
 
 use super::{IndexNoCap, IntoKeys, IntoValues, Iter, Keys, Values, ValuesMut};
-use crate::contiguous::{Array, Vector};
+use crate::collections::contiguous::{Array, Vector};
 use crate::util::error::NoValueForKey;
 use crate::util::fmt::DebugRaw;
 use crate::util::result::ResultExtension;

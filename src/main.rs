@@ -1,11 +1,11 @@
-use standard_collections::*;
+use standard_collections::collections::*;
 
 use binary_tree::map::BinaryTreeMap;
 use contiguous::{Array, Vector};
 use hash::{HashMap, HashSet};
 use linked::LinkedList;
 
-use traits::set::{SetIterator};
+use traits::set::SetIterator;
 
 fn main() {
     let mut map: HashMap<String, usize> = dbg!(HashMap::new());

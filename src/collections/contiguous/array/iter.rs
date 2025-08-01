@@ -6,7 +6,7 @@ use std::ptr::{self, NonNull};
 
 use super::Array;
 #[allow(unused)]
-use crate::contiguous::Vector;
+use crate::collections::contiguous::Vector;
 
 impl<T> IntoIterator for Array<T> {
     type Item = T;
