@@ -1,25 +1,11 @@
-#![feature(strict_overflow_ops)]
-#![feature(box_vec_non_null)]
-#![feature(extend_one)]
-#![feature(extend_one_unchecked)]
-#![feature(trusted_len)]
-#![feature(debug_closure_helpers)]
-#![allow(clippy::module_inception)]
-
-pub mod binary_tree;
-pub mod contiguous;
-pub mod hash;
-pub mod linked;
-pub mod traits;
-
-pub(crate) mod util;
+use standard_collections::*;
 
 use binary_tree::map::BinaryTreeMap;
 use contiguous::{Array, Vector};
 use hash::{HashMap, HashSet};
 use linked::LinkedList;
 
-use crate::hash::set::{SetInterface, SetIterator};
+use traits::set::{SetIterator};
 
 fn main() {
     let mut map: HashMap<String, usize> = dbg!(HashMap::new());
@@ -119,9 +105,9 @@ fn main() {
     dbg!(cursor.get(6));
 
     println!("\n[Format Tests]\n");
-    println!("{:?}", Array::from([0_u8, 1, 2, 3].into_iter()));
+    println!("{:#?}", Array::from([0_u8, 1, 2, 3].into_iter()));
     println!("{}", Array::from([0_u8, 1, 2, 3].into_iter()));
-    println!("{:?}", Vector::from([0_u8, 1, 2, 3].into_iter()));
+    println!("{:#?}", Vector::from([0_u8, 1, 2, 3].into_iter()));
     println!("{}", Vector::from([0_u8, 1, 2, 3].into_iter()));
     println!(
         "{:?}",
@@ -131,9 +117,9 @@ fn main() {
         "{}",
         [0_u8, 1, 2, 3].into_iter().collect::<LinkedList<_>>()
     );
-    println!("{:?}", &map);
+    println!("{:#?}", &map);
     println!("{}", &map);
-    println!("{:?}", &set);
+    println!("{:#?}", &set);
     println!("{}", &set);
-    println!("{:?}", &bmap);
+    // println!("{:?}", &bmap);
 }

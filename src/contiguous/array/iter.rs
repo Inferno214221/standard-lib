@@ -1,7 +1,8 @@
+use std::alloc;
 use std::iter::{FusedIterator, TrustedLen};
 use std::marker::PhantomData;
+use std::mem;
 use std::ptr::{self, NonNull};
-use std::{alloc, mem};
 
 use super::Array;
 #[allow(unused)]

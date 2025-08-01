@@ -1,4 +1,5 @@
-#[allow(dead_code)]
+#![warn(missing_docs)]
+
 pub mod alloc;
 pub mod error;
 pub mod fmt;

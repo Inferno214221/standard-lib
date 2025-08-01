@@ -10,7 +10,7 @@ use super::{Iter, IterMut, Length, Node, NodePtr, ONE};
 use crate::contiguous::Vector;
 use crate::linked::cursor::{Cursor, CursorContents, CursorPosition, CursorState};
 #[doc(inline)]
-pub use crate::util::error::{CapacityOverflow, IndexOrCapOverflow, IndexOutOfBounds};
+pub use crate::util::error::{CapacityOverflow, IndexOutOfBounds};
 use crate::util::result::ResultExtension;
 
 /// A list with links in both directions. See also: [`Cursor`] for bi-directional iteration and
@@ -184,7 +184,7 @@ impl<T> LinkedList<T> {
         self.try_insert(index, value).throw()
     }
 
-    pub fn try_insert(&mut self, index: usize, value: T) -> Result<(), IndexOrCapOverflow> {
+    pub fn try_insert(&mut self, index: usize, value: T) -> Result<(), IndexOutOfBounds> {
         let contents = self.checked_contents_for_index_mut(index - 1)?;
         match index {
             0 => self.push_front(value),
@@ -192,7 +192,7 @@ impl<T> LinkedList<T> {
             val => {
                 let prev_node = contents.seek(val - 1);
 
-                contents.len = contents.len.checked_add(1).ok_or(CapacityOverflow)?;
+                contents.len = contents.len.checked_add(1).ok_or(CapacityOverflow).throw();
 
                 let node = NodePtr::from_node(Node {
                     value,
@@ -253,10 +253,6 @@ impl<T> LinkedList<T> {
     }
 
     pub fn append(&mut self, other: LinkedList<T>) {
-        self.try_append(other).throw()
-    }
-
-    pub fn try_append(&mut self, other: LinkedList<T>) -> Result<(), CapacityOverflow> {
         match &mut self.state {
             Empty => *self = other,
             Full(self_contents) => match &other.state {
@@ -264,7 +260,7 @@ impl<T> LinkedList<T> {
                 Full(other_contents) => {
                     self_contents.len = self_contents.len
                         .checked_add(other_contents.len.get())
-                        .ok_or(CapacityOverflow)?;
+                        .ok_or(CapacityOverflow).throw();
 
                     *self_contents.tail.next_mut() = Some(other_contents.head);
                     *other_contents.head.prev_mut() = Some(self_contents.tail);
@@ -272,7 +268,6 @@ impl<T> LinkedList<T> {
                 },
             },
         }
-        Ok(())
     }
 
     pub fn cursor_head(mut self) -> Cursor<T> {

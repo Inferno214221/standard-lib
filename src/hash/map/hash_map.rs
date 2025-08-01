@@ -1,10 +1,11 @@
 use std::borrow::Borrow;
+use std::cmp;
+use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{BuildHasher, Hash, RandomState};
 use std::iter::TrustedLen;
 use std::mem;
 use std::ops::Index;
-use std::{cmp, fmt};
 
 use super::{IndexNoCap, IntoKeys, IntoValues, Iter, Keys, Values, ValuesMut};
 use crate::contiguous::{Array, Vector};

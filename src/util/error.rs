@@ -1,8 +1,6 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
-use derive_more::{Display, Error, From, IsVariant, TryInto};
-
 #[derive(Debug)]
 pub struct IndexOutOfBounds {
     pub index: usize,
@@ -17,6 +15,12 @@ impl Display for IndexOutOfBounds {
 
 impl Error for IndexOutOfBounds {}
 
+/// TODO
+/// 
+/// Note: This error is no longer returned by any public part of the API, but it is thrown during
+/// panics. This is because a capacity overflow has such a small chance of occuring that it isn't
+/// worth handling in most placed. Most machines wouldn't have enough memory to overflow a non-ZST
+/// collection with a u64 length.
 #[derive(Debug)]
 pub struct CapacityOverflow;
 
@@ -27,12 +31,6 @@ impl Display for CapacityOverflow {
 }
 
 impl Error for CapacityOverflow {}
-
-#[derive(Debug, Display, Error, From, TryInto, IsVariant)]
-pub enum IndexOrCapOverflow {
-    IndexOutOfBounds(IndexOutOfBounds),
-    CapacityOverflow(CapacityOverflow),
-}
 
 #[derive(Debug)]
 pub struct NoValueForKey;

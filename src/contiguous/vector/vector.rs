@@ -9,13 +9,15 @@ use std::ptr;
 use std::slice;
 
 use crate::contiguous::Array;
+use crate::util::error::IndexOutOfBounds;
+use crate::util::result::ResultExtension;
 
 const MIN_CAP: usize = 2;
 const MAX_CAP: usize = isize::MAX as usize;
 
 const GROWTH_FACTOR: usize = 2;
 
-// TODO: Replace panics with errors and add try methods.
+// TODO: Add try methods.
 
 /// A variable size contiguous collection, based on [`Array<T>`].
 ///
@@ -382,13 +384,12 @@ impl<T> Vector<T> {
     /// # Panics
     /// Panics if the provided index is out of bounds.
     pub(crate) fn check_index(&self, index: usize) {
-        // TODO: use IndexOutOfBounds
-        assert!(
-            index < self.len,
-            "index {} out of bounds for collection with {} elements",
-            index,
-            self.len
-        );
+        if index >= self.len {
+            Err(IndexOutOfBounds {
+                index,
+                len: self.len
+            }).throw()
+        }
     }
 }
 
