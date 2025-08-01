@@ -1,3 +1,5 @@
+#![warn(missing_docs)]
+
 use std::fmt::{self, Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
@@ -61,6 +63,7 @@ pub(crate) struct ListContents<T> {
 }
 
 impl<T> LinkedList<T> {
+    /// Creates a new LinkedList with no elements.
     pub const fn new() -> LinkedList<T> {
         LinkedList {
             state: Empty,
@@ -68,14 +71,17 @@ impl<T> LinkedList<T> {
         }
     }
 
+    /// Returns the length of the LinkedList.
     pub const fn len(&self) -> usize {
         self.state.len()
     }
 
+    /// Returns true if the LinkedList contains no elements.
     pub const fn is_empty(&self) -> bool {
         self.state.is_empty()
     }
 
+    /// Returns a reference to the first element in the list, if it exists.
     pub const fn front(&self) -> Option<&T> {
         match self.state {
             Empty => None,
@@ -83,6 +89,7 @@ impl<T> LinkedList<T> {
         }
     }
 
+    /// Returns a mutable reference to the first element in the list, if it exists.
     pub const fn front_mut(&mut self) -> Option<&mut T> {
         match self.state {
             Empty => None,
@@ -90,6 +97,7 @@ impl<T> LinkedList<T> {
         }
     }
 
+    /// Returns a reference to the last element in the list, if it exists.
     pub const fn back(&self) -> Option<&T> {
         match self.state {
             Empty => None,
@@ -97,6 +105,7 @@ impl<T> LinkedList<T> {
         }
     }
 
+    /// Returns a mutable reference to the last element in the list, if it exists.
     pub const fn back_mut(&mut self) -> Option<&mut T> {
         match self.state {
             Empty => None,
@@ -104,6 +113,7 @@ impl<T> LinkedList<T> {
         }
     }
 
+    /// Add the provided element to the front of the LinkedList.
     pub fn push_front(&mut self, value: T) {
         match &mut self.state {
             Empty => self.state = ListState::single(value),
@@ -111,6 +121,7 @@ impl<T> LinkedList<T> {
         }
     }
 
+    /// Add the provided element to the back of the LinkedList.
     pub fn push_back(&mut self, value: T) {
         match &mut self.state {
             Empty => self.state = ListState::single(value),
@@ -118,6 +129,7 @@ impl<T> LinkedList<T> {
         }
     }
 
+    /// Removes the first element from the list and returns it, if the list isn't empty.
     pub fn pop_front(&mut self) -> Option<T> {
         match &mut self.state {
             Empty => None,
@@ -141,6 +153,7 @@ impl<T> LinkedList<T> {
         }
     }
 
+    /// Removes the last element from the list and returns it, if the list isn't empty.
     pub fn pop_back(&mut self) -> Option<T> {
         match &mut self.state {
             Empty => None,
@@ -164,18 +177,38 @@ impl<T> LinkedList<T> {
         }
     }
 
+    /// Returns a reference to the element at the provided `index`, panicking on a failure.
+    /// 
+    /// The same functionality can be achieved using the [`Index`] operator.
+    /// 
+    /// # Panics
+    /// Panics if `index` is out of bounds of the LinkedList.
     pub fn get(&self, index: usize) -> &T {
         self.try_get(index).throw()
     }
 
+    /// Returns a reference to the element at the provided `index`, returning an [`Err`] on a
+    /// failure rather than panicking.
+    /// 
+    /// The same functionality can be achieved using the [`Index`] operator.
     pub fn try_get(&self, index: usize) -> Result<&T, IndexOutOfBounds> {
         Ok(self.checked_seek(index)?.value())
     }
 
+    /// Returns a mutable reference to the element at the provided `index`, panicking on a failure.
+    /// 
+    /// The same functionality can be achieved using the [`IndexMut`] operator.
+    /// 
+    /// # Panics
+    /// Panics if `index` is out of bounds of the LinkedList.
     pub fn get_mut(&mut self, index: usize) -> &mut T {
         self.try_get_mut(index).throw()
     }
 
+    /// Returns a mutable reference to the element at the provided `index`, returning an [`Err`] on
+    /// a failure rather than panicking.
+    /// 
+    /// The same functionality can be achieved using the [`IndexMut`] operator.
     pub fn try_get_mut(&mut self, index: usize) -> Result<&mut T, IndexOutOfBounds> {
         Ok(self.checked_seek(index)?.value_mut())
     }
@@ -338,6 +371,13 @@ impl<T> LinkedList<T> {
 }
 
 impl<T: Eq> LinkedList<T> {
+    pub fn index_of(&self, item: &T) -> Option<usize> {
+        for (index, element) in self.iter().enumerate() {
+            if element == item { return Some(index); }
+        }
+        None
+    }
+
     pub fn contains(&self, item: &T) -> bool {
         for i in self.iter() {
             if i == item { return true; }
