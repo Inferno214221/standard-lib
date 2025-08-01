@@ -1,4 +1,4 @@
-use standard_collections::collections::*;
+use standard_lib::collections::*;
 
 use binary_tree::map::BinaryTreeMap;
 use contiguous::{Array, Vector};

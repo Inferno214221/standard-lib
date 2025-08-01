@@ -1,0 +1,1 @@
+# Docs and project description available at [rust.inferno214221.com/standard_lib](https://rust.inferno214221.com/standard_lib).

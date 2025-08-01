@@ -46,7 +46,7 @@ impl<T> Array<T> {
     ///
     /// # Examples
     /// ```
-    /// # use standard_collections::collections::contiguous::Array;
+    /// # use standard_lib::collections::contiguous::Array;
     /// let arr: Array<u8> = Array::new();
     /// assert_eq!(arr.size(), 0);
     /// assert_eq!(&*arr, &[]);
@@ -64,7 +64,7 @@ impl<T> Array<T> {
     ///
     /// # Examples
     /// ```
-    /// # use standard_collections::collections::contiguous::Array;
+    /// # use standard_lib::collections::contiguous::Array;
     /// # use std::mem::MaybeUninit;
     /// let arr: Array<MaybeUninit<u8>> = Array::new_uninit(5);
     /// assert_eq!(arr.size(), 5);
@@ -111,7 +111,7 @@ impl<T> Array<T> {
     ///
     /// # Examples
     /// ```
-    /// # use standard_collections::collections::contiguous::Array;
+    /// # use standard_lib::collections::contiguous::Array;
     /// let arr = Array::from([1_u8, 2, 3].into_iter());
     /// let (ptr, size) = arr.into_parts();
     /// assert_eq!(
@@ -131,7 +131,7 @@ impl<T> Array<T> {
     ///
     /// # Examples
     /// ```
-    /// # use standard_collections::collections::contiguous::Array;
+    /// # use standard_lib::collections::contiguous::Array;
     /// let arr = Array::from([1, 2, 3].into_iter());
     /// assert_eq!(arr.size(), 3);
     /// ```
@@ -145,7 +145,7 @@ impl<T> Array<T> {
     ///
     /// # Examples
     /// ```
-    /// # use standard_collections::collections::contiguous::Array;
+    /// # use standard_lib::collections::contiguous::Array;
     /// # use std::mem::MaybeUninit;
     /// let mut arr = Array::from([1_u8, 2, 3].into_iter());
     /// let mut new_arr = arr.forget_init();
@@ -265,7 +265,7 @@ impl<T: Copy> Array<T> {
     ///
     /// # Examples
     /// ```
-    /// # use standard_collections::collections::contiguous::Array;
+    /// # use standard_lib::collections::contiguous::Array;
     /// let arr = Array::repeat_item(5, 3);
     /// assert_eq!(arr.size(), 3);
     /// assert_eq!(&*arr, &[5, 5, 5]);
@@ -315,7 +315,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// # use standard_collections::collections::contiguous::Array;
+    /// # use standard_lib::collections::contiguous::Array;
     /// let arr = Array::from([1, 2, 3].into_iter());
     /// assert_eq!(&*arr, [1, 2, 3]);
     /// ```
@@ -363,7 +363,7 @@ impl<T> Array<MaybeUninit<T>> {
     ///
     /// # Examples
     /// ```
-    /// # use standard_collections::collections::contiguous::Array;
+    /// # use standard_lib::collections::contiguous::Array;
     /// # use std::mem::MaybeUninit;
     /// let mut arr = Array::new_uninit(5);
     /// for i in 0..5 {
