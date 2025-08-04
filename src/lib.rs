@@ -20,7 +20,7 @@
 //! # Error Handling
 //! I'm still pretty new to Rust, so I'm still trying to pin down when and how to use [`Result`]s
 //! effectively. Specifically for a standard library, it is more ergonomic for functions to panic in
-//! some cases, because users don't want to be forced to handle an error every time the invoke a
+//! some cases, because users don't want to be forced to handle an error every time they invoke a
 //! method. For example, imagine having to handle the possibility of a capacity overflow every time
 //! you push into a Vector. (The maximum capacity of a Vector on a 64-bit system is `9,223,372`
 //! terabytes - more than Linux's maximum RAM capabilities. *I swear I didn't find that out the hard

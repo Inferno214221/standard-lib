@@ -6,3 +6,4 @@ pub mod fmt;
 pub mod hash;
 pub mod panic;
 pub mod result;
+pub mod syscall;

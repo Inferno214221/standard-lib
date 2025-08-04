@@ -24,6 +24,7 @@
           pkg-config
           gcc
           cargo-expand
+          man-pages
         ] ++ buildInputs;
         rustPlatform = pkgs.makeRustPlatform {
           cargo = rust;

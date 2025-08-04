@@ -352,13 +352,17 @@ impl<T> Vector<T> {
         mem::forget(other);
     }
     
-    pub fn into_parts(self) -> (NonNull<MaybeUninit<T>>, usize, usize) {
+    pub const fn into_parts(self) -> (NonNull<MaybeUninit<T>>, usize, usize) {
         let ret = (self.arr.ptr, self.len, self.arr.size);
         mem::forget(self);
         ret
     }
 
-    pub unsafe fn from_parts(ptr: NonNull<MaybeUninit<T>>, len: usize, cap: usize) -> Vector<T> {
+    pub const unsafe fn from_parts(
+        ptr: NonNull<MaybeUninit<T>>,
+        len: usize,
+        cap: usize,
+    ) -> Vector<T> {
         Vector {
             arr: unsafe { Array::from_parts(ptr, cap) },
             len,
