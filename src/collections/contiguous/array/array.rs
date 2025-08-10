@@ -227,9 +227,38 @@ impl<T> Array<T> {
         // wip_arr is a transmuted mutable reference to self, so we don't need to do anything to
         // return ownership to self, now that the contents are valid.
     }
-}
 
-impl<T> Array<T> {
+    /// Creates an Array from a type which implements [`IntoIterator`] and creates an
+    /// [`ExactSizeIterator`].
+    ///
+    /// # Panics
+    /// Panics if memory layout size exceeds [`isize::MAX`].
+    ///
+    /// # Examples
+    /// ```
+    /// # use standard_lib::collections::contiguous::Array;
+    /// let arr = Array::from([1, 2, 3].into_iter());
+    /// assert_eq!(&*arr, [1, 2, 3]);
+    /// ```
+    pub fn from_iter_sized<I>(value: I) -> Array<T>
+    where
+        I: Iterator<Item = T> + ExactSizeIterator + TrustedLen
+    {
+        let size = value.len();
+        let arr = Self::new_uninit(size);
+
+        for (index, item) in value.enumerate() {
+            // SAFETY: size > isize::MAX / size_of::<T>() is already guarded against and all
+            // possible values are within the allocated range of the Array.
+            unsafe {
+                arr.ptr.add(index).write(MaybeUninit::new(item))
+            }
+        }
+
+        // SAFETY: All values are initialized.
+        unsafe { arr.assume_init() }
+    }  
+
     /// A helper function to create a [`Layout`] for use during allocation, containing `size` number
     /// of elements of type `T`.
     ///
@@ -271,7 +300,7 @@ impl<T: Copy> Array<T> {
     /// assert_eq!(&*arr, &[5, 5, 5]);
     /// ```
     pub fn repeat_item(item: T, count: usize) -> Array<T> {
-        Array::from(iter::repeat_n(item, count))
+        Array::from_iter_sized(iter::repeat_n(item, count))
     }
 
     /// Reallocate self with `new_size`, filling any extra elements with a copy of `item`.
@@ -290,7 +319,7 @@ impl<T: Default> Array<T> {
     /// # Panics
     /// Panics if memory layout size exceeds [`isize::MAX`].
     pub fn repeat_default(count: usize) -> Array<T> {
-        Array::from(iter::repeat_with(|| T::default()).take(count))
+        Array::from_iter_sized(iter::repeat_with(|| T::default()).take(count))
     }
 
     /// Reallocate self with `new_size`, filling any extra elements with the default value of `T`.
@@ -300,39 +329,6 @@ impl<T: Default> Array<T> {
     /// [`isize::MAX`]. (`new_size * size_of::<T>() > isize::MAX`)
     pub fn realloc_with_default(&mut self, new_size: usize) {
         self.realloc_with(|| T::default(), new_size);
-    }
-}
-
-impl<T, I> From<I> for Array<T>
-where
-    I: Iterator<Item = T> + ExactSizeIterator + TrustedLen,
-{
-    /// Creates an Array from a type which implements [`IntoIterator`] and creates an
-    /// [`ExactSizeIterator`].
-    ///
-    /// # Panics
-    /// Panics if memory layout size exceeds [`isize::MAX`].
-    ///
-    /// # Examples
-    /// ```
-    /// # use standard_lib::collections::contiguous::Array;
-    /// let arr = Array::from([1, 2, 3].into_iter());
-    /// assert_eq!(&*arr, [1, 2, 3]);
-    /// ```
-    fn from(iter: I) -> Self {
-        let size = iter.len();
-        let arr = Self::new_uninit(size);
-
-        for (index, item) in iter.enumerate() {
-            // SAFETY: size > isize::MAX / size_of::<T>() is already guarded against and all
-            // possible values are within the allocated range of the Array.
-            unsafe {
-                arr.ptr.add(index).write(MaybeUninit::new(item))
-            }
-        }
-
-        // SAFETY: All values are initialized.
-        unsafe { arr.assume_init() }
     }
 }
 
@@ -559,7 +555,7 @@ unsafe impl<T: Sync> Sync for Array<T> {}
 
 impl<T: Clone> Clone for Array<T> {
     fn clone(&self) -> Self {
-        Array::from(self.iter().cloned())
+        Array::from_iter_sized(self.iter().cloned())
     }
 }
 

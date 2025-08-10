@@ -36,7 +36,7 @@ fn test_zst_support() {
 
 #[test]
 fn test_realloc() {
-    let mut arr = Array::from(0..5);
+    let mut arr = Array::from_iter_sized(0..5);
     assert_eq!(arr.size(), 5);
 
     let old_ptr = arr.ptr;
@@ -75,12 +75,12 @@ fn test_realloc() {
     }
 
     assert_panics!({
-        let mut arr = Array::from(0..5);
+        let mut arr = Array::from_iter_sized(0..5);
         arr.realloc_with_default(isize::MAX as usize + 1)
     });
 
     let counter = CountedDrop::new(0);
-    let mut arr = Array::from(iter::repeat_with(|| counter.clone()).take(10));
+    let mut arr = Array::from_iter_sized(iter::repeat_with(|| counter.clone()).take(10));
     arr.realloc_with(|| unreachable!(), 5);
 
     assert_eq!(
@@ -93,7 +93,7 @@ fn test_realloc() {
 #[test]
 fn test_drop() {
     let counter = CountedDrop::new(0);
-    let arr = Array::from(iter::repeat_with(|| counter.clone()).take(10));
+    let arr = Array::from_iter_sized(iter::repeat_with(|| counter.clone()).take(10));
 
     drop(arr);
 
@@ -102,14 +102,14 @@ fn test_drop() {
 
 #[test]
 fn test_equality_and_hash() {
-    let arr = Array::from(0_usize..5);
+    let arr = Array::from_iter_sized(0_usize..5);
 
     assert_eq!(
         arr,
-        Array::from([0, 1, 2, 3, 4].into_iter()),
+        Array::from_iter_sized([0, 1, 2, 3, 4].into_iter()),
         "Different construction methods should produce equal results."
     );
-    assert_ne!(Array::from([0, 1, 2, 5, 4].into_iter()), Array::from(0..5));
+    assert_ne!(Array::from_iter_sized([0, 1, 2, 5, 4].into_iter()), Array::from_iter_sized(0..5));
 
     assert_eq!(
         &arr.borrow(),
@@ -121,7 +121,7 @@ fn test_equality_and_hash() {
     let state = RandomState::new();
     assert_eq!(
         state.hash_one(&arr),
-        state.hash_one(Array::from(0_usize..5)),
+        state.hash_one(Array::from_iter_sized(0_usize..5)),
         "Equal arrays should produce the same hash."
     );
     assert_eq!(
@@ -133,8 +133,8 @@ fn test_equality_and_hash() {
 
 #[test]
 fn test_iterators() {
-    let mut arr = Array::from(0_usize..5);
-    let collected = Array::from(arr.iter().cloned());
+    let mut arr = Array::from_iter_sized(0_usize..5);
+    let collected = Array::from_iter_sized(arr.iter().cloned());
     assert_eq!(arr, collected, "Collected iter should be equal.");
 
     for i in arr.iter_mut() {
@@ -148,7 +148,7 @@ fn test_iterators() {
 
     assert_eq!(
         arr,
-        Array::from(arr.clone().into_iter()),
+        Array::from_iter_sized(arr.clone().into_iter()),
         "Cloned and collected array should be equal."
     );
 
@@ -161,7 +161,7 @@ fn test_iterators() {
     assert_eq!(iter.next(), None);
 
     let counter = CountedDrop::new(0);
-    let arr = Array::from(iter::repeat_with(|| counter.clone()).take(10));
+    let arr = Array::from_iter_sized(iter::repeat_with(|| counter.clone()).take(10));
 
     drop(arr.into_iter());
     assert_eq!(

@@ -368,9 +368,27 @@ impl<T> Vector<T> {
             len,
         }
     }
-}
 
-impl<T> Vector<T> {
+    /// Creates an Vector from a type which implements [`IntoIterator`] and creates an
+    /// [`ExactSizeIterator`].
+    ///
+    /// # Panics
+    /// Panics if memory layout size exceeds [`isize::MAX`].
+    pub fn from_iter_sized<I>(value: I) -> Self
+    where
+        I: Iterator<Item = T> + ExactSizeIterator + TrustedLen
+    {
+        let iter = value.into_iter();
+        let mut vec = Vector::with_cap(iter.len());
+
+        for item in iter {
+            // SAFETY: vec has been created with the right capacity.
+            unsafe { vec.push_unchecked(item); }
+        }
+
+        vec
+    }
+
     /// Reallocates the internal Array with the provided capacity.
     ///
     /// # Panics
@@ -435,22 +453,22 @@ impl<T> Extend<T> for Vector<T> {
     }
 }
 
-impl<T, I> From<I> for Vector<T>
-where
-    I: Iterator<Item = T> + ExactSizeIterator + TrustedLen,
-{
-    fn from(value: I) -> Self {
-        let iter = value.into_iter();
-        let mut vec = Vector::with_cap(iter.len());
+// impl<T, I> From<I> for Vector<T>
+// where
+//     I: Iterator<Item = T> + ExactSizeIterator + TrustedLen,
+// {
+//     fn from(value: I) -> Self {
+//         let iter = value.into_iter();
+//         let mut vec = Vector::with_cap(iter.len());
 
-        for item in iter {
-            // SAFETY: vec has been created with the right capacity.
-            unsafe { vec.push_unchecked(item); }
-        }
+//         for item in iter {
+//             // SAFETY: vec has been created with the right capacity.
+//             unsafe { vec.push_unchecked(item); }
+//         }
 
-        vec
-    }
-}
+//         vec
+//     }
+// }
 
 impl<T> FromIterator<T> for Vector<T> {
     fn from_iter<I: IntoIterator<Item = T>>(value: I) -> Self {
@@ -588,6 +606,27 @@ impl<T> From<Vector<T>> for Vec<T> {
     fn from(value: Vector<T>) -> Self {
         let (ptr, len, cap) = value.into_parts();
         unsafe { Vec::from_parts(ptr.cast(), len, cap) }
+    }
+}
+
+impl<T> From<Vec<T>> for Vector<T> {
+    fn from(value: Vec<T>) -> Self {
+        let (ptr, len, cap) = value.into_parts();
+        unsafe { Vector::from_parts(ptr.cast(), len, cap) }
+    }
+}
+
+impl From<String> for Vector<u8> {
+    fn from(value: String) -> Self {
+        Vec::from(value).into()
+    }
+}
+
+impl TryFrom<Vector<u8>> for String {
+    type Error = <String as TryFrom<Vec<u8>>>::Error;
+    
+    fn try_from(value: Vector<u8>) -> Result<Self, Self::Error> {
+        Vec::from(value).try_into()
     }
 }
 
