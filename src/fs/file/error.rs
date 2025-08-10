@@ -1,6 +1,6 @@
 use derive_more::{Display, Error, From};
 
-use super::{File, IOError, InterruptError, StorageExhaustedError, SyncUnsupportedError};
+use crate::fs::{IOError, InterruptError, StorageExhaustedError, SyncUnsupportedError};
 
 #[derive(Debug, Display, From, Error)]
 pub enum CloseError {
@@ -25,9 +25,4 @@ impl From<CloseError> for SyncError {
             CloseError::StorageExhausted(e) => e.into(),
         }
     }
-}
-
-pub struct SyncCloseError {
-    pub error: SyncError,
-    pub recovered: Option<File>,
 }

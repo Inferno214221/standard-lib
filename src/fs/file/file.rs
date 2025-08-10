@@ -1,24 +1,43 @@
-// TODO: This is only temporary:
+// TODO: This is only temporary
 #![allow(clippy::missing_panics_doc)]
+
+// FIXME: What happens to the CStrings that I've been using indirectly? I bet they aren't dropped.
 
 use std::io::RawOsError;
 use std::mem::MaybeUninit;
 use std::path::Path;
 use std::thread;
 
-use libc::{c_int, stat};
+use libc::{c_void, stat};
 
-use crate::{collections::contiguous::Vector};
-use crate::util::syscall;
-use super::{BadStackAddrError, FileMetaOverflowError, OOMError, BadFDError, CloseError, IOError, InterruptError, OpenOptions, StorageExhaustedError, SyncCloseError, SyncError, SyncUnsupportedError, UnexpectedError};
+use crate::fs::{BadFDError, BadStackAddrError, Fd, FileMetaOverflowError, IOError, InterruptError, OOMError, StorageExhaustedError, SyncUnsupportedError, UnexpectedError};
+use crate::collections::contiguous::Vector;
+use crate::fs::syscall;
+use super::{CloseError, OpenOptions, SyncError};
 
+#[derive(Debug)]
 pub struct File {
     pub(crate) fd: Fd,
 }
 
+// TODO: Ensure that only Files are supported? Prefereably while keeping Metadata lazy - Metadata
+// has a size of 120 bytes.
+#[derive(Debug)]
+pub enum FileType {
+    BlockDevice,
+    CharDevice,
+    Directory,
+    FIFO,
+    Symlink,
+    Regular,
+    Socket,
+    Unknown,
+}
+
 pub struct Metadata {
     pub size: i64, // st_size
-    pub mode: u32, // st_mode
+    pub file_type: FileType, // st_mode
+    pub mode: u16, // st_mode
     pub uid: u32, // st_uid
     pub gid: u32, // st_gid
     pub parent_device_id: u64, // st_dev
@@ -33,8 +52,6 @@ pub struct Metadata {
     pub blocks: i64, // st_blocks
     pub inode_num: u64, // st_ino
 }
-
-type Fd = c_int;
 
 impl File {
     pub fn open(file_path: &Path) -> Result<File, RawOsError> {
@@ -53,33 +70,65 @@ impl File {
         OpenOptions::new()
     }
 
-    pub fn read_into_buffer(&self, buf: &mut [u8]) -> Result<usize, RawOsError> {
-        match unsafe { libc::read(self.fd, buf.as_mut_ptr().cast(), buf.len()) } {
+    pub(crate) fn read_raw(&self, buf: *mut c_void, size: usize) -> Result<usize, RawOsError> {
+        match unsafe { libc::read(self.fd, buf, size) } {
             -1 => Err(syscall::err_no()),
             count => Ok(count as usize),
         }
     }
 
-    pub fn read_all(&self) -> Result<Vector<u8>, RawOsError> {
+    pub fn read(&self, buf: &mut [u8]) -> Result<usize, RawOsError> {
+        self.read_raw(buf.as_mut_ptr().cast(), buf.len())
+    }
+
+    pub fn read_all_vec(&self) -> Result<Vector<u8>, RawOsError> {
         // This doesn't read the terminating byte at the moment.
         let size = self.metadata().size as usize;
         let buf: Vector<u8> = Vector::with_cap(size);
         let (ptr, len, cap) = buf.into_parts();
 
-        match unsafe { libc::read(self.fd, ptr.as_ptr().add(len).cast(), size) } {
-            -1 => {
+        match self.read_raw(unsafe { ptr.as_ptr().add(len).cast() }, cap) {
+            Err(err) => {
                 unsafe { drop(Vector::from_parts(ptr, len, cap)); }
-                Err(syscall::err_no())
+                Err(err)
             },
-            count if size > count as usize => todo!("Repeat until all bytes are read!"), // TODO
-            count => unsafe { Ok(Vector::from_parts(ptr, len + count as usize, cap)) },
+            Ok(count) if size > count => todo!("Repeat until all bytes are read!"), // TODO
+            Ok(count) => unsafe { Ok(Vector::from_parts(ptr, len + count, cap)) },
         }
     }
 
     pub fn read_all_string(&self) -> Result<String, RawOsError> {
-        Ok(String::from_utf8(self.read_all()?.into()).unwrap())
+        Ok(String::from_utf8(self.read_all_vec()?.into()).unwrap())
     }
 
+    pub(crate) fn write_raw(&self, buf: *const c_void, size: usize) -> Result<usize, RawOsError> {
+        match unsafe { libc::write(self.fd, buf, size) } {
+            -1 => Err(syscall::err_no()),
+            count => Ok(count as usize),
+        }
+    }
+
+    pub fn write(&self, buf: &[u8]) -> Result<usize, RawOsError> {
+        self.write_raw(buf.as_ptr().cast(), buf.len())
+    }
+
+    // TODO: pub fn seek(&self, )
+
+    // TODO: pub fn lock(&self) -> Result<(), RawOsError> {}
+
+    // TODO: pub fn lock_shared(&self) -> Result<(), RawOsError> {}
+
+    // TODO: pub fn try_lock(&self) -> Result<(), RawOsError> {}
+
+    // TODO: pub fn try_lock_shared(&self) -> Result<(), RawOsError> {}
+
+    // TODO: pub fn unlock(&self) -> Result<(), RawOsError> {}
+
+    // TODO: pub fn try_clone(&self) -> Result<File, RawOsError> {}
+
+    // TODO: applicable metadata setters
+
+    #[allow(clippy::unnecessary_cast)]
     pub fn metadata(&self) -> Metadata {
         let mut raw_meta: MaybeUninit<stat> = MaybeUninit::uninit();
         if unsafe { libc::fstat(self.fd, raw_meta.as_mut_ptr()) } == -1 {
@@ -96,7 +145,17 @@ impl File {
 
         Metadata {
             size: raw.st_size,
-            mode: raw.st_mode,
+            file_type: match raw.st_mode & libc::S_IFMT {
+                libc::S_IFBLK => FileType::BlockDevice,
+                libc::S_IFCHR => FileType::CharDevice,
+                libc::S_IFDIR => FileType::Directory,
+                libc::S_IFIFO => FileType::FIFO,
+                libc::S_IFLNK => FileType::Symlink,
+                libc::S_IFREG => FileType::Regular,
+                libc::S_IFSOCK => FileType::Socket,
+                _ => FileType::Unknown,
+            },
+            mode: raw.st_mode as u16,
             uid: raw.st_uid,
             gid: raw.st_gid,
             parent_device_id: raw.st_dev,
@@ -139,24 +198,6 @@ impl File {
             }
         }
         Ok(())
-    }
-
-    pub fn close_sync(self) -> Result<(), SyncCloseError> {
-        match self.sync() {
-            Ok(_) => (),
-            Err(SyncError::SyncUnsupported(_)) => (),
-            Err(error) => return Err(SyncCloseError {
-                error,
-                recovered: Some(self)
-            }),
-        };
-        match self.close() {
-            Ok(_) => Ok(()),
-            Err(error) => Err(SyncCloseError {
-                error: error.into(),
-                recovered: None
-            }),
-        }
     }
 }
 

@@ -49,6 +49,7 @@
 #![feature(trusted_len)]
 #![feature(debug_closure_helpers)]
 #![feature(raw_os_error_ty)]
+#![feature(ptr_as_ref_unchecked)]
 
 // #![warn(missing_docs)]
 #![warn(clippy::missing_safety_doc)]

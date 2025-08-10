@@ -2,7 +2,7 @@ use std::{io::RawOsError, os::unix::ffi::OsStrExt, path::Path};
 
 use libc::{c_char, c_int, O_APPEND, O_CREAT, O_EXCL, O_NOATIME, O_NOFOLLOW, O_RDONLY, O_RDWR, O_SYNC, O_TRUNC, O_WRONLY};
 
-use crate::util::syscall;
+use crate::fs::syscall;
 
 use super::File;
 
@@ -15,6 +15,7 @@ pub struct OpenOptions {
     pub force_sync: Option<bool>,
     pub update_access_time: Option<bool>,
     pub follow_links: Option<bool>,
+    pub extra_flags: Option<i32>,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -59,7 +60,7 @@ impl OpenOptions {
         if !self.follow_links.unwrap_or(true) {
             flags |= O_NOFOLLOW;
         }
-        flags
+        flags | self.extra_flags.unwrap_or_default()
     }
 
     pub fn new() -> OpenOptions {
@@ -75,12 +76,12 @@ impl OpenOptions {
         }
     }
 
-    pub const fn readonly(&mut self) -> &mut Self {
+    pub const fn read_only(&mut self) -> &mut Self {
         self.access = Some(AccessMode::Read);
         self
     }
 
-    pub const fn writeonly(&mut self) -> &mut Self {
+    pub const fn write_only(&mut self) -> &mut Self {
         self.access = Some(AccessMode::Write);
         self
     }
@@ -132,6 +133,11 @@ impl OpenOptions {
 
     pub const fn follow_links(&mut self, value: bool) -> &mut Self {
         self.follow_links = Some(value);
+        self
+    }
+
+    pub const fn extra_flags(&mut self, value: i32) -> &mut Self {
+        self.extra_flags = Some(value);
         self
     }
 }
