@@ -1,6 +1,7 @@
-use std::path::PathBuf;
+use std::{mem::MaybeUninit, os::unix::ffi::OsStrExt, path::PathBuf};
 
-use standard_lib::{collections::*, fs::*};
+use libc::dirent;
+use standard_lib::{collections::*, fs::{dir::Directory, *}};
 
 use contiguous::{Array, Vector};
 use hash::{HashMap, HashSet};
@@ -98,10 +99,10 @@ fn main() {
     dbg!(cursor.get(6));
 
     println!("\n[Format Tests]\n");
-    println!("{:#?}", Array::from([0_u8, 1, 2, 3].into_iter()));
-    println!("{}", Array::from([0_u8, 1, 2, 3].into_iter()));
-    println!("{:#?}", Vector::from([0_u8, 1, 2, 3].into_iter()));
-    println!("{}", Vector::from([0_u8, 1, 2, 3].into_iter()));
+    println!("{:#?}", Array::from_iter_sized([0_u8, 1, 2, 3].into_iter()));
+    println!("{}", Array::from_iter_sized([0_u8, 1, 2, 3].into_iter()));
+    println!("{:#?}", Vector::from_iter_sized([0_u8, 1, 2, 3].into_iter()));
+    println!("{}", Vector::from_iter_sized([0_u8, 1, 2, 3].into_iter()));
     println!(
         "{:?}",
         [0_u8, 1, 2, 3].into_iter().collect::<LinkedList<_>>()
@@ -117,4 +118,28 @@ fn main() {
 
     let f = File::open(PathBuf::from("./hello.txt").as_path()).unwrap();
     println!("{}", f.read_all_string().unwrap());
+    // unsafe {
+    //     assert_ne!(
+    //         libc::syscall(libc::SYS_open, PathBuf::from("./test").as_os_str().as_bytes().as_ptr().cast::<u8>(), 0),
+    //         -1
+    //     );
+    //     assert_ne!(libc::open(PathBuf::from("./test").as_os_str().as_bytes().as_ptr().cast(), 0, 0o644), -1);
+    //     assert!(File::options().read_only().if_present().extra_flags(libc::O_PATH).open(PathBuf::from("./test").as_path()).is_ok());
+    // }
+    unsafe {
+        let fd = libc::open(PathBuf::from("./test").as_os_str().as_bytes().as_ptr().cast(), 0);
+        let mut dirp: Array<MaybeUninit<dirent>> = Array::new_uninit(10);
+        let out = libc::syscall(libc::SYS_getdents64, fd, dirp.as_mut_ptr(), size_of::<libc::dirent64>() / 2) as isize;
+        println!("{out:x}");
+        println!("{:02x}", dirp[1].assume_init().d_type);
+        println!("{:02x}, {:02x}", libc::DT_REG, libc::DT_LNK);
+        println!("{}", std::slice::from_raw_parts(
+            dirp.as_ptr().cast::<u8>(),
+            size_of::<libc::dirent64>()
+        ).iter().map(|b| format!("{b:02x}")).collect::<String>());
+        println!("{}", "file-1".as_bytes().iter().map(|b| format!("{b:02x}")).collect::<String>());
+        println!("{}", ".".as_bytes().iter().map(|b| format!("{b:02x}")).collect::<String>());
+
+        // println!("{:?}", Directory::open(PathBuf::from("./test").as_path()).unwrap().entries().next())
+    }
 }
