@@ -95,7 +95,7 @@ impl<T> Vector<T> {
     /// # Examples
     /// ```
     /// # use standard_lib::collections::contiguous::Vector;
-    /// let vec = Vector::from(1_u8..=3);
+    /// let vec = Vector::from_iter_sized(1_u8..=3);
     /// assert_eq!(vec.len(), 3);
     /// ```
     pub const fn len(&self) -> usize {
@@ -163,7 +163,7 @@ impl<T> Vector<T> {
     /// # Examples
     /// ```
     /// # use standard_lib::collections::contiguous::{Array, Vector};
-    /// let arr = Array::from(1_u8..=3);
+    /// let arr = Array::from_iter_sized(1_u8..=3);
     /// let mut vec = Vector::with_cap(arr.size());
     /// for i in arr.into_iter() {
     ///     // SAFETY: We know that vec has enough capacity to store all elements in arr.
@@ -184,7 +184,7 @@ impl<T> Vector<T> {
     /// # Examples
     /// ```
     /// # use standard_lib::collections::contiguous::Vector;
-    /// let mut vec = Vector::from(0..5);
+    /// let mut vec = Vector::from_iter_sized(0..5);
     /// for i in (0..vec.len()).rev() {
     ///     assert_eq!(vec.pop(), Some(i));
     /// }
@@ -218,7 +218,7 @@ impl<T> Vector<T> {
     /// # Examples
     /// ```
     /// # use standard_lib::collections::contiguous::Vector;
-    /// let mut vec = Vector::from(0..3);
+    /// let mut vec = Vector::from_iter_sized(0..3);
     /// vec.insert(1, 100);
     /// vec.insert(1, 200);
     /// vec.insert(3, 300);

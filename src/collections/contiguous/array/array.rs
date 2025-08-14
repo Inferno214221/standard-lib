@@ -112,11 +112,11 @@ impl<T> Array<T> {
     /// # Examples
     /// ```
     /// # use standard_lib::collections::contiguous::Array;
-    /// let arr = Array::from([1_u8, 2, 3].into_iter());
+    /// let arr = Array::from_iter_sized([1_u8, 2, 3].into_iter());
     /// let (ptr, size) = arr.into_parts();
     /// assert_eq!(
     ///     unsafe { Array::from_parts(ptr, size) },
-    ///     Array::from([1, 2, 3].into_iter())
+    ///     Array::from_iter_sized([1, 2, 3].into_iter())
     /// );
     /// ```
     pub const unsafe fn from_parts(ptr: NonNull<T>, size: usize) -> Array<T> {
@@ -132,7 +132,7 @@ impl<T> Array<T> {
     /// # Examples
     /// ```
     /// # use standard_lib::collections::contiguous::Array;
-    /// let arr = Array::from([1, 2, 3].into_iter());
+    /// let arr = Array::from_iter_sized([1, 2, 3].into_iter());
     /// assert_eq!(arr.size(), 3);
     /// ```
     pub const fn size(&self) -> usize {
@@ -147,7 +147,7 @@ impl<T> Array<T> {
     /// ```
     /// # use standard_lib::collections::contiguous::Array;
     /// # use std::mem::MaybeUninit;
-    /// let mut arr = Array::from([1_u8, 2, 3].into_iter());
+    /// let mut arr = Array::from_iter_sized([1_u8, 2, 3].into_iter());
     /// let mut new_arr = arr.forget_init();
     ///
     /// new_arr.realloc(4);
@@ -237,7 +237,7 @@ impl<T> Array<T> {
     /// # Examples
     /// ```
     /// # use standard_lib::collections::contiguous::Array;
-    /// let arr = Array::from([1, 2, 3].into_iter());
+    /// let arr = Array::from_iter_sized([1, 2, 3].into_iter());
     /// assert_eq!(&*arr, [1, 2, 3]);
     /// ```
     pub fn from_iter_sized<I>(value: I) -> Array<T>
