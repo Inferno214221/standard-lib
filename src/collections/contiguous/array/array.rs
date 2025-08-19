@@ -16,7 +16,9 @@ const MAX_SIZE: usize = isize::MAX as usize;
 
 // TODO: Add try methods.
 
-/// An implementation of an array that is sized at runtime. Similar to a [`Box<[T]>`](Box<T>).
+/// An implementation of an array that has an fixed size at runtime. Similar to a
+/// [`Box<[T]>`](Box<T>) and not intended as an equivalent to Rust's primitive `[T; N]` type,
+/// which is sized at compile time.
 ///
 /// # Time Complexity
 /// For this analysis of time complexity, variables are defined as follows:
@@ -242,7 +244,7 @@ impl<T> Array<T> {
     /// ```
     pub fn from_iter_sized<I>(value: I) -> Array<T>
     where
-        I: Iterator<Item = T> + ExactSizeIterator + TrustedLen
+        I: Iterator<Item = T> + ExactSizeIterator + TrustedLen,
     {
         let size = value.len();
         let arr = Self::new_uninit(size);
@@ -257,7 +259,7 @@ impl<T> Array<T> {
 
         // SAFETY: All values are initialized.
         unsafe { arr.assume_init() }
-    }  
+    }
 
     /// A helper function to create a [`Layout`] for use during allocation, containing `size` number
     /// of elements of type `T`.

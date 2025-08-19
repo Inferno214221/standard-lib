@@ -178,9 +178,9 @@ impl<T> LinkedList<T> {
     }
 
     /// Returns a reference to the element at the provided `index`, panicking on a failure.
-    /// 
+    ///
     /// The same functionality can be achieved using the [`Index`] operator.
-    /// 
+    ///
     /// # Panics
     /// Panics if `index` is out of bounds of the LinkedList.
     pub fn get(&self, index: usize) -> &T {
@@ -189,16 +189,16 @@ impl<T> LinkedList<T> {
 
     /// Returns a reference to the element at the provided `index`, returning an [`Err`] on a
     /// failure rather than panicking.
-    /// 
+    ///
     /// The same functionality can be achieved using the [`Index`] operator.
     pub fn try_get(&self, index: usize) -> Result<&T, IndexOutOfBounds> {
         Ok(self.checked_seek(index)?.value())
     }
 
     /// Returns a mutable reference to the element at the provided `index`, panicking on a failure.
-    /// 
+    ///
     /// The same functionality can be achieved using the [`IndexMut`] operator.
-    /// 
+    ///
     /// # Panics
     /// Panics if `index` is out of bounds of the LinkedList.
     pub fn get_mut(&mut self, index: usize) -> &mut T {
@@ -207,7 +207,7 @@ impl<T> LinkedList<T> {
 
     /// Returns a mutable reference to the element at the provided `index`, returning an [`Err`] on
     /// a failure rather than panicking.
-    /// 
+    ///
     /// The same functionality can be achieved using the [`IndexMut`] operator.
     pub fn try_get_mut(&mut self, index: usize) -> Result<&mut T, IndexOutOfBounds> {
         Ok(self.checked_seek(index)?.value_mut())

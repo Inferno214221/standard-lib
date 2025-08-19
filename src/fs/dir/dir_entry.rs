@@ -27,6 +27,8 @@ pub struct DirEntries {
     pub(crate) index: usize,
 }
 
+// TODO: need to ensure that undersized buffer is handled.
+
 impl Iterator for DirEntries {
     type Item = DirEntry;
 

@@ -1,7 +1,7 @@
+mod error;
 mod file;
 mod options;
-mod error;
 
+pub use error::*;
 pub use file::*;
 pub use options::*;
-pub use error::*;

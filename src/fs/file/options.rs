@@ -1,10 +1,12 @@
 use std::{io::RawOsError, os::unix::ffi::OsStrExt, path::Path};
 
-use libc::{c_char, c_int, O_APPEND, O_CREAT, O_EXCL, O_NOATIME, O_NOFOLLOW, O_RDONLY, O_RDWR, O_SYNC, O_TRUNC, O_WRONLY};
-
-use crate::fs::syscall;
+use libc::{
+    O_APPEND, O_CREAT, O_EXCL, O_NOATIME, O_NOFOLLOW, O_RDONLY, O_RDWR, O_SYNC, O_TRUNC, O_WRONLY,
+    c_char, c_int,
+};
 
 use super::File;
+use crate::fs::syscall;
 
 #[derive(Debug, Clone, Default)]
 pub struct OpenOptions {

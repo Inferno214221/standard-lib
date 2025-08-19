@@ -2,7 +2,7 @@ use std::io::RawOsError;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
-use libc::{c_char, c_int, O_DIRECTORY, O_PATH};
+use libc::{O_DIRECTORY, O_PATH, c_char, c_int};
 
 use crate::fs::dir::DirEntries;
 use crate::fs::file::{CloseError, File, Metadata};

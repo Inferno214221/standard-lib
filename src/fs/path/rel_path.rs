@@ -1,9 +1,9 @@
 use std::ffi::{OsStr, OsString};
 
-use super::{AbsPath, sealed::PathInternals, PathLike};
+use super::{AbsPath, PathLike, sealed::PathInternals};
 
 /// TODO
-/// 
+///
 /// # Invariants
 /// - The string starts with no "./".
 /// - The string contains no repeated '/' characters or occurrences of "/./".
@@ -34,7 +34,7 @@ impl PathLike for RelPath {
 }
 
 impl From<&OsStr> for RelPath {
-    fn from(value: &OsStr) -> Self {        
+    fn from(value: &OsStr) -> Self {
         RelPath {
             inner: super::sanitize_os_string(value, b"./"),
         }

@@ -1,9 +1,9 @@
 use std::ffi::{OsStr, OsString};
 
-use crate::fs::path::{sealed::PathInternals, PathLike};
+use crate::fs::path::{PathLike, sealed::PathInternals};
 
 /// TODO
-/// 
+///
 /// # Invariants
 /// - The string starts with '/'.
 /// - The string contains no repeated '/' characters or occurances of "/./".
@@ -14,11 +14,18 @@ pub struct AbsPath {
 }
 
 impl AbsPath {
-    // TODO: pub fn root() -> AbsPath;
+    pub fn root() -> AbsPath {
+        AbsPath {
+            inner: OsString::from("/"),
+        }
+    }
 
-    // TODO: pub fn home() -> Option<AbsPath>;
+    // TODO: pub fn home() -> Option<AbsPath>; // Should this be an env thing?
 
-    // TODO: pub fn cwd() -> Option<AbsPath>;
+    pub fn cwd() -> Option<AbsPath> {
+        // libc::getcwd()
+        todo!()
+    }
 }
 
 impl PathInternals for AbsPath {
@@ -36,7 +43,7 @@ impl PathLike for AbsPath {
 }
 
 impl From<&OsStr> for AbsPath {
-    fn from(value: &OsStr) -> Self {        
+    fn from(value: &OsStr) -> Self {
         AbsPath {
             inner: super::sanitize_os_string(value, b"/"),
         }

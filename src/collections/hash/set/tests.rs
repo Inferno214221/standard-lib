@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::collections::contiguous::Vector;
-use crate::util::hash::{ManualHash, BadHasherBuilder};
+use crate::util::hash::{BadHasherBuilder, ManualHash};
 
 #[test]
 fn test_hash_collisions() {

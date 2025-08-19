@@ -351,7 +351,7 @@ impl<T> Vector<T> {
         // Forget about other because we have copied all values.
         mem::forget(other);
     }
-    
+
     pub const fn into_parts(self) -> (NonNull<MaybeUninit<T>>, usize, usize) {
         let ret = (self.arr.ptr, self.len, self.arr.size);
         mem::forget(self);
@@ -376,7 +376,7 @@ impl<T> Vector<T> {
     /// Panics if memory layout size exceeds [`isize::MAX`].
     pub fn from_iter_sized<I>(value: I) -> Self
     where
-        I: Iterator<Item = T> + ExactSizeIterator + TrustedLen
+        I: Iterator<Item = T> + ExactSizeIterator + TrustedLen,
     {
         let iter = value.into_iter();
         let mut vec = Vector::with_cap(iter.len());
@@ -624,7 +624,7 @@ impl From<String> for Vector<u8> {
 
 impl TryFrom<Vector<u8>> for String {
     type Error = <String as TryFrom<Vec<u8>>>::Error;
-    
+
     fn try_from(value: Vector<u8>) -> Result<Self, Self::Error> {
         Vec::from(value).try_into()
     }

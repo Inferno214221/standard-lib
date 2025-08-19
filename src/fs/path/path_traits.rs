@@ -18,7 +18,7 @@ pub(crate) mod sealed {
     }
 }
 
-pub trait PathLike: sealed::PathInternals {    
+pub trait PathLike: sealed::PathInternals {
     fn len(&self) -> usize {
         self.inner().len() - 1
     }
@@ -86,7 +86,7 @@ pub trait PathLike: sealed::PathInternals {
 enum Seq {
     Slash,
     SlashDot,
-    Other
+    Other,
 }
 
 pub(crate) fn sanitize_os_string(value: &OsStr, start: &[u8]) -> OsString {
@@ -122,10 +122,10 @@ pub(crate) fn sanitize_os_string(value: &OsStr, start: &[u8]) -> OsString {
         }
     }
 
-    if last_seq.is_slash() {
+    if last_seq.is_slash() && valid.len() > 1 {
         valid.pop();
     }
     valid.push(b'\0');
-    
+
     unsafe { OsString::from_encoded_bytes_unchecked(valid.into()) }
 }

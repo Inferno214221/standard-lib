@@ -16,7 +16,7 @@ impl Display for IndexOutOfBounds {
 impl Error for IndexOutOfBounds {}
 
 /// TODO
-/// 
+///
 /// Note: This error is no longer returned by any public part of the API, but it is thrown during
 /// panics. This is because a capacity overflow has such a small chance of occuring that it isn't
 /// worth handling in most placed. Most machines wouldn't have enough memory to overflow a non-ZST
