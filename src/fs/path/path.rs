@@ -9,6 +9,8 @@ pub enum Path {
 
 use Path::*;
 
+// TODO: add root, cwd, home functions which return AbsPath for ease of use
+
 // impl Path {
 //     delegate! { to match self {
 //         Absolute(path) => path,

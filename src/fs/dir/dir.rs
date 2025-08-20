@@ -5,12 +5,13 @@ use std::path::Path;
 use libc::{O_DIRECTORY, O_PATH, c_char, c_int};
 
 use crate::fs::dir::DirEntries;
-use crate::fs::file::{CloseError, File, Metadata};
-use crate::fs::syscall;
+use crate::fs::file::CloseError;
+use crate::fs::util::{self, Fd};
+pub use crate::fs::util::Metadata;
 
 #[derive(Debug)]
 pub struct Directory {
-    pub(crate) file: File,
+    pub(crate) fd: Fd,
 }
 
 impl Directory {
@@ -20,16 +21,16 @@ impl Directory {
         let flags: c_int = O_PATH | O_DIRECTORY;
 
         match unsafe { libc::open(pathname, flags) } {
-            -1 => Err(syscall::err_no()),
+            -1 => Err(util::err_no()),
             fd => Ok(Directory {
-                file: File { fd },
+                fd: Fd(fd),
             }),
         }
     }
 
     pub const fn entries(&self) -> DirEntries {
         DirEntries {
-            fd: self.file.fd,
+            dir: &self,
             buf: None,
             index: 0,
         }
@@ -38,10 +39,10 @@ impl Directory {
     // TODO: impl drop for this and don't wrap file.
 
     pub fn metadata(&self) -> Metadata {
-        self.file.metadata()
+        self.fd.metadata()
     }
 
     pub fn close(self) -> Result<(), CloseError> {
-        self.file.close()
+        self.fd.close()
     }
 }

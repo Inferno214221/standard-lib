@@ -6,7 +6,7 @@ use crate::fs::path::{PathLike, sealed::PathInternals};
 ///
 /// # Invariants
 /// - The string starts with '/'.
-/// - The string contains no repeated '/' characters or occurances of "/./".
+/// - The string contains no repeated '/' characters or occurrences of "/./".
 /// - The string contains no trailing '/'.
 /// - The string contains no \0 but is followed by exactly one.
 pub struct AbsPath {

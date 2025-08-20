@@ -6,7 +6,7 @@ use libc::{
 };
 
 use super::File;
-use crate::fs::syscall;
+use crate::fs::util::{self, Fd};
 
 #[derive(Debug, Clone, Default)]
 pub struct OpenOptions {
@@ -73,8 +73,8 @@ impl OpenOptions {
         let pathname: *const c_char = file_path.as_os_str().as_bytes().as_ptr().cast();
 
         match unsafe { libc::open(pathname, self.flags(), self.mode.unwrap_or(0o644) as c_int) } {
-            -1 => Err(syscall::err_no()),
-            fd => Ok(File { fd }),
+            -1 => Err(util::err_no()),
+            fd => Ok(File { fd: Fd(fd) }),
         }
     }
 

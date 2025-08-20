@@ -1,6 +1,6 @@
 use derive_more::{Display, Error, From};
 
-use crate::fs::{IOError, InterruptError, StorageExhaustedError, SyncUnsupportedError};
+use crate::fs::error::{IOError, InterruptError, StorageExhaustedError, SyncUnsupportedError};
 
 #[derive(Debug, Display, From, Error)]
 pub enum CloseError {
