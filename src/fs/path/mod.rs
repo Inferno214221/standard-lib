@@ -1,11 +1,11 @@
-mod abs_path;
+pub mod abs;
 mod iter;
 mod path;
 mod path_traits;
-mod rel_path;
+pub mod rel;
 
-pub use abs_path::*;
+pub use abs::{AbsPath, OwnedAbsPath};
 pub use iter::*;
 pub use path::*;
 pub use path_traits::*;
-pub use rel_path::*;
+pub use rel::{RelPath, OwnedRelPath};

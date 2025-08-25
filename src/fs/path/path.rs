@@ -1,13 +1,13 @@
 use std::ffi::OsStr;
 
-use crate::fs::path::{AbsPath, RelPath};
+use crate::fs::path::{AbsPath, OwnedAbsPath, OwnedRelPath, RelPath};
 
-pub enum Path {
-    Absolute(AbsPath),
-    Relative(RelPath),
+pub enum OwnedPath {
+    Absolute(OwnedAbsPath),
+    Relative(OwnedRelPath),
 }
 
-use Path::*;
+use OwnedPath::*;
 
 // TODO: add root, cwd, home functions which return AbsPath for ease of use
 
@@ -31,3 +31,10 @@ use Path::*;
 //         pub fn join(&mut self, other: &RelPath);
 //     }}
 // }
+
+// pub enum Path {
+//     Absolute(AbsPath),
+//     Relative(RelPath),
+// }
+
+// use Path::*;

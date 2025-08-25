@@ -7,7 +7,7 @@ use std::slice;
 use derive_more::IsVariant;
 
 use crate::collections::contiguous::Vector;
-use crate::fs::path::RelPath;
+use crate::fs::path::OwnedRelPath;
 
 pub(crate) mod sealed {
     use std::ffi::OsString;
@@ -43,11 +43,11 @@ pub trait PathLike: sealed::PathInternals {
         self.inner().as_encoded_bytes().as_ptr()
     }
 
-    fn join(&mut self, other: &RelPath) {
+    fn join(&mut self, other: &OwnedRelPath) {
         let mut vec: Vector<u8> = mem::take(self.inner_mut()).into_encoded_bytes().into();
         vec.pop();
         vec.reserve(other.len());
-        vec.extend(other.inner.as_bytes().iter().skip(1).cloned());
+        vec.extend(other.inner.as_bytes().iter().cloned());
         let _ = mem::replace(
             self.inner_mut(),
             unsafe { OsString::from_encoded_bytes_unchecked(vec.into()) }
@@ -125,7 +125,6 @@ pub(crate) fn sanitize_os_string(value: &OsStr, start: &[u8]) -> OsString {
     if last_seq.is_slash() && valid.len() > 1 {
         valid.pop();
     }
-    valid.push(b'\0');
 
     unsafe { OsString::from_encoded_bytes_unchecked(valid.into()) }
 }
