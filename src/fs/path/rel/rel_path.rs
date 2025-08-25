@@ -1,6 +1,10 @@
-use std::{borrow::{Borrow, BorrowMut}, ffi::{OsStr, OsString}, ops::{Deref, DerefMut}};
+use std::borrow::{Borrow, BorrowMut};
+use std::ffi::{OsStr, OsString};
+use std::ops::{Deref, DerefMut};
 
-use crate::fs::path::{self, rel::DisplayRel, sealed::PathInternals, OwnedAbsPath, PathLike};
+use crate::fs::path::{self, OwnedAbsPath, OwnedPathLike, PathLike};
+use crate::fs::path::rel::DisplayRel;
+use crate::fs::path::sealed::{OwnedPathInternals, PathInternals};
 
 /// TODO
 ///
@@ -32,7 +36,7 @@ impl OwnedRelPath {
     }
 }
 
-impl PathInternals for OwnedRelPath {
+impl OwnedPathInternals for OwnedRelPath {
     fn inner_mut(&mut self) -> &mut OsString {
         &mut self.inner
     }
@@ -40,11 +44,15 @@ impl PathInternals for OwnedRelPath {
     fn inner(&self) -> &OsString {
         &self.inner
     }
+    
+    unsafe fn new_unchecked(inner: OsString) -> Self {
+        OwnedRelPath {
+            inner,
+        }
+    }
 }
 
-impl PathLike for OwnedRelPath {
-    // TODO
-}
+impl OwnedPathLike for OwnedRelPath {}
 
 impl From<&OsStr> for OwnedRelPath {
     fn from(value: &OsStr) -> Self {
@@ -70,17 +78,31 @@ impl RelPath {
     }
 }
 
+impl PathInternals for RelPath {
+    fn inner_mut(&mut self) -> &mut OsStr {
+        &mut self.inner
+    }
+
+    fn inner(&self) -> &OsStr {
+        &self.inner
+    }
+}
+
+impl PathLike for RelPath {
+    type Owned = OwnedRelPath;
+}
+
 impl Deref for OwnedRelPath {
     type Target = RelPath;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { RelPath::new_unchecked(&*self.inner) }
+        unsafe { RelPath::new_unchecked(&self.inner) }
     }
 }
 
 impl DerefMut for OwnedRelPath {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { RelPath::new_unchecked_mut(&mut *self.inner) }
+        unsafe { RelPath::new_unchecked_mut(&mut self.inner) }
     }
 }
 

@@ -1,6 +1,11 @@
-use std::{borrow::{Borrow, BorrowMut}, env, ffi::{OsStr, OsString}, ops::{Deref, DerefMut}};
+use std::borrow::{Borrow, BorrowMut};
+use std::env;
+use std::ffi::{OsStr, OsString};
+use std::ops::{Deref, DerefMut};
 
-use crate::fs::path::{self, abs::DisplayAbs, sealed::PathInternals, PathLike, RelPath};
+use crate::fs::path::{self, OwnedPathLike, PathLike};
+use crate::fs::path::abs::DisplayAbs;
+use crate::fs::path::sealed::{OwnedPathInternals, PathInternals};
 
 /// TODO
 ///
@@ -44,7 +49,7 @@ impl OwnedAbsPath {
     }
 }
 
-impl PathInternals for OwnedAbsPath {
+impl OwnedPathInternals for OwnedAbsPath {
     fn inner_mut(&mut self) -> &mut OsString {
         &mut self.inner
     }
@@ -52,11 +57,15 @@ impl PathInternals for OwnedAbsPath {
     fn inner(&self) -> &OsString {
         &self.inner
     }
+    
+    unsafe fn new_unchecked(inner: OsString) -> Self {
+        OwnedAbsPath {
+            inner,
+        }
+    }
 }
 
-impl PathLike for OwnedAbsPath {
-    // TODO
-}
+impl OwnedPathLike for OwnedAbsPath {}
 
 impl From<&OsStr> for OwnedAbsPath {
     fn from(value: &OsStr) -> Self {
@@ -75,18 +84,6 @@ impl AbsPath {
         unsafe { &mut *(value as *mut OsStr as *mut AbsPath) }
     }
 
-    pub fn relative(&self, to: &AbsPath) -> Option<&RelPath> {
-        match self.inner.as_encoded_bytes().strip_prefix(to.inner.as_encoded_bytes()) {
-            None => None,
-            // If there is no leading slash, strip_prefix matched only part of a component so
-            // treat it as a fail.
-            Some(replaced) if !replaced.starts_with(b"/") => None,
-            Some(replaced) => unsafe {
-                Some(RelPath::new_unchecked(OsStr::from_encoded_bytes_unchecked(replaced)))
-            },
-        }
-    }
-
     // pub fn force_relative(&self, from: &AbsPath) {
     //     // TODO: Include ../.. etc.
     //     todo!()
@@ -97,19 +94,56 @@ impl AbsPath {
             inner: self,
         }
     }
+
+    // fn metadata(&self) -> Result<Metadata>;
+
+    // fn open(&self) -> Union(File, Dir, etc.) Union should hold metadata too?
+
+    // no follow with O_NOFOLLOW
+    // to open as a specific type, use File::open or Dir::open
+
+    // fn canonicalize
+
+    // fn exists/try_exists
+
+    // fn read_* shortcuts
+
+    // NOTE: Symlinks can't be opened, so all symlink-related APIs need to be handled here.
+
+    // fn is_symlink
+
+    // fn symlink_metadata
+
+    // fn read_link
+
+    // type agnostic methods, e.g. copy, move, rename, etc. chown, chmod?
+}
+
+impl PathInternals for AbsPath {
+    fn inner_mut(&mut self) -> &mut OsStr {
+        &mut self.inner
+    }
+
+    fn inner(&self) -> &OsStr {
+        &self.inner
+    }
+}
+
+impl PathLike for AbsPath {
+    type Owned = OwnedAbsPath;
 }
 
 impl Deref for OwnedAbsPath {
     type Target = AbsPath;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { AbsPath::new_unchecked(&*self.inner) }
+        unsafe { AbsPath::new_unchecked(&self.inner) }
     }
 }
 
 impl DerefMut for OwnedAbsPath {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { AbsPath::new_unchecked_mut(&mut *self.inner) }
+        unsafe { AbsPath::new_unchecked_mut(&mut self.inner) }
     }
 }
 

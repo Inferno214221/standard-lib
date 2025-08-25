@@ -1,24 +1,42 @@
 use std::ffi::{OsStr, OsString};
-use std::fmt::{self, Display, Formatter};
 use std::mem;
-use std::os::unix::ffi::OsStrExt;
-use std::slice;
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
 
 use derive_more::IsVariant;
 
 use crate::collections::contiguous::Vector;
-use crate::fs::path::OwnedRelPath;
+use crate::fs::path::RelPath;
 
 pub(crate) mod sealed {
-    use std::ffi::OsString;
+    use std::ffi::{OsStr, OsString};
 
     pub trait PathInternals {
+        fn inner_mut(&mut self) -> &mut OsStr;
+        fn inner(&self) -> &OsStr;
+    }
+
+    pub trait OwnedPathInternals {
         fn inner_mut(&mut self) -> &mut OsString;
         fn inner(&self) -> &OsString;
+        unsafe fn new_unchecked(inner: OsString) -> Self;
+    }
+}
+
+pub trait OwnedPathLike: sealed::OwnedPathInternals {
+    fn push(&mut self, other: &RelPath) {
+        let mut vec: Vector<u8> = mem::take(self.inner_mut()).into_vec().into();
+        vec.reserve(other.len());
+        vec.extend(other.inner.as_bytes().iter().cloned());
+        let _ = mem::replace(
+            self.inner_mut(),
+            OsString::from_vec(vec.into())
+        );
     }
 }
 
 pub trait PathLike: sealed::PathInternals {
+    type Owned: OwnedPathLike + sealed::OwnedPathInternals;
+
     fn len(&self) -> usize {
         self.inner().len() - 1
     }
@@ -28,58 +46,39 @@ pub trait PathLike: sealed::PathInternals {
     }
 
     fn as_os_str(&self) -> &OsStr {
-        self.inner().as_os_str()
+        self.inner()
     }
 
-    fn as_bytes(&self) -> &[u8] {
-        unsafe { slice::from_raw_parts(self.as_ptr(), self.len()) }
-    }
+    // fn as_bytes(&self) -> &[u8]
 
-    fn as_bytes_with_null(&self) -> &[u8] {
-        self.inner().as_encoded_bytes()
-    }
+    // fn as_bytes_with_null(&self) -> &[u8]
 
-    fn as_ptr(&self) -> *const u8 {
-        self.inner().as_encoded_bytes().as_ptr()
-    }
+    // fn as_ptr(&self) -> *const u8
 
-    fn join(&mut self, other: &OwnedRelPath) {
-        let mut vec: Vector<u8> = mem::take(self.inner_mut()).into_encoded_bytes().into();
-        vec.pop();
-        vec.reserve(other.len());
-        vec.extend(other.inner.as_bytes().iter().cloned());
-        let _ = mem::replace(
-            self.inner_mut(),
-            unsafe { OsString::from_encoded_bytes_unchecked(vec.into()) }
-        );
-    }
-
-    // fn basename(&self) -> OsString
+    // fn basename(&self) -> &OsStr
 
     // fn parent(&self) -> Self
 
-    // fn metadata(&self) -> Result<Metadata>;
+    fn join(&self, other: &RelPath) -> Self::Owned {
+        use sealed::OwnedPathInternals;
+        unsafe {
+            Self::Owned::new_unchecked(
+                [self.as_os_str(), other.as_os_str()].into_iter().collect()
+            )
+        }
+    }
 
-    // fn open(&self) -> Union(File, Dir, etc.) Union should hold metadata too?
-
-    // no follow with O_NOFOLLOW
-    // to open as a specific type, use File::open or Dir::open
-
-    // fn canonicalize
-
-    // fn exists/try_exists
-
-    // fn read_shortcuts
-
-    // NOTE: Symlinks can't be opened, so all symlink-related APIs need to be handled here.
-
-    // fn is_symlink
-
-    // fn symlink_metadata
-
-    // fn read_link
-
-    // type agnostic methods, e.g. copy, move, rename, etc. chown, chmod?
+    fn relative(&self, other: &Self) -> Option<&RelPath> {
+        match self.inner().as_bytes().strip_prefix(other.inner().as_bytes()) {
+            None => None,
+            // If there is no leading slash, strip_prefix matched only part of a component so
+            // treat it as a fail.
+            Some(replaced) if !replaced.starts_with(b"/") => None,
+            Some(replaced) => unsafe {
+                Some(RelPath::new_unchecked(OsStr::from_bytes(replaced)))
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, IsVariant)]
@@ -93,7 +92,7 @@ pub(crate) fn sanitize_os_string(value: &OsStr, start: &[u8]) -> OsString {
     let mut last_seq = Seq::Other;
     let mut valid = Vector::with_cap(value.len() + 1);
 
-    for ch in start.iter().chain(value.as_encoded_bytes().iter()).cloned() {
+    for ch in start.iter().chain(value.as_bytes().iter()).cloned() {
         match (ch, last_seq) {
             (b'\0', _) => (),
             (b'/', Seq::Slash) => (),
@@ -126,5 +125,5 @@ pub(crate) fn sanitize_os_string(value: &OsStr, start: &[u8]) -> OsString {
         valid.pop();
     }
 
-    unsafe { OsString::from_encoded_bytes_unchecked(valid.into()) }
+    OsString::from_vec(valid.into())
 }

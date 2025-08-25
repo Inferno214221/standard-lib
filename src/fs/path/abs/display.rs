@@ -1,6 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
-use crate::fs::path::{AbsPath, OwnedAbsPath};
+use crate::fs::path::{AbsPath, OwnedAbsPath, PathLike};
 
 pub struct DisplayAbs<'a> {
     pub(crate) inner: &'a AbsPath,
@@ -43,7 +43,7 @@ impl<'a> Display for DisplayFull<'a> {
 impl<'a> Display for DisplayHome<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if let Some(home) = OwnedAbsPath::home()
-        && let Some(rel) = self.inner.relative(&home) {
+            && let Some(rel) = self.inner.relative(&home) {
             write!(f, "~{}", rel.display().slash())
         } else {
             write!(f, "{}", self.inner.as_ref().to_string_lossy())

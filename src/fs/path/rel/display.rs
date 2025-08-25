@@ -1,4 +1,4 @@
-use std::{ffi::OsStr, fmt::{self, Display, Formatter}};
+use std::{ffi::OsStr, fmt::{self, Display, Formatter}, os::unix::ffi::OsStrExt};
 
 use crate::fs::path::RelPath;
 
@@ -58,10 +58,8 @@ impl<'a> Display for DisplaySlash<'a> {
 
 impl<'a> Display for DisplayNoLead<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", unsafe {
-            OsStr::from_encoded_bytes_unchecked(
-                &self.inner.as_ref().as_encoded_bytes()[1..]
-            ).to_string_lossy()
-        })
+        write!(f, "{}", OsStr::from_bytes(
+            &self.inner.as_ref().as_bytes()[1..]
+        ).to_string_lossy())
     }
 }
