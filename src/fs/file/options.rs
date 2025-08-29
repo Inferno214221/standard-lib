@@ -1,4 +1,5 @@
-use std::{io::RawOsError, os::unix::ffi::OsStrExt, path::Path};
+use std::io::RawOsError;
+use std::os::unix::ffi::OsStrExt;
 
 use libc::{
     O_APPEND, O_CREAT, O_EXCL, O_NOATIME, O_NOFOLLOW, O_RDONLY, O_RDWR, O_SYNC, O_TRUNC, O_WRONLY,
@@ -6,6 +7,7 @@ use libc::{
 };
 
 use super::File;
+use crate::fs::path::{AbsPath, PathLike};
 use crate::fs::util::{self, Fd};
 
 #[derive(Debug, Clone, Default)]
@@ -69,8 +71,8 @@ impl OpenOptions {
         OpenOptions::default()
     }
 
-    pub fn open(&self, file_path: &Path) -> Result<File, RawOsError> {
-        let pathname: *const c_char = file_path.as_os_str().as_bytes().as_ptr().cast();
+    pub fn open<P: AsRef<AbsPath>>(&self, file_path: P) -> Result<File, RawOsError> {
+        let pathname: *const c_char = file_path.as_ref().as_os_str().as_bytes().as_ptr().cast();
 
         match unsafe { libc::open(pathname, self.flags(), self.mode.unwrap_or(0o644) as c_int) } {
             -1 => Err(util::err_no()),

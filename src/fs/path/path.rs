@@ -23,32 +23,13 @@ impl OwnedPath {
         OwnedAbsPath::cwd()
     }
 
-    pub fn to_absolute(self, base: &AbsPath) -> OwnedAbsPath {
+    pub fn to_absolute<P: AsRef<AbsPath>>(self, base: P) -> OwnedAbsPath {
         match self {
             Absolute(abs) => abs,
-            Relative(rel) => base.join(&rel),
+            Relative(rel) => base.as_ref().join(&rel),
         }
     }
 }
-    
-//     delegate! { to match self {
-//         Absolute(path) => path,
-//         Relative(path) => path,
-//     } {
-//         pub fn len(&self) -> usize;
-
-//         pub fn is_empty(&self) -> bool;
-
-//         pub fn as_os_str(&self) -> &OsStr;
-
-//         pub fn as_bytes(&self) -> &[u8];
-
-//         pub fn as_bytes_with_null(&self) -> &[u8];
-
-//         pub fn as_ptr(&self) -> *const u8;
-
-//         pub fn join(&mut self, other: &RelPath);
-//     }}
 
 // pub enum Path {
 //     Absolute(AbsPath),

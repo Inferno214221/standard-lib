@@ -45,7 +45,7 @@ impl OwnedAbsPath {
 
     pub fn cwd() -> Option<OwnedAbsPath> {
         // libc::getcwd()
-        todo!()
+        env::current_dir().ok().map(|dir| OwnedAbsPath::from(dir.as_os_str()))
     }
 }
 

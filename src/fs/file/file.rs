@@ -4,12 +4,12 @@
 // FIXME: What happens to the CStrings that I've been using indirectly? I bet they aren't dropped.
 
 use std::io::RawOsError;
-use std::path::Path;
 
 use libc::c_void;
 
 use super::{CloseError, OpenOptions, SyncError};
 use crate::collections::contiguous::Vector;
+use crate::fs::path::AbsPath;
 use crate::fs::util::{self, Fd};
 pub use crate::fs::util::Metadata;
 use crate::fs::error::{
@@ -23,18 +23,18 @@ pub struct File {
 }
 
 impl File {
-    pub fn open(file_path: &Path) -> Result<File, RawOsError> {
+    pub fn open<P: AsRef<AbsPath>>(file_path: P) -> Result<File, RawOsError> {
         File::options().open(file_path)
     }
 
-    pub fn create(file_path: &Path, file_mode: u16) -> Result<File, RawOsError> {
+    pub fn create<P: AsRef<AbsPath>>(file_path: P, file_mode: u16) -> Result<File, RawOsError> {
         File::options()
             .create_only()
             .mode(file_mode)
             .open(file_path)
     }
 
-    pub fn open_or_create(file_path: &Path, file_mode: u16) -> Result<File, RawOsError> {
+    pub fn open_or_create<P: AsRef<AbsPath>>(file_path: P, file_mode: u16) -> Result<File, RawOsError> {
         File::options()
             .create_if_absent()
             .mode(file_mode)

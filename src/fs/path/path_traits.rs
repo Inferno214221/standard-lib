@@ -23,10 +23,11 @@ pub(crate) mod sealed {
 }
 
 pub trait OwnedPathLike: sealed::OwnedPathInternals {
-    fn push(&mut self, other: &RelPath) {
+    fn push<P: AsRef<RelPath>>(&mut self, other: P) {
+        let other_path = other.as_ref();
         let mut vec: Vector<u8> = mem::take(self.inner_mut()).into_vec().into();
-        vec.reserve(other.len());
-        vec.extend(other.inner.as_bytes().iter().cloned());
+        vec.reserve(other_path.len());
+        vec.extend(other_path.inner.as_bytes().iter().cloned());
         let _ = mem::replace(
             self.inner_mut(),
             OsString::from_vec(vec.into())
@@ -59,11 +60,11 @@ pub trait PathLike: sealed::PathInternals {
 
     // fn parent(&self) -> Self
 
-    fn join(&self, other: &RelPath) -> Self::Owned {
+    fn join<P: AsRef<RelPath>>(&self, other: P) -> Self::Owned {
         use sealed::OwnedPathInternals;
         unsafe {
             Self::Owned::new_unchecked(
-                [self.as_os_str(), other.as_os_str()].into_iter().collect()
+                [self.as_os_str(), other.as_ref().as_os_str()].into_iter().collect()
             )
         }
     }

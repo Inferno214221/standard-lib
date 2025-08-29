@@ -2,7 +2,7 @@ use std::borrow::{Borrow, BorrowMut};
 use std::ffi::{OsStr, OsString};
 use std::ops::{Deref, DerefMut};
 
-use crate::fs::path::{self, OwnedAbsPath, OwnedPathLike, PathLike};
+use crate::fs::path::{self, AbsPath, OwnedAbsPath, OwnedPathLike, PathLike};
 use crate::fs::path::rel::DisplayRel;
 use crate::fs::path::sealed::{OwnedPathInternals, PathInternals};
 
@@ -30,9 +30,8 @@ pub struct RelPath {
 }
 
 impl OwnedRelPath {
-    pub fn resolve<'a>(&self, target: &'a mut OwnedAbsPath) -> &'a mut OwnedAbsPath {
-        target.join(self);
-        target
+    pub fn resolve<P: AsRef<AbsPath>>(&self, target: P) -> OwnedAbsPath {
+        target.as_ref().join(self)
     }
 }
 
@@ -59,6 +58,12 @@ impl From<&OsStr> for OwnedRelPath {
         OwnedRelPath {
             inner: path::sanitize_os_string(value, b"/"),
         }
+    }
+}
+
+impl From<&str> for OwnedRelPath {
+    fn from(value: &str) -> Self {
+        OsStr::new(value).into()
     }
 }
 

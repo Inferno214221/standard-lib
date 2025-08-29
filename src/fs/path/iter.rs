@@ -1,6 +1,6 @@
 use std::ffi::OsStr;
 
-use super::PathLike;
+use super::OwnedPathLike;
 
 pub struct Components<'a> {
     bytes: &'a [u8],

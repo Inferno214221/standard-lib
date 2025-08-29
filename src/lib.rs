@@ -43,7 +43,7 @@
 //! This crate also depends on some derive macros because they're helpful and remove the need for
 //! some very repetitive programming.
 //!
-//! # Potential Future Addition
+//! # Potential Future Additions
 //! - Linux syscall-based components:
 //!   - Allocation
 //!   - Threads / Processes
