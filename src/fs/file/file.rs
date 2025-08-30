@@ -9,7 +9,7 @@ use libc::c_void;
 
 use super::{CloseError, OpenOptions, SyncError};
 use crate::collections::contiguous::Vector;
-use crate::fs::path::AbsPath;
+use crate::fs::path::{Abs, Path};
 use crate::fs::util::{self, Fd};
 pub use crate::fs::util::Metadata;
 use crate::fs::error::{
@@ -23,18 +23,18 @@ pub struct File {
 }
 
 impl File {
-    pub fn open<P: AsRef<AbsPath>>(file_path: P) -> Result<File, RawOsError> {
+    pub fn open<P: AsRef<Path<Abs>>>(file_path: P) -> Result<File, RawOsError> {
         File::options().open(file_path)
     }
 
-    pub fn create<P: AsRef<AbsPath>>(file_path: P, file_mode: u16) -> Result<File, RawOsError> {
+    pub fn create<P: AsRef<Path<Abs>>>(file_path: P, file_mode: u16) -> Result<File, RawOsError> {
         File::options()
             .create_only()
             .mode(file_mode)
             .open(file_path)
     }
 
-    pub fn open_or_create<P: AsRef<AbsPath>>(file_path: P, file_mode: u16) -> Result<File, RawOsError> {
+pub fn open_or_create<P: AsRef<Path<Abs>>>(file_path: P, file_mode: u16) -> Result<File, RawOsError> {
         File::options()
             .create_if_absent()
             .mode(file_mode)
@@ -67,7 +67,7 @@ impl File {
                 unsafe { drop(Vector::from_parts(ptr, len, cap)); }
                 Err(err)
             },
-            Ok(count) if size > count => todo!("Repeat until all bytes are read!"), // TODO
+            Ok(count) if size > count => todo!("Repeat until all bytes are read!"), // FIXME
             Ok(count) => unsafe { Ok(Vector::from_parts(ptr, len + count, cap)) },
         }
     }

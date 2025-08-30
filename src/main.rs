@@ -1,7 +1,7 @@
 use std::{mem::MaybeUninit, os::unix::ffi::OsStrExt, path::PathBuf};
 
 use libc::dirent;
-use standard_lib::{collections::*, fs::*};
+use standard_lib::{collections::*, fs::{path::Rel, *}};
 
 use contiguous::{Array, Vector};
 use hash::{HashMap, HashSet};
@@ -9,7 +9,7 @@ use linked::LinkedList;
 use traits::set::SetIterator;
 
 use file::File;
-use path::{OwnedPath, OwnedRelPath};
+use path::OwnedPath;
 
 fn main() {
     let mut map: HashMap<String, usize> = dbg!(HashMap::new());
@@ -117,7 +117,7 @@ fn main() {
     println!("{:#?}", &set);
     println!("{}", &set);
 
-    let f = File::open(OwnedRelPath::from("./hello.txt").resolve(OwnedPath::cwd().unwrap())).unwrap();
+    let f = File::open(OwnedPath::<Rel>::from("./hello.txt").resolve(OwnedPath::cwd().unwrap())).unwrap();
     println!("{}", f.read_all_string().unwrap());
     // unsafe {
     //     assert_ne!(
@@ -144,7 +144,7 @@ fn main() {
         // println!("{:?}", Directory::open(PathBuf::from("./test").as_path()).unwrap().entries().next())
     }
 
-    let downloads = OwnedRelPath::from("./downloads");
+    let downloads = OwnedPath::<Rel>::from("./downloads");
     println!("{}, {}, {}", downloads.display(), downloads.display().slash(), downloads.display().no_lead());
     let full = downloads.resolve(OwnedPath::home().unwrap());
     println!("{}, {}", full.display(), full.display().shrink_home());

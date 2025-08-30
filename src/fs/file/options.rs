@@ -7,7 +7,7 @@ use libc::{
 };
 
 use super::File;
-use crate::fs::path::{AbsPath, PathLike};
+use crate::fs::path::{Abs, Path};
 use crate::fs::util::{self, Fd};
 
 #[derive(Debug, Clone, Default)]
@@ -71,7 +71,7 @@ impl OpenOptions {
         OpenOptions::default()
     }
 
-    pub fn open<P: AsRef<AbsPath>>(&self, file_path: P) -> Result<File, RawOsError> {
+    pub fn open<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File, RawOsError> {
         let pathname: *const c_char = file_path.as_ref().as_os_str().as_bytes().as_ptr().cast();
 
         match unsafe { libc::open(pathname, self.flags(), self.mode.unwrap_or(0o644) as c_int) } {

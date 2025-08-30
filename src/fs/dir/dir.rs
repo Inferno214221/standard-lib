@@ -5,7 +5,7 @@ use libc::{O_DIRECTORY, O_PATH, c_char, c_int};
 
 use crate::fs::dir::DirEntries;
 use crate::fs::file::CloseError;
-use crate::fs::path::{AbsPath, PathLike};
+use crate::fs::path::{Abs, Path};
 use crate::fs::util::{self, Fd};
 pub use crate::fs::util::Metadata;
 
@@ -15,7 +15,7 @@ pub struct Directory {
 }
 
 impl Directory {
-    pub fn open<P: AsRef<AbsPath>>(dir_path: P) -> Result<Directory, RawOsError> {
+    pub fn open<P: AsRef<Path<Abs>>>(dir_path: P) -> Result<Directory, RawOsError> {
         let pathname: *const c_char = dir_path.as_ref().as_os_str().as_bytes().as_ptr().cast();
 
         let flags: c_int = O_PATH | O_DIRECTORY;
@@ -28,9 +28,9 @@ impl Directory {
         }
     }
 
-    pub const fn entries(&self) -> DirEntries {
+    pub const fn entries<'a>(&'a self) -> DirEntries<'a> {
         DirEntries {
-            dir: &self,
+            dir: self,
             buf: None,
             index: 0,
         }
