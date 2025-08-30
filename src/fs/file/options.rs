@@ -1,18 +1,16 @@
 use std::io::RawOsError;
+use std::marker::PhantomData;
 use std::os::unix::ffi::OsStrExt;
 
-use libc::{
-    O_APPEND, O_CREAT, O_EXCL, O_NOATIME, O_NOFOLLOW, O_RDONLY, O_RDWR, O_SYNC, O_TRUNC, O_WRONLY,
-    c_char, c_int,
-};
+use libc::{O_APPEND, O_CREAT, O_EXCL, O_NOATIME, O_NOFOLLOW, O_SYNC, O_TRUNC, c_char, c_int};
 
-use super::File;
+use super::{File, sealed::AccessMode};
 use crate::fs::path::{Abs, Path};
 use crate::fs::util::{self, Fd};
 
-#[derive(Debug, Clone, Default)]
-pub struct OpenOptions {
-    pub access: Option<AccessMode>,
+#[derive(Debug, Clone)]
+pub struct OpenOptions<Access: AccessMode> {
+    pub _access: PhantomData<fn() -> Access>,
     pub create: Option<Create>,
     pub mode: Option<u16>,
     pub append: Option<bool>,
@@ -20,15 +18,6 @@ pub struct OpenOptions {
     pub update_access_time: Option<bool>,
     pub follow_links: Option<bool>,
     pub extra_flags: Option<i32>,
-}
-
-// TODO: Maybe type-state this?
-#[derive(Debug, Clone, Copy, Default)]
-pub enum AccessMode {
-    Read,
-    Write,
-    #[default]
-    ReadWrite,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -40,13 +29,9 @@ pub enum Create {
     Require,
 }
 
-impl OpenOptions {
+impl<A: AccessMode> OpenOptions<A> {
     pub(crate) fn flags(&self) -> c_int {
-        let mut flags: c_int = match self.access.unwrap_or_default() {
-            AccessMode::Read => O_RDONLY,
-            AccessMode::Write => O_WRONLY,
-            AccessMode::ReadWrite => O_RDWR,
-        };
+        let mut flags: c_int = A::FLAGS;
         match &self.create.unwrap_or_default() {
             Create::No => (),
             Create::IfAbsent => flags |= O_CREAT,
@@ -68,32 +53,20 @@ impl OpenOptions {
         flags | self.extra_flags.unwrap_or_default()
     }
 
-    pub fn new() -> OpenOptions {
-        OpenOptions::default()
+    pub fn new() -> OpenOptions<A> {
+        OpenOptions::<A>::default()
     }
 
-    pub fn open<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File, RawOsError> {
+    pub fn open<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File<A>, RawOsError> {
         let pathname: *const c_char = file_path.as_ref().as_os_str().as_bytes().as_ptr().cast();
 
         match unsafe { libc::open(pathname, self.flags(), self.mode.unwrap_or(0o644) as c_int) } {
             -1 => Err(util::err_no()),
-            fd => Ok(File { fd: Fd(fd) }),
+            fd => Ok(File::<A> {
+                _access: PhantomData,
+                fd: Fd(fd),
+            }),
         }
-    }
-
-    pub const fn read_only(&mut self) -> &mut Self {
-        self.access = Some(AccessMode::Read);
-        self
-    }
-
-    pub const fn write_only(&mut self) -> &mut Self {
-        self.access = Some(AccessMode::Write);
-        self
-    }
-
-    pub const fn read_write(&mut self) -> &mut Self {
-        self.access = Some(AccessMode::ReadWrite);
-        self
     }
 
     pub const fn if_present(&mut self) -> &mut Self {
@@ -144,5 +117,21 @@ impl OpenOptions {
     pub const fn extra_flags(&mut self, value: i32) -> &mut Self {
         self.extra_flags = Some(value);
         self
+    }
+}
+
+// The Default derive macro doesn't like my zero-variant enums.
+impl<A: AccessMode> Default for OpenOptions<A> {
+    fn default() -> Self {
+        Self {
+            _access: Default::default(),
+            create: Default::default(),
+            mode: Default::default(),
+            append: Default::default(),
+            force_sync: Default::default(),
+            update_access_time: Default::default(),
+            follow_links: Default::default(),
+            extra_flags: Default::default()
+        }
     }
 }
