@@ -1,8 +1,6 @@
-use std::borrow::{Borrow, BorrowMut};
 use std::env;
 use std::ffi::{OsStr, OsString};
 use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
 
 use super::{OwnedPath, Path, sealed};
 
@@ -69,55 +67,5 @@ impl From<&OsStr> for OwnedPath<Abs> {
 impl From<&str> for OwnedPath<Abs> {
     fn from(value: &str) -> Self {
         OsStr::new(value).into()
-    }
-}
-
-impl Deref for OwnedPath<Abs> {
-    type Target = Path<Abs>;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { Path::<Abs>::new_unchecked(&self.inner) }
-    }
-}
-
-impl DerefMut for OwnedPath<Abs> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { Path::<Abs>::new_unchecked_mut(&mut self.inner) }
-    }
-}
-
-impl AsRef<Path<Abs>> for OwnedPath<Abs> {
-    fn as_ref(&self) -> &Path<Abs> {
-        self.deref()
-    }
-}
-
-impl AsMut<Path<Abs>> for OwnedPath<Abs> {
-    fn as_mut(&mut self) -> &mut Path<Abs> {
-        self.deref_mut()
-    }
-}
-
-impl Borrow<Path<Abs>> for OwnedPath<Abs> {
-    fn borrow(&self) -> &Path<Abs> {
-        self.as_ref()
-    }
-}
-
-impl BorrowMut<Path<Abs>> for OwnedPath<Abs> {
-    fn borrow_mut(&mut self) -> &mut Path<Abs> {
-        self.as_mut()
-    }
-}
-
-impl AsRef<OsStr> for OwnedPath<Abs> {
-    fn as_ref(&self) -> &OsStr {
-        self.inner.as_ref()
-    }
-}
-
-impl AsRef<OsStr> for Path<Abs> {
-    fn as_ref(&self) -> &OsStr {
-        &self.inner
     }
 }

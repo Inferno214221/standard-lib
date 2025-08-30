@@ -22,6 +22,7 @@ pub struct OpenOptions {
     pub extra_flags: Option<i32>,
 }
 
+// TODO: Maybe type-state this?
 #[derive(Debug, Clone, Copy, Default)]
 pub enum AccessMode {
     Read,

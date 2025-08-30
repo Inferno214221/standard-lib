@@ -1,6 +1,8 @@
+use std::borrow::Borrow;
 use std::ffi::{OsStr, OsString};
 use std::marker::PhantomData;
 use std::mem;
+use std::ops::Deref;
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
 
 use super::{DisplayPath, Rel};
@@ -12,25 +14,11 @@ pub(crate) mod sealed {
     pub trait PathState {}
 }
 
-/// TODO
-///
-/// # Invariants
-/// - The string starts with '/'.
-/// - The string contains no repeated '/' characters or occurrences of "/./".
-/// - The string contains no trailing '/'.
-/// - The string contains no \0.
 pub struct OwnedPath<State: sealed::PathState> {
     pub(crate) _phantom: PhantomData<fn() -> State>,
     pub(crate) inner: OsString,
 }
 
-/// TODO
-///
-/// # Invariants
-/// - The string starts with '/'.
-/// - The string contains no repeated '/' characters or occurrences of "/./".
-/// - The string contains no trailing '/'.
-/// - The string contains no \0.
 #[repr(transparent)]
 pub struct Path<State: sealed::PathState> {
     pub(crate) _phantom: PhantomData<fn() -> State>,
@@ -168,4 +156,36 @@ pub(crate) fn sanitize_os_str(value: &OsStr) -> OsString {
     }
 
     OsString::from_vec(valid.into())
+}
+
+impl<S: sealed::PathState> Deref for OwnedPath<S> {
+    type Target = Path<S>;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { Path::<S>::new_unchecked(&self.inner) }
+    }
+}
+
+impl<S: sealed::PathState> AsRef<Path<S>> for OwnedPath<S> {
+    fn as_ref(&self) -> &Path<S> {
+        self.deref()
+    }
+}
+
+impl<S: sealed::PathState> Borrow<Path<S>> for OwnedPath<S> {
+    fn borrow(&self) -> &Path<S> {
+        self.as_ref()
+    }
+}
+
+impl<S: sealed::PathState> AsRef<OsStr> for OwnedPath<S> {
+    fn as_ref(&self) -> &OsStr {
+        self.inner.as_ref()
+    }
+}
+
+impl<S: sealed::PathState> AsRef<OsStr> for Path<S> {
+    fn as_ref(&self) -> &OsStr {
+        &self.inner
+    }
 }
