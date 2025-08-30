@@ -52,7 +52,7 @@ impl<'a> Display for DisplayPath<'a, Abs> {
 
 impl<'a> Display for DisplayFull<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.inner.as_ref().to_string_lossy())
+        write!(f, "{}", self.inner.as_os_str().to_string_lossy())
     }
 }
 
@@ -62,7 +62,7 @@ impl<'a> Display for DisplayHome<'a> {
             && let Some(rel) = self.inner.relative(&home) {
             write!(f, "~{}", rel.display().slash())
         } else {
-            write!(f, "{}", self.inner.as_ref().to_string_lossy())
+            write!(f, "{}", self.inner.as_os_str().to_string_lossy())
         }
     }
 }
@@ -95,20 +95,20 @@ impl<'a> Display for DisplayPath<'a, Rel> {
 
 impl<'a> Display for DisplayDotSlash<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, ".{}", self.inner.as_ref().to_string_lossy())
+        write!(f, ".{}", self.inner.as_os_str().to_string_lossy())
     }
 }
 
 impl<'a> Display for DisplaySlash<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.inner.as_ref().to_string_lossy())
+        write!(f, "{}", self.inner.as_os_str().to_string_lossy())
     }
 }
 
 impl<'a> Display for DisplayNoLead<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", OsStr::from_bytes(
-            &self.inner.as_ref().as_bytes()[1..]
+            &self.inner.as_os_str().as_bytes()[1..]
         ).to_string_lossy())
     }
 }

@@ -2,16 +2,15 @@ use std::env;
 use std::ffi::{OsStr, OsString};
 use std::marker::PhantomData;
 
-use super::{OwnedPath, Path, sealed};
+use super::{OwnedPath, Path, sealed::PathState};
 
 pub enum Abs {}
-
-impl sealed::PathState for Abs {}
+impl PathState for Abs {}
 
 impl OwnedPath<Abs> {
     pub fn root() -> OwnedPath<Abs> {
         OwnedPath::<Abs> {
-            _phantom: PhantomData,
+            _state: PhantomData,
             inner: OsString::from("/"),
         }
     }

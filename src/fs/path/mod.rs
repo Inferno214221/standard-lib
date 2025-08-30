@@ -13,6 +13,9 @@
 //! ([`Abs`]) or relative ([`Rel`]). Both of these states are represented as zero-variant enums, so
 //! they can't be instantiated.
 //! 
+//! For most file operations, an [`Abs`] path will be required, meaning that relative paths need to
+//! be [`resolved`](Path<Rel>::resolve) first.
+//! 
 //! # Validity
 //! Both path types uphold the following invariants to ensure that the contained
 //! [`OsString`](std::ffi::OsString) is _valid_:

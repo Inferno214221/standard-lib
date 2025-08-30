@@ -1,19 +1,35 @@
-use std::ffi::OsStr;
+use std::{ffi::OsStr, mem};
 
-use super::{Abs, OwnedPath, Path, sealed};
+use super::{Abs, OwnedPath, Path, sealed::PathState};
 
 pub enum Rel {}
-
-impl sealed::PathState for Rel {}
+impl PathState for Rel {}
 
 impl OwnedPath<Rel> {
-    pub fn resolve<P: AsRef<Path<Abs>>>(&self, target: P) -> OwnedPath<Abs> {
-        target.as_ref().join(self)
+    pub fn resolve_root(self) -> OwnedPath<Abs> {
+        // SAFETY: OwnedPath<Rel> has the same layout as OwnedPath<Abs> and represents the same
+        // result as resolving relative to the root.
+        unsafe { mem::transmute(self) }
     }
 }
 
 impl Path<Rel> {
-    //
+    pub fn resolve(&self, mut target: OwnedPath<Abs>) -> OwnedPath<Abs> {
+        target.push(self);
+        target
+    }
+
+    pub fn resolve_root(&self) -> OwnedPath<Abs> {
+        self.resolve(OwnedPath::root())
+    }
+
+    pub fn resolve_home(&self) -> Option<OwnedPath<Abs>> {
+        Some(self.resolve(OwnedPath::home()?))
+    }
+
+    pub fn resolve_cwd(&self) -> Option<OwnedPath<Abs>> {
+        Some(self.resolve(OwnedPath::cwd()?))
+    }
 }
 
 impl From<&OsStr> for OwnedPath<Rel> {

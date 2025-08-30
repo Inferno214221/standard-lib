@@ -14,28 +14,32 @@ pub(crate) mod sealed {
     pub trait PathState {}
 }
 
-pub struct OwnedPath<State: sealed::PathState> {
-    pub(crate) _phantom: PhantomData<fn() -> State>,
+use sealed::*;
+
+#[derive(Clone)]
+#[repr(transparent)]
+pub struct OwnedPath<State: PathState> {
+    pub(crate) _state: PhantomData<fn() -> State>,
     pub(crate) inner: OsString,
 }
 
 #[repr(transparent)]
-pub struct Path<State: sealed::PathState> {
-    pub(crate) _phantom: PhantomData<fn() -> State>,
+pub struct Path<State: PathState> {
+    pub(crate) _state: PhantomData<fn() -> State>,
     pub(crate) inner: OsStr,
 }
 
-impl<S: sealed::PathState> OwnedPath<S> {
+impl<S: PathState> OwnedPath<S> {
     pub(crate) fn from_os_str_sanitized(value: &OsStr) -> Self {
         Self {
-            _phantom: PhantomData,
+            _state: PhantomData,
             inner: sanitize_os_str(value),
         }
     }
 
     pub const unsafe fn new_unchecked(inner: OsString) -> Self {
         Self {
-            _phantom: PhantomData,
+            _state: PhantomData,
             inner,
         }
     }
@@ -52,12 +56,14 @@ impl<S: sealed::PathState> OwnedPath<S> {
     }
 }
 
-impl<S: sealed::PathState> Path<S> {
+impl<S: PathState> Path<S> {
     pub const unsafe fn new_unchecked(value: &OsStr) -> &Self {
+        // SAFETY: Path<S> is `repr(transparent)`, so to it has the same layout as OsStr.
         unsafe { &*(value as *const OsStr as *const Self) }
     }
 
     pub const unsafe fn new_unchecked_mut(value: &mut OsStr) -> &mut Self {
+        // SAFETY: Path<S> is `repr(transparent)`, so to it has the same layout as OsStr.
         unsafe { &mut *(value as *mut OsStr as *mut Self) }
     }
 
@@ -80,7 +86,9 @@ impl<S: sealed::PathState> Path<S> {
         &self.inner
     }
 
-    // pub fn as_bytes(&self) -> &[u8]
+    pub fn as_bytes(&self) -> &[u8] {
+        self.inner.as_bytes()
+    }
 
     // pub fn as_bytes_with_null(&self) -> &[u8]
 
@@ -103,7 +111,9 @@ impl<S: sealed::PathState> Path<S> {
             None => None,
             // If there is no leading slash, strip_prefix matched only part of a component so
             // treat it as a fail.
+            // FIXME: It is possible that b"/" is the second part of a multi-byte character.
             Some(replaced) if !replaced.starts_with(b"/") => None,
+            // SAFETY: If the relative path starts with a b"/", then it is still a valid Path.
             Some(replaced) => unsafe {
                 Some(Path::<Rel>::new_unchecked(OsStr::from_bytes(replaced)))
             },
@@ -158,33 +168,41 @@ pub(crate) fn sanitize_os_str(value: &OsStr) -> OsString {
     OsString::from_vec(valid.into())
 }
 
-impl<S: sealed::PathState> Deref for OwnedPath<S> {
+impl<S: PathState> Deref for OwnedPath<S> {
     type Target = Path<S>;
 
     fn deref(&self) -> &Self::Target {
+        // SAFETY: OwnedPath upholds the same invariants as Path.
         unsafe { Path::<S>::new_unchecked(&self.inner) }
     }
 }
 
-impl<S: sealed::PathState> AsRef<Path<S>> for OwnedPath<S> {
+impl<S: PathState> AsRef<Path<S>> for OwnedPath<S> {
     fn as_ref(&self) -> &Path<S> {
         self.deref()
     }
 }
 
-impl<S: sealed::PathState> Borrow<Path<S>> for OwnedPath<S> {
+// Apparently there isn't a blanket impl for this?
+impl<S: PathState> AsRef<Path<S>> for Path<S> {
+    fn as_ref(&self) -> &Path<S> {
+        self
+    }
+}
+
+impl<S: PathState> Borrow<Path<S>> for OwnedPath<S> {
     fn borrow(&self) -> &Path<S> {
         self.as_ref()
     }
 }
 
-impl<S: sealed::PathState> AsRef<OsStr> for OwnedPath<S> {
+impl<S: PathState> AsRef<OsStr> for OwnedPath<S> {
     fn as_ref(&self) -> &OsStr {
         self.inner.as_ref()
     }
 }
 
-impl<S: sealed::PathState> AsRef<OsStr> for Path<S> {
+impl<S: PathState> AsRef<OsStr> for Path<S> {
     fn as_ref(&self) -> &OsStr {
         &self.inner
     }
