@@ -1,8 +1,10 @@
 use std::{ffi::OsStr, mem};
 
-use super::{Abs, OwnedPath, Path, sealed::PathState};
+use super::{Abs, OwnedPath, Path, PathState};
+use crate::util::sealed::Sealed;
 
 pub enum Rel {}
+impl Sealed for Rel {}
 impl PathState for Rel {}
 
 impl OwnedPath<Rel> {

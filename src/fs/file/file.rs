@@ -17,30 +17,30 @@ use crate::fs::error::{
     BadFDError, IOError, InterruptError, StorageExhaustedError, SyncUnsupportedError,
     UnexpectedError,
 };
+use crate::util::sealed::Sealed;
 
-pub(crate) mod sealed {
-    pub trait AccessMode {
-        const FLAGS: libc::c_int;
-    }
-    pub trait Read: AccessMode {}
-    pub trait Write: AccessMode {}
+pub trait AccessMode: Sealed {
+    const FLAGS: libc::c_int;
 }
-
-use sealed::*;
+pub trait Read: AccessMode {}
+pub trait Write: AccessMode {}
 
 pub enum ReadOnly {}
+impl Sealed for ReadOnly {}
 impl AccessMode for ReadOnly {
     const FLAGS: c_int = libc::O_RDONLY;
 }
 impl Read for ReadOnly {}
 
 pub enum WriteOnly {}
+impl Sealed for WriteOnly {}
 impl AccessMode for WriteOnly {
     const FLAGS: c_int = libc::O_WRONLY;
 }
 impl Write for ReadOnly {}
 
 pub enum ReadWrite {}
+impl Sealed for ReadWrite {}
 impl AccessMode for ReadWrite {
     const FLAGS: c_int = libc::O_RDWR;
 }

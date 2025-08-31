@@ -2,9 +2,11 @@ use std::env;
 use std::ffi::{OsStr, OsString};
 use std::marker::PhantomData;
 
-use super::{OwnedPath, Path, sealed::PathState};
+use super::{OwnedPath, Path, PathState};
+use crate::util::sealed::Sealed;
 
 pub enum Abs {}
+impl Sealed for Abs {}
 impl PathState for Abs {}
 
 impl OwnedPath<Abs> {

@@ -3,9 +3,9 @@ use std::fmt::{self, Display, Formatter};
 use std::marker::PhantomData;
 use std::os::unix::ffi::OsStrExt;
 
-use super::{Abs, OwnedPath, Path, Rel, sealed};
+use super::{Abs, OwnedPath, Path, Rel, PathState};
 
-pub struct DisplayPath<'a, State: sealed::PathState> {
+pub struct DisplayPath<'a, State: PathState> {
     pub(crate) _phantom: PhantomData<fn() -> State>,
     pub(crate) inner: &'a Path<State>,
 }

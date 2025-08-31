@@ -4,7 +4,7 @@ use std::os::unix::ffi::OsStrExt;
 
 use libc::{O_APPEND, O_CREAT, O_EXCL, O_NOATIME, O_NOFOLLOW, O_SYNC, O_TRUNC, c_char, c_int};
 
-use super::{File, sealed::AccessMode};
+use super::{File, AccessMode};
 use crate::fs::path::{Abs, Path};
 use crate::fs::util::{self, Fd};
 

@@ -7,14 +7,11 @@ use std::os::unix::ffi::{OsStrExt, OsStringExt};
 
 use super::{DisplayPath, Rel};
 use crate::collections::contiguous::Vector;
+use crate::util::sealed::Sealed;
 
 use derive_more::IsVariant;
 
-pub(crate) mod sealed {
-    pub trait PathState {}
-}
-
-use sealed::*;
+pub trait PathState: Sealed {}
 
 #[derive(Clone)]
 #[repr(transparent)]
