@@ -37,14 +37,8 @@ impl Path<Rel> {
     }
 }
 
-impl From<&OsStr> for OwnedPath<Rel> {
-    fn from(value: &OsStr) -> Self {
-        Self::from_os_str_sanitized(value)
-    }
-}
-
-impl From<&str> for OwnedPath<Rel> {
-    fn from(value: &str) -> Self {
-        OsStr::new(value).into()
+impl<O: AsRef<OsStr>> From<O> for OwnedPath<Rel> {
+    fn from(value: O) -> Self {
+        Self::from_os_str_sanitized(value.as_ref())
     }
 }

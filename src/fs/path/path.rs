@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::cmp::Ordering;
 use std::ffi::{CString, OsStr, OsString};
 use std::marker::PhantomData;
 use std::mem;
@@ -35,7 +36,7 @@ impl<S: PathState> OwnedPath<S> {
         }
     }
 
-    pub const unsafe fn new_unchecked(inner: OsString) -> Self {
+    pub const unsafe fn from_unchecked(inner: OsString) -> Self {
         Self {
             _state: PhantomData,
             inner,
@@ -59,14 +60,14 @@ impl<S: PathState> OwnedPath<S> {
 }
 
 impl<S: PathState> Path<S> {
-    pub const unsafe fn new_unchecked(value: &OsStr) -> &Self {
+    pub unsafe fn from_unchecked<O: AsRef<OsStr> + ?Sized>(value: &O) -> &Self {
         // SAFETY: Path<S> is `repr(transparent)`, so to it has the same layout as OsStr.
-        unsafe { &*(value as *const OsStr as *const Self) }
+        unsafe { &*(value.as_ref() as *const OsStr as *const Self) }
     }
 
-    pub const unsafe fn new_unchecked_mut(value: &mut OsStr) -> &mut Self {
+    pub unsafe fn from_unchecked_mut<O: AsMut<OsStr> + ?Sized>(value: &mut O) -> &mut Self {
         // SAFETY: Path<S> is `repr(transparent)`, so to it has the same layout as OsStr.
-        unsafe { &mut *(value as *mut OsStr as *mut Self) }
+        unsafe { &mut *(value.as_mut() as *mut OsStr as *mut Self) }
     }
 
     pub const fn display<'a>(&'a self) -> DisplayPath<'a, S> {
@@ -98,7 +99,7 @@ impl<S: PathState> Path<S> {
 
     pub fn join<P: AsRef<Path<Rel>>>(&self, other: P) -> OwnedPath<S> {
         unsafe {
-            OwnedPath::<S>::new_unchecked(
+            OwnedPath::<S>::from_unchecked(
                 [self.as_os_str(), other.as_ref().as_os_str()].into_iter().collect()
             )
         }
@@ -113,7 +114,7 @@ impl<S: PathState> Path<S> {
             Some(replaced) if !replaced.starts_with(b"/") => None,
             // SAFETY: If the relative path starts with a b"/", then it is still a valid Path.
             Some(replaced) => unsafe {
-                Some(Path::<Rel>::new_unchecked(OsStr::from_bytes(replaced)))
+                Some(Path::<Rel>::from_unchecked(OsStr::from_bytes(replaced)))
             },
         }
     }
@@ -168,12 +169,21 @@ pub(crate) fn sanitize_os_str(value: &OsStr) -> OsString {
     OsString::from_vec(valid.into())
 }
 
+impl<S: PathState> From<OwnedPath<S>> for CString {
+    fn from(value: OwnedPath<S>) -> Self {
+        let mut bytes = value.inner.into_vec();
+        bytes.push(b'\0');
+        // SAFETY: OsString already guarantees that the internal string contains no '\0'.
+        unsafe { CString::from_vec_with_nul_unchecked(bytes) }
+    }
+}
+
 impl<S: PathState> Deref for OwnedPath<S> {
     type Target = Path<S>;
 
     fn deref(&self) -> &Self::Target {
         // SAFETY: OwnedPath upholds the same invariants as Path.
-        unsafe { Path::<S>::new_unchecked(&self.inner) }
+        unsafe { Path::<S>::from_unchecked(&self.inner) }
     }
 }
 
@@ -196,12 +206,6 @@ impl<S: PathState> Borrow<Path<S>> for OwnedPath<S> {
     }
 }
 
-impl<S: PathState> AsRef<OsStr> for OwnedPath<S> {
-    fn as_ref(&self) -> &OsStr {
-        self.inner.as_ref()
-    }
-}
-
 impl<S: PathState> AsRef<OsStr> for Path<S> {
     fn as_ref(&self) -> &OsStr {
         &self.inner
@@ -216,11 +220,66 @@ impl<S: PathState> ToOwned for Path<S> {
     }
 }
 
-impl<S: PathState> From<OwnedPath<S>> for CString {
-    fn from(value: OwnedPath<S>) -> Self {
-        let mut bytes = value.inner.into_vec();
-        bytes.push(b'\0');
-        // SAFETY: OsString already guarantees that the internal string contains no '\0'.
-        unsafe { CString::from_vec_with_nul_unchecked(bytes) }
+impl<S: PathState> PartialEq for OwnedPath<S> {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_ref().inner == other.as_ref().inner
+    }
+}
+
+impl<S: PathState> PartialEq for Path<S> {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner == other.inner
+    }
+}
+
+impl<S: PathState> PartialEq<Path<S>> for OwnedPath<S> {
+    fn eq(&self, other: &Path<S>) -> bool {
+        self.as_ref().inner == other.inner
+    }
+}
+
+impl<S: PathState> PartialEq<OwnedPath<S>> for Path<S> {
+    fn eq(&self, other: &OwnedPath<S>) -> bool {
+        self.inner == other.as_ref().inner
+    }
+}
+
+impl<S: PathState> Eq for OwnedPath<S> {}
+
+impl<S: PathState> Eq for Path<S> {}
+
+impl<S: PathState> PartialOrd for OwnedPath<S> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<S: PathState> Ord for OwnedPath<S> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.as_ref().inner.cmp(&other.as_ref().inner)
+    }
+}
+
+impl<S: PathState> PartialOrd for Path<S> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<S: PathState> Ord for Path<S> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.inner.cmp(&other.inner)
+    }
+}
+
+impl<S: PathState> PartialOrd<Path<S>> for OwnedPath<S> {
+    fn partial_cmp(&self, other: &Path<S>) -> Option<Ordering> {
+        Some(self.as_ref().cmp(other))
+    }
+}
+
+impl<S: PathState> PartialOrd<OwnedPath<S>> for Path<S> {
+    fn partial_cmp(&self, other: &OwnedPath<S>) -> Option<Ordering> {
+        Some(self.cmp(other.as_ref()))
     }
 }

@@ -62,18 +62,8 @@ impl Path<Abs> {
     // type agnostic methods, e.g. copy, move, rename, etc. chown, chmod?
 }
 
-// FIXME: Maybe this should be a named from method.
-
-// TODO: Conversion from CStr
-
-impl From<&OsStr> for OwnedPath<Abs> {
-    fn from(value: &OsStr) -> Self {
-        Self::from_os_str_sanitized(value)
-    }
-}
-
-impl From<&str> for OwnedPath<Abs> {
-    fn from(value: &str) -> Self {
-        OsStr::new(value).into()
+impl<O: AsRef<OsStr>> From<O> for OwnedPath<Abs> {
+    fn from(value: O) -> Self {
+        Self::from_os_str_sanitized(value.as_ref())
     }
 }
