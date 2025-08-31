@@ -169,7 +169,7 @@ impl<T> Array<T> {
     ///
     /// # Safety
     /// When this mutable reference is dropped, self still need to be a valid and initialized
-    /// Array<T>. Failing to do so is undefined behavior, as it is effectively the same as calling
+    /// `Array<T>`. Failing to do so is undefined behavior, as it is effectively the same as calling
     /// [`Array::assume_init`].
     pub unsafe fn forget_init_mut(&mut self) -> &mut Array<MaybeUninit<T>> {
         // SAFETY: &mut Array<T> has the same layout as &mut Array<MaybeUninit<T>>.

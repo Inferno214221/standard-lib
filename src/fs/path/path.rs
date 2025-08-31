@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::ffi::{CString, OsStr, OsString};
+use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::Deref;
@@ -12,7 +13,7 @@ use crate::util::sealed::Sealed;
 
 use derive_more::IsVariant;
 
-pub trait PathState: Sealed {}
+pub trait PathState: Sealed + Debug {}
 
 #[derive(Debug, Clone)]
 #[repr(transparent)]

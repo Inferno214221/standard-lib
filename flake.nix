@@ -3,71 +3,93 @@
 
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-25.05";
-    rust-overlay.url = "github:oxalica/rust-overlay";
     flake-utils.url = "github:numtide/flake-utils";
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    naersk-pkg = {
+      url = "github:nix-community/naersk";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }:
+  outputs = { self, nixpkgs, flake-utils, fenix, naersk-pkg, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        overlays = [ (import rust-overlay) ];
+        overlays = [ fenix.overlays.default ];
         pkgs = import nixpkgs {
           inherit system overlays;
         };
-        rustVersion = "2025-06-18";
-        rust = (pkgs.rust-bin.nightly."${rustVersion}".default.override {
-          extensions = [ "rust-src" ];
-        });
+        toolchain = fenix.packages.${system}.fromToolchainFile {
+          file = ./rust-toolchain.toml;
+          sha256 = "sha256-SISBvV1h7Ajhs8g0pNezC1/KGA0hnXnApQ/5//STUbs=";
+        };
+        naersk = pkgs.callPackage naersk-pkg {
+          cargo = toolchain;
+          rustc = toolchain;
+        };
         buildInputs = with pkgs; [];
         nativeBuildInputs = with pkgs; [
-          rust
+          toolchain
           pkg-config
           gcc
           cargo-expand
           man-pages
         ] ++ buildInputs;
-        rustPlatform = pkgs.makeRustPlatform {
-          cargo = rust;
-          rustc = rust;
-        };
       in with pkgs; rec
       {
         devShells.default = mkShell {
           inherit nativeBuildInputs;
         };
 
-        packages.docs = rustPlatform.buildRustPackage {
-          name = "standard-lib-doc";
-          version = "0.1.0";
-
+        packages.docs-raw = (naersk.buildPackage rec {
           src = ./.;
-
-          cargoHash = "sha256-72EIg2n5ODzlWcBwO1cCRYqK24DO70345dQhm8iAf1g=";
 
           inherit nativeBuildInputs;
 
+          mode = "check";
+          doDoc = true;
+          doDocFail = true;
+          cargoDocCommands = old: [
+            ''
+              cargo $cargo_options rustdoc -- \
+                --theme ${src}/doc/kali-dark.css \
+                --html-in-header ${./doc/robots.html} \
+                --enable-index-page \
+                -Z unstable-options
+            # ''
+            # ^ This is really bad but we just use a bash open comment here so that eval doesn't
+            # complain about "unexpected syntax token near '||'". We need doDocFail anyway, so the
+            # generated code is `|| false`. (No effect)
+          ];
+
+          postInstall = ''
+            cp $src/doc/robots.txt $out/
+            cp $src/doc/CNAME $out/
+          '';
+        }).doc;
+
+        packages.docs = stdenv.mkDerivation {
+          name = "standard-lib-doc";
+          version = "0.1.0";
+          src = "${packages.docs-raw}";
+
           buildPhase = ''
-            cargo rustdoc -- \
-              --theme $src/doc/kali-dark.css \
-              --html-in-header $src/doc/robots.html \
-              --enable-index-page \
-              -Z unstable-options
             # Highlight keywords
-            find ./target/doc/standard_lib -type f -name "*html" -exec sed -E "s/(>|>([^\">]*[; \[\(])?)(((pub|const|fn|self|Self|struct|enum|type|impl|for|unsafe|as|mut) ?)+)([<& \n:,\)])/\1<span class=\"extra-kw\">\3<\/span>\6/g" -i {} \;
+            find ./standard_lib -type f -name "*html" -exec sed -E "s/(>|>([^\">]*[; \[\(])?)(((pub|const|fn|self|Self|struct|enum|type|impl|for|unsafe|as|mut) ?)+)([<& \n:,\)])/\1<span class=\"extra-kw\">\3<\/span>\6/g" -i {} \;
             # Second pass for references and pointers
-            find ./target/doc/standard_lib -type f -name "*html" -exec sed -E "s/(>|>([^\">]*[; \[\(]*)?)(mut|const) /\1<span class=\"extra-kw\">\3<\/span> /g" -i {} \;
+            find ./standard_lib -type f -name "*html" -exec sed -E "s/(>|>([^\">]*[; \[\(]*)?)(mut|const) /\1<span class=\"extra-kw\">\3<\/span> /g" -i {} \;
             # Highlight operators
-            find ./target/doc/standard_lib -type f -name "*html" -exec sed -E "s/(>|>([^\">]*[; \[\(\w])?)(&amp;|-&gt;|::|\*)([^/])/\1<span class=\"extra-op\">\3<\/span>\4/g" -i {} \;
+            find ./standard_lib -type f -name "*html" -exec sed -E "s/(>|>([^\">]*[; \[\(\w])?)(&amp;|-&gt;|::|\*)([^/])/\1<span class=\"extra-op\">\3<\/span>\4/g" -i {} \;
             # Where
-            find ./target/doc/standard_lib -type f -name "*html" -exec sed -E "s/(<div class=\"where\">)(where)/\1<span class=\"extra-kw\">\2<\/span>/g" -i {} \;
+            find ./standard_lib -type f -name "*html" -exec sed -E "s/(<div class=\"where\">)(where)/\1<span class=\"extra-kw\">\2<\/span>/g" -i {} \;
             # TODO: '\w+, mut, <>, (), []
           '';
 
           installPhase = ''
             mkdir -p $out
-            cp -R ./target/doc/* $out/
-            cp $src/doc/robots.txt $out/
-            cp $src/doc/CNAME $out/
+            cp -R ./* $out/
           '';
         };
 
