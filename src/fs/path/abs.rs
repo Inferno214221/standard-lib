@@ -5,8 +5,11 @@ use std::marker::PhantomData;
 use super::{OwnedPath, Path, PathState};
 use crate::util::sealed::Sealed;
 
+#[derive(Debug)]
 pub enum Abs {}
+
 impl Sealed for Abs {}
+
 impl PathState for Abs {}
 
 impl OwnedPath<Abs> {
@@ -58,6 +61,10 @@ impl Path<Abs> {
 
     // type agnostic methods, e.g. copy, move, rename, etc. chown, chmod?
 }
+
+// FIXME: Maybe this should be a named from method.
+
+// TODO: Conversion from CStr
 
 impl From<&OsStr> for OwnedPath<Abs> {
     fn from(value: &OsStr) -> Self {

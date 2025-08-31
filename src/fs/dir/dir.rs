@@ -1,7 +1,7 @@
+use std::ffi::CString;
 use std::io::RawOsError;
-use std::os::unix::ffi::OsStrExt;
 
-use libc::{O_DIRECTORY, O_PATH, c_char, c_int};
+use libc::{O_DIRECTORY, O_PATH, c_int};
 
 use crate::fs::dir::DirEntries;
 use crate::fs::file::CloseError;
@@ -16,11 +16,11 @@ pub struct Directory {
 
 impl Directory {
     pub fn open<P: AsRef<Path<Abs>>>(dir_path: P) -> Result<Directory, RawOsError> {
-        let pathname: *const c_char = dir_path.as_ref().as_os_str().as_bytes().as_ptr().cast();
+        let pathname = CString::from(dir_path.as_ref().to_owned());
 
         let flags: c_int = O_PATH | O_DIRECTORY;
 
-        match unsafe { libc::open(pathname, flags) } {
+        match unsafe { libc::open(pathname.as_ptr().cast(), flags) } {
             -1 => Err(util::err_no()),
             fd => Ok(Directory {
                 fd: Fd(fd),

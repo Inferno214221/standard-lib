@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::ffi::{OsStr, OsString};
+use std::ffi::{CString, OsStr, OsString};
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::Deref;
@@ -13,13 +13,14 @@ use derive_more::IsVariant;
 
 pub trait PathState: Sealed {}
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 #[repr(transparent)]
 pub struct OwnedPath<State: PathState> {
     pub(crate) _state: PhantomData<fn() -> State>,
     pub(crate) inner: OsString,
 }
 
+#[derive(Debug)]
 #[repr(transparent)]
 pub struct Path<State: PathState> {
     pub(crate) _state: PhantomData<fn() -> State>,
@@ -39,6 +40,10 @@ impl<S: PathState> OwnedPath<S> {
             _state: PhantomData,
             inner,
         }
+    }
+
+    pub fn as_path(&self) -> &Path<S> {
+        self
     }
 
     pub fn push<P: AsRef<Path<Rel>>>(&mut self, other: P) {
@@ -87,10 +92,6 @@ impl<S: PathState> Path<S> {
         self.inner.as_bytes()
     }
 
-    // pub fn as_bytes_with_null(&self) -> &[u8]
-
-    // pub fn as_ptr(&self) -> *const u8
-
     // pub fn basename(&self) -> &OsStr
 
     // pub fn parent(&self) -> Self
@@ -125,6 +126,8 @@ enum Seq {
     Other,
 }
 
+// Unfortunately, it's cheaper to copy all values one by one that constantly move all bytes back and
+// forward with insertions and removals.
 pub(crate) fn sanitize_os_str(value: &OsStr) -> OsString {
     let mut last_seq = Seq::Other;
     let mut valid = Vector::with_cap(value.len() + 1);
@@ -202,5 +205,22 @@ impl<S: PathState> AsRef<OsStr> for OwnedPath<S> {
 impl<S: PathState> AsRef<OsStr> for Path<S> {
     fn as_ref(&self) -> &OsStr {
         &self.inner
+    }
+}
+
+impl<S: PathState> ToOwned for Path<S> {
+    type Owned = OwnedPath<S>;
+
+    fn to_owned(&self) -> Self::Owned {
+        OwnedPath::<S>::from_os_str_sanitized(self.as_os_str())
+    }
+}
+
+impl<S: PathState> From<OwnedPath<S>> for CString {
+    fn from(value: OwnedPath<S>) -> Self {
+        let mut bytes = value.inner.into_vec();
+        bytes.push(b'\0');
+        // SAFETY: OsString already guarantees that the internal string contains no '\0'.
+        unsafe { CString::from_vec_with_nul_unchecked(bytes) }
     }
 }

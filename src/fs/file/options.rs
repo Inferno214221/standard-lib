@@ -1,8 +1,8 @@
+use std::ffi::CString;
 use std::io::RawOsError;
 use std::marker::PhantomData;
-use std::os::unix::ffi::OsStrExt;
 
-use libc::{O_APPEND, O_CREAT, O_EXCL, O_NOATIME, O_NOFOLLOW, O_SYNC, O_TRUNC, c_char, c_int};
+use libc::{O_APPEND, O_CREAT, O_EXCL, O_NOATIME, O_NOFOLLOW, O_SYNC, O_TRUNC, c_int};
 
 use super::{File, AccessMode};
 use crate::fs::path::{Abs, Path};
@@ -58,9 +58,15 @@ impl<A: AccessMode> OpenOptions<A> {
     }
 
     pub fn open<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File<A>, RawOsError> {
-        let pathname: *const c_char = file_path.as_ref().as_os_str().as_bytes().as_ptr().cast();
+        let pathname = CString::from(file_path.as_ref().to_owned());
 
-        match unsafe { libc::open(pathname, self.flags(), self.mode.unwrap_or(0o644) as c_int) } {
+        match unsafe {
+            libc::open(
+                pathname.as_ptr().cast(),
+                self.flags(),
+                self.mode.unwrap_or(0o644) as c_int
+            )
+        } {
             -1 => Err(util::err_no()),
             fd => Ok(File::<A> {
                 _access: PhantomData,
@@ -120,7 +126,7 @@ impl<A: AccessMode> OpenOptions<A> {
     }
 }
 
-// The Default derive macro doesn't like my zero-variant enums.
+// The Default derive macro doesn't like my spooky zero-variant enums.
 impl<A: AccessMode> Default for OpenOptions<A> {
     fn default() -> Self {
         Self {

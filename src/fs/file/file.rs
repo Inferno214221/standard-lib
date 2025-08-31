@@ -6,9 +6,9 @@
 use std::io::RawOsError;
 use std::marker::PhantomData;
 
-use libc::{c_int, c_void};
+use libc::c_void;
 
-use super::{CloseError, OpenOptions, SyncError};
+use super::{AccessMode, CloseError, OpenOptions, Read, ReadWrite, SyncError, Write};
 use crate::collections::contiguous::Vector;
 use crate::fs::path::{Abs, Path};
 use crate::fs::util::{self, Fd};
@@ -17,35 +17,6 @@ use crate::fs::error::{
     BadFDError, IOError, InterruptError, StorageExhaustedError, SyncUnsupportedError,
     UnexpectedError,
 };
-use crate::util::sealed::Sealed;
-
-pub trait AccessMode: Sealed {
-    const FLAGS: libc::c_int;
-}
-pub trait Read: AccessMode {}
-pub trait Write: AccessMode {}
-
-pub enum ReadOnly {}
-impl Sealed for ReadOnly {}
-impl AccessMode for ReadOnly {
-    const FLAGS: c_int = libc::O_RDONLY;
-}
-impl Read for ReadOnly {}
-
-pub enum WriteOnly {}
-impl Sealed for WriteOnly {}
-impl AccessMode for WriteOnly {
-    const FLAGS: c_int = libc::O_WRONLY;
-}
-impl Write for ReadOnly {}
-
-pub enum ReadWrite {}
-impl Sealed for ReadWrite {}
-impl AccessMode for ReadWrite {
-    const FLAGS: c_int = libc::O_RDWR;
-}
-impl Read for ReadWrite {}
-impl Write for ReadWrite {}
 
 #[derive(Debug)]
 pub struct File<Access: AccessMode = ReadWrite> {
