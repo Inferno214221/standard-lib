@@ -107,11 +107,14 @@ impl<S: PathState> Path<S> {
     }
 
     pub fn relative(&self, other: &Self) -> Option<&Path<Rel>> {
+        // As a general note for path interpretation: paths on Linux have no encoding, with the only
+        // constant being that they are delimited by b'/'. Because of this, we don't have to
+        // consider encoding, and splitting by b"/" is always entirely valid because thats what
+        // Linux does, even if b'/' is a later part of a variable-length character.
         match self.inner.as_bytes().strip_prefix(other.inner.as_bytes()) {
             None => None,
             // If there is no leading slash, strip_prefix matched only part of a component so
             // treat it as a fail.
-            // FIXME: It is possible that b"/" is the second part of a multi-byte character.
             Some(replaced) if !replaced.starts_with(b"/") => None,
             // SAFETY: If the relative path starts with a b"/", then it is still a valid Path.
             Some(replaced) => unsafe {

@@ -14,8 +14,8 @@
 //! certainly the primary target. Beyond pointer width, this should work on architecture thanks to
 //! glibc's platform specific constants.
 //!
-//! Some types in the module very closely resemble Rust's [`std`], but others differ significantly.
-//! Notable difference include:
+//! Some types in the module very closely resemble [`std::fs`], but others differ significantly.
+//! Notable differences include:
 //! - A [`Directory`](dir::Directory) type, which leverages the file descriptor and open syscall's
 //!   ability to open and refer to a directory by a descriptor rather then just a path. This could
 //!   help to prevent TOCTOU bugs / exploits.

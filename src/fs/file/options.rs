@@ -10,7 +10,7 @@ use crate::fs::util::{self, Fd};
 
 #[derive(Debug, Clone)]
 pub struct OpenOptions<Access: AccessMode> {
-    pub _access: PhantomData<fn() -> Access>,
+    pub(crate) _access: PhantomData<fn() -> Access>,
     pub create: Option<Create>,
     pub mode: Option<u16>,
     pub append: Option<bool>,
@@ -31,7 +31,7 @@ pub enum Create {
 
 impl<A: AccessMode> OpenOptions<A> {
     pub(crate) fn flags(&self) -> c_int {
-        let mut flags: c_int = A::FLAGS;
+        let mut flags = A::FLAGS;
         match &self.create.unwrap_or_default() {
             Create::No => (),
             Create::IfAbsent => flags |= O_CREAT,
