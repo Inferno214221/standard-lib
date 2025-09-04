@@ -4,8 +4,9 @@ use std::thread;
 
 use libc::{c_int, stat};
 
-use crate::fs::error::{BadFDError, BadStackAddrError, FileMetaOverflowError, IOError, InterruptError, OOMError, StorageExhaustedError, UnexpectedError};
-use crate::fs::file::CloseError;
+use crate::fs::error::{MetadataOverflowError, IOError, InterruptError, OOMError, StorageExhaustedError};
+use crate::fs::file::{CloseError, MetadataError};
+use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, Panic, UnexpectedErrorPanic};
 use crate::fs::util::{self, FileType, Metadata};
 
 #[derive(Debug)]
@@ -13,21 +14,21 @@ pub(crate) struct Fd(pub c_int);
 
 impl Fd {
     #[allow(clippy::unnecessary_cast)]
-    pub fn metadata(&self) -> Metadata {
+    pub fn metadata(&self) -> Result<Metadata, MetadataError> {
         let mut raw_meta: MaybeUninit<stat> = MaybeUninit::uninit();
         if unsafe { libc::fstat(self.0, raw_meta.as_mut_ptr()) } == -1 {
             match util::err_no() {
-                libc::EBADF => panic!("{}", BadFDError),
-                libc::EFAULT => panic!("{}", BadStackAddrError),
-                libc::ENOMEM => panic!("{}", OOMError),
-                libc::EOVERFLOW => panic!("{}", FileMetaOverflowError),
-                e => panic!("{}", UnexpectedError(e)),
+                libc::EBADF => BadFdPanic.panic(),
+                libc::EFAULT => BadStackAddrPanic.panic(),
+                libc::ENOMEM => Err(OOMError)?,
+                libc::EOVERFLOW => Err(MetadataOverflowError)?,
+                e => UnexpectedErrorPanic(e).panic(),
             }
         }
         // SAFETY: fstat either initializes raw_meta or returns an error and diverges.
         let raw = unsafe { raw_meta.assume_init() };
 
-        Metadata {
+        Ok(Metadata {
             size: raw.st_size,
             file_type: match raw.st_mode & libc::S_IFMT {
                 libc::S_IFBLK => FileType::BlockDevice,
@@ -51,7 +52,7 @@ impl Fd {
             block_size: raw.st_blksize as i64,
             blocks: raw.st_blocks as i64,
             inode_num: raw.st_ino as u64,
-        }
+        })
     }
     
     pub fn close(self) -> Result<(), CloseError> {
@@ -59,11 +60,11 @@ impl Fd {
         // method takes ownership of self.
         if unsafe { libc::close(self.0) } == -1 {
             match util::err_no() {
-                libc::EBADF => panic!("{}", BadFDError),
+                libc::EBADF => BadFdPanic.panic(),
                 libc::EINTR => Err(InterruptError)?,
                 libc::EIO => Err(IOError)?,
                 libc::ENOSPC | libc::EDQUOT => Err(StorageExhaustedError)?,
-                e => panic!("{}", UnexpectedError(e)),
+                e => UnexpectedErrorPanic(e).panic(),
             }
         }
         Ok(())
@@ -87,11 +88,11 @@ impl Drop for Fd {
             && !thread::panicking()
         {
             panic!("error while dropping file: {}", match util::err_no() {
-                libc::EBADF => BadFDError.to_string(),
+                libc::EBADF => BadFdPanic.to_string(),
                 libc::EINTR => InterruptError.to_string(),
                 libc::EIO => IOError.to_string(),
                 libc::ENOSPC | libc::EDQUOT => StorageExhaustedError.to_string(),
-                e => UnexpectedError(e).to_string(),
+                e => UnexpectedErrorPanic(e).to_string(),
             });
         }
     }

@@ -1,5 +1,3 @@
-use std::io::RawOsError;
-
 use derive_more::{Display, Error};
 
 #[derive(Debug, Display, Error)]
@@ -19,21 +17,21 @@ pub struct StorageExhaustedError;
 pub struct SyncUnsupportedError;
 
 #[derive(Debug, Display, Error)]
-#[display("file descriptor corruption")]
-pub struct BadFDError;
-
-#[derive(Debug, Display, Error)]
-#[display("pointer exceeded stack space")]
-pub struct BadStackAddrError;
-
-#[derive(Debug, Display, Error)]
 #[display("file metadata would overflow capacity")]
-pub struct FileMetaOverflowError;
+pub struct MetadataOverflowError;
 
 #[derive(Debug, Display, Error)]
 #[display("out of memory")]
 pub struct OOMError;
 
 #[derive(Debug, Display, Error)]
-#[display("unexpected OS error with code: {_0}")]
-pub struct UnexpectedError(#[error(not(source))] pub RawOsError);
+#[display("exceeded open file limit for process")]
+pub struct FileCountError;
+
+#[derive(Debug, Display, Error)]
+#[display("exceeded memory for allocating locks")]
+pub struct LockMemError;
+
+#[derive(Debug, Display, Error)]
+#[display("operating would block but called via non-blocking method")]
+pub struct WouldBlockError;

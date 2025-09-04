@@ -4,7 +4,7 @@ use std::io::RawOsError;
 use libc::{O_DIRECTORY, O_PATH, c_int};
 
 use crate::fs::dir::DirEntries;
-use crate::fs::file::CloseError;
+use crate::fs::file::{CloseError, MetadataError};
 use crate::fs::path::{Abs, Path};
 use crate::fs::util::{self, Fd};
 pub use crate::fs::util::Metadata;
@@ -38,7 +38,7 @@ impl Directory {
 
     // TODO: impl drop for this and don't wrap file.
 
-    pub fn metadata(&self) -> Metadata {
+    pub fn metadata(&self) -> Result<Metadata, MetadataError> {
         self.fd.metadata()
     }
 

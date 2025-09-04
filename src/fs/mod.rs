@@ -30,5 +30,6 @@
 pub mod dir;
 pub mod error;
 pub mod file;
+pub(crate) mod panic;
 pub mod path;
 pub(crate) mod util;
