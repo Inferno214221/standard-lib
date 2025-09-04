@@ -4,10 +4,12 @@
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-25.05";
     flake-utils.url = "github:numtide/flake-utils";
+    
     fenix = {
       url = "github:nix-community/fenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
     naersk-pkg = {
       url = "github:nix-community/naersk";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -36,6 +38,7 @@
           gcc
           cargo-expand
           man-pages
+          rust-analyzer-nightly
         ] ++ buildInputs;
       in with pkgs; rec
       {
