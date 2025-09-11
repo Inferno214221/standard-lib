@@ -30,16 +30,7 @@ impl Fd {
 
         Ok(Metadata {
             size: raw.st_size,
-            file_type: match raw.st_mode & libc::S_IFMT {
-                libc::S_IFBLK => FileType::BlockDevice,
-                libc::S_IFCHR => FileType::CharDevice,
-                libc::S_IFDIR => FileType::Directory,
-                libc::S_IFIFO => FileType::FIFO,
-                libc::S_IFLNK => FileType::Symlink,
-                libc::S_IFREG => FileType::Regular,
-                libc::S_IFSOCK => FileType::Socket,
-                _ => FileType::Unknown,
-            },
+            file_type: FileType::from_stat_mode(raw.st_mode),
             mode: raw.st_mode as u16,
             uid: raw.st_uid,
             gid: raw.st_gid,

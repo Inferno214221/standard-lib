@@ -35,3 +35,7 @@ pub struct LockMemError;
 #[derive(Debug, Display, Error)]
 #[display("operating would block but called via non-blocking method")]
 pub struct WouldBlockError;
+
+#[derive(Debug, Display, Error)]
+#[display("directory no longer exists")]
+pub struct RemovedDirectoryError;

@@ -1,7 +1,6 @@
-use std::{mem::MaybeUninit, os::unix::ffi::OsStrExt, path::PathBuf};
+use std::{ffi::OsStr, thread, time::Duration};
 
-use libc::dirent;
-use standard_lib::{collections::*, fs::{path::Rel, *}};
+use standard_lib::{collections::*, fs::*};
 
 use contiguous::{Array, Vector};
 use hash::{HashMap, HashSet};
@@ -9,7 +8,7 @@ use linked::LinkedList;
 use traits::set::SetIterator;
 
 use file::File;
-use path::OwnedPath;
+use path::{OwnedPath, Rel};
 
 fn main() {
     let mut map: HashMap<String, usize> = dbg!(HashMap::new());
@@ -149,4 +148,12 @@ fn main() {
     println!("{}, {}, {}", downloads.display(), downloads.display().slash(), downloads.display().no_lead());
     let full = downloads.resolve(OwnedPath::home().unwrap());
     println!("{}, {}", full.display(), full.display().shrink_home());
+
+    let dir = Directory::open(full).unwrap();
+    for e in dir.entries() {
+        dbg!(e.unwrap());
+    }
+
+    // full.push(OwnedPath::from("/test-file-1"));
+    // dbg!(&full);
 }
