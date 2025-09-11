@@ -19,10 +19,10 @@
 //! - A [`Directory`](dir::Directory) type, which leverages the file descriptor and open syscall's
 //!   ability to open and refer to a directory by a descriptor rather then just a path. This could
 //!   help to prevent TOCTOU bugs / exploits.
-//! - Distinct ([`Path<Abs>`](path::Path<Abs>)) and relative ([`Path<Rel>`](path::Path<Rel>)) path
-//!   types with additional formatting invariants for both. Among other things, this prevents
-//!   unexpected behavior such as absolute paths replacing each other when joined (as they do in
-//!   [`std`]).
+//! - Distinct absolute ([`Path<Abs>`](path::Path<Abs>)) and relative
+//!   ([`Path<Rel>`](path::Path<Rel>)) path types with additional formatting invariants for both.
+//!   Among other things, this prevents unexpected behavior such as absolute paths replacing each
+//!   other when joined (as they do in [`std`]).
 //! - Statically dispatched error types for more explicit error handling.
 #![cfg(target_os = "linux")]
 #![doc(cfg(Linux))]
@@ -33,3 +33,14 @@ pub mod file;
 pub(crate) mod panic;
 pub mod path;
 pub(crate) mod util;
+
+#[doc(inline)]
+pub use dir::Directory;
+#[doc(inline)]
+pub use file::File;
+#[doc(inline)]
+pub use path::{Abs, OwnedPath, Path, Rel};
+// TODO: Move Metadata and generic fd stuff in the public API
+// Maybe file_like? Should add time struct, FileType, Permissions/Builder? etc.
+#[doc(inline)]
+pub use file::Metadata;

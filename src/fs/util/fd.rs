@@ -87,7 +87,7 @@ impl Drop for Fd {
             // Panic only if we aren't already, to prevent aborting an existing unwind.
             && !thread::panicking()
         {
-            panic!("error while dropping file: {}", match util::err_no() {
+            panic!("error while dropping file descriptor: {}", match util::err_no() {
                 libc::EBADF => BadFdPanic.to_string(),
                 libc::EINTR => InterruptError.to_string(),
                 libc::EIO => IOError.to_string(),

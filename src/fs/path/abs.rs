@@ -1,5 +1,6 @@
 use std::env;
 use std::ffi::{OsStr, OsString};
+use std::io::RawOsError;
 use std::marker::PhantomData;
 
 use super::{OwnedPath, Path, PathState};
@@ -33,6 +34,14 @@ impl OwnedPath<Abs> {
 }
 
 impl Path<Abs> {
+    pub fn read_all_links(&self) -> Result<OwnedPath<Abs>, RawOsError> {
+        todo!("canonicalize with many readlink calls, needs to handle nonexistence")
+    }
+
+    pub fn normalize_lexically(&self) -> OwnedPath<Abs> {
+        todo!("use components iter and collect")
+    }
+
     // pub fn force_relative(&self, from: &AbsPath) {
     //     // TODO: Include ../.. etc.
     //     todo!()
@@ -44,8 +53,6 @@ impl Path<Abs> {
 
     // no follow with O_NOFOLLOW
     // to open as a specific type, use File::open or Dir::open
-
-    // fn canonicalize
 
     // fn exists/try_exists
 

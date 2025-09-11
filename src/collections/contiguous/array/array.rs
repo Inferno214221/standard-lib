@@ -141,6 +141,10 @@ impl<T> Array<T> {
         self.size
     }
 
+    pub fn as_non_null(&self) -> NonNull<T> {
+        self.ptr
+    }
+
     /// Interprets self as an `Array<MaybeUninit<T>>`. Although it may not seem very useful by
     /// itself, this method acts as a counterpart to [`Array::assume_init`] and allows
     /// [`Array::realloc`] to be called on a previously initialized Array.

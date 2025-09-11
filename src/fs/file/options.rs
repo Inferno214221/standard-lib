@@ -10,6 +10,7 @@ use crate::fs::util::{self, Fd};
 
 #[derive(Debug, Clone)]
 pub struct OpenOptions<Access: AccessMode> {
+    // TODO: Should I make this pub again so that it can be constructed manually?
     pub(crate) _access: PhantomData<fn() -> Access>,
     pub create: Option<Create>,
     pub mode: Option<u16>,
@@ -59,14 +60,9 @@ impl<A: AccessMode> OpenOptions<A> {
 
     pub fn open<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File<A>, RawOsError> {
         let pathname = CString::from(file_path.as_ref().to_owned());
+        let mode = self.mode.unwrap_or(0o644) as c_int;
 
-        match unsafe {
-            libc::open(
-                pathname.as_ptr().cast(),
-                self.flags(),
-                self.mode.unwrap_or(0o644) as c_int
-            )
-        } {
+        match unsafe { libc::open(pathname.as_ptr().cast(), self.flags(), mode) } {
             -1 => Err(util::err_no()),
             fd => Ok(File::<A> {
                 _access: PhantomData,
