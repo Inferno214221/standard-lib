@@ -12,8 +12,7 @@ use super::{AccessMode, CloneError, CloseError, LockError, MetadataError, OpenOp
 use crate::collections::contiguous::Vector;
 use crate::fs::panic::{BadFdPanic, InvalidOpPanic, Panic, UnexpectedErrorPanic};
 use crate::fs::path::{Abs, Path};
-use crate::fs::util::{self, Fd};
-pub use crate::fs::util::Metadata;
+use crate::fs::{Fd, Metadata, util};
 use crate::fs::error::{FileCountError, IOError, InterruptError, LockMemError, OOMError, StorageExhaustedError, SyncUnsupportedError, WouldBlockError};
 
 #[derive(Debug)]

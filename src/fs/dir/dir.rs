@@ -7,8 +7,7 @@ use crate::collections::contiguous::Array;
 use crate::fs::dir::DirEntries;
 use crate::fs::file::{CloseError, MetadataError};
 use crate::fs::path::{Abs, Path};
-use crate::fs::util::{self, Fd};
-pub use crate::fs::util::Metadata;
+use crate::fs::{Fd, Metadata, util};
 
 use super::BUFFER_SIZE;
 

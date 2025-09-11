@@ -34,13 +34,17 @@ pub(crate) mod panic;
 pub mod path;
 pub(crate) mod util;
 
+mod fd;
+mod file_type;
+mod metadata;
+
+pub(crate) use fd::*;
+pub use file_type::*;
+pub use metadata::*;
+
 #[doc(inline)]
 pub use dir::Directory;
 #[doc(inline)]
 pub use file::File;
 #[doc(inline)]
 pub use path::{Abs, OwnedPath, Path, Rel};
-// TODO: Move Metadata and generic fd stuff in the public API
-// Maybe file_like? Should add time struct, FileType, Permissions/Builder? etc.
-#[doc(inline)]
-pub use file::Metadata;

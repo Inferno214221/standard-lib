@@ -1,5 +1,3 @@
-use std::{ffi::OsStr, thread, time::Duration};
-
 use standard_lib::{collections::*, fs::*};
 
 use contiguous::{Array, Vector};
@@ -118,31 +116,6 @@ fn main() {
 
     let f = File::open(OwnedPath::<Rel>::from("./hello.txt").resolve(OwnedPath::cwd().unwrap())).unwrap();
     println!("{}", f.read_all_string().unwrap());
-    // unsafe {
-    //     assert_ne!(
-    //         libc::syscall(libc::SYS_open, PathBuf::from("./test").as_os_str().as_bytes().as_ptr().cast::<u8>(), 0),
-    //         -1
-    //     );
-    //     assert_ne!(libc::open(PathBuf::from("./test").as_os_str().as_bytes().as_ptr().cast(), 0, 0o644), -1);
-    //     assert!(File::options().read_only().if_present().extra_flags(libc::O_PATH).open(PathBuf::from("./test").as_path()).is_ok());
-    // }
-    // unsafe {
-    //     // FIXME: This is invalid because PathBuf isn't nul-terminated.
-    //     let fd = libc::open(PathBuf::from("./test").as_os_str().as_bytes().as_ptr().cast(), 0);
-    //     let mut dirp: Array<MaybeUninit<dirent>> = Array::new_uninit(10);
-    //     let out = libc::syscall(libc::SYS_getdents64, fd, dirp.as_mut_ptr(), size_of::<libc::dirent64>() / 2) as isize;
-    //     println!("{out:x}");
-    //     println!("{:02x}", dirp[1].assume_init().d_type);
-    //     println!("{:02x}, {:02x}", libc::DT_REG, libc::DT_LNK);
-    //     println!("{}", std::slice::from_raw_parts(
-    //         dirp.as_ptr().cast::<u8>(),
-    //         size_of::<libc::dirent64>()
-    //     ).iter().map(|b| format!("{b:02x}")).collect::<String>());
-    //     println!("{}", "file-1".as_bytes().iter().map(|b| format!("{b:02x}")).collect::<String>());
-    //     println!("{}", ".".as_bytes().iter().map(|b| format!("{b:02x}")).collect::<String>());
-
-    //     // println!("{:?}", Directory::open(PathBuf::from("./test").as_path()).unwrap().entries().next())
-    // }
 
     let downloads = OwnedPath::<Rel>::from("./downloads");
     println!("{}, {}, {}", downloads.display(), downloads.display().slash(), downloads.display().no_lead());

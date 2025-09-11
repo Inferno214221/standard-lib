@@ -7,7 +7,7 @@ use crate::collections::contiguous::Array;
 use crate::fs::dir::Directory;
 use crate::fs::error::RemovedDirectoryError;
 use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, NotADir, Panic, UnexpectedErrorPanic};
-use crate::fs::util::{self, FileType};
+use crate::fs::{FileType, util};
 
 #[derive(Debug)]
 #[repr(C)]

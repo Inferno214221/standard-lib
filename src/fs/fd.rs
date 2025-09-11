@@ -7,7 +7,7 @@ use libc::{c_int, stat};
 use crate::fs::error::{MetadataOverflowError, IOError, InterruptError, OOMError, StorageExhaustedError};
 use crate::fs::file::{CloseError, MetadataError};
 use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, Panic, UnexpectedErrorPanic};
-use crate::fs::util::{self, FileType, Metadata};
+use crate::fs::{FileType, Metadata, util};
 
 #[derive(Debug)]
 pub(crate) struct Fd(pub c_int);

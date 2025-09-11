@@ -6,11 +6,12 @@ use libc::{O_APPEND, O_CREAT, O_EXCL, O_NOATIME, O_NOFOLLOW, O_SYNC, O_TRUNC, c_
 
 use super::{File, AccessMode};
 use crate::fs::path::{Abs, Path};
-use crate::fs::util::{self, Fd};
+use crate::fs::{Fd, util};
 
 #[derive(Debug, Clone)]
 pub struct OpenOptions<Access: AccessMode> {
-    // TODO: Should I make this pub again so that it can be constructed manually?
+    // TODO: Should I make this pub again so that it can be constructed manually? Maybe just add a
+    // new method?
     pub(crate) _access: PhantomData<fn() -> Access>,
     pub create: Option<Create>,
     pub mode: Option<u16>,
@@ -60,6 +61,7 @@ impl<A: AccessMode> OpenOptions<A> {
 
     pub fn open<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File<A>, RawOsError> {
         let pathname = CString::from(file_path.as_ref().to_owned());
+        // TODO: Permission builder of some type?
         let mode = self.mode.unwrap_or(0o644) as c_int;
 
         match unsafe { libc::open(pathname.as_ptr().cast(), self.flags(), mode) } {
