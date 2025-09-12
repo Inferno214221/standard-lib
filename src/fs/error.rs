@@ -39,3 +39,23 @@ pub struct WouldBlockError;
 #[derive(Debug, Display, Error)]
 #[display("directory no longer exists")]
 pub struct RemovedDirectoryError;
+
+#[derive(Debug, Display, Error)]
+#[display("search permission is denied for one of the directories in the provided path")]
+pub struct NoSearchError;
+
+#[derive(Debug, Display, Error)]
+#[display("path contains too many symlinks")]
+pub struct ExcessiveLinksError;
+
+#[derive(Debug, Display, Error)]
+#[display("path is too long")]
+pub struct PathLengthError;
+
+#[derive(Debug, Display, Error)]
+#[display("a component of the provide path does not exist")]
+pub struct MissingComponentError;
+
+#[derive(Debug, Display, Error)]
+#[display("a component of the provide path is not a directory")]
+pub struct NonDirComponentError;

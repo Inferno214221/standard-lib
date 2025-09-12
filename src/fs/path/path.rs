@@ -90,9 +90,15 @@ impl<S: PathState> Path<S> {
         &self.inner
     }
 
+    pub fn as_os_str_no_lead(&self) -> &OsStr {
+        OsStr::from_bytes(&self.as_bytes()[1..])
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
         self.inner.as_bytes()
     }
+
+    // TODO: no_lead methods
 
     // pub fn basename(&self) -> &OsStr
 

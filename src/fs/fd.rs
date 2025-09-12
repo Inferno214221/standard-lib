@@ -2,20 +2,19 @@ use std::mem::MaybeUninit;
 use std::ops::Deref;
 use std::thread;
 
-use libc::{c_int, stat};
+use libc::{c_int, stat as Stat};
 
 use crate::fs::error::{MetadataOverflowError, IOError, InterruptError, OOMError, StorageExhaustedError};
 use crate::fs::file::{CloseError, MetadataError};
 use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, Panic, UnexpectedErrorPanic};
-use crate::fs::{FileType, Metadata, util};
+use crate::fs::{Metadata, util};
 
 #[derive(Debug)]
 pub(crate) struct Fd(pub c_int);
 
 impl Fd {
-    #[allow(clippy::unnecessary_cast)]
     pub fn metadata(&self) -> Result<Metadata, MetadataError> {
-        let mut raw_meta: MaybeUninit<stat> = MaybeUninit::uninit();
+        let mut raw_meta: MaybeUninit<Stat> = MaybeUninit::uninit();
         if unsafe { libc::fstat(self.0, raw_meta.as_mut_ptr()) } == -1 {
             match util::err_no() {
                 libc::EBADF => BadFdPanic.panic(),
@@ -28,22 +27,7 @@ impl Fd {
         // SAFETY: fstat either initializes raw_meta or returns an error and diverges.
         let raw = unsafe { raw_meta.assume_init() };
 
-        Ok(Metadata {
-            size: raw.st_size,
-            file_type: FileType::from_stat_mode(raw.st_mode),
-            mode: raw.st_mode as u16,
-            uid: raw.st_uid,
-            gid: raw.st_gid,
-            parent_device_id: raw.st_dev,
-            self_device_id: raw.st_rdev,
-            time_accessed: (raw.st_atime as i64, raw.st_atime_nsec),
-            time_modified: (raw.st_mtime as i64, raw.st_mtime_nsec),
-            time_changed: (raw.st_ctime as i64, raw.st_ctime_nsec),
-            links: raw.st_nlink as u64,
-            block_size: raw.st_blksize as i64,
-            blocks: raw.st_blocks as i64,
-            inode_num: raw.st_ino as u64,
-        })
+        Ok(Metadata::from_stat(raw))
     }
     
     pub fn close(self) -> Result<(), CloseError> {

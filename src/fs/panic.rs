@@ -26,8 +26,8 @@ impl Panic for BadStackAddrPanic {}
 
 #[derive(Debug, Display, Error)]
 #[display("file descriptor doesn't refer to a directory")]
-pub struct NotADir;
-impl Panic for NotADir {}
+pub struct NotADirPanic;
+impl Panic for NotADirPanic {}
 
 #[derive(Debug, Display, Error)]
 #[display("unexpected OS error with code: {_0}")]

@@ -61,6 +61,7 @@
 #![feature(raw_os_error_ty)]
 #![feature(ptr_as_ref_unchecked)]
 #![feature(doc_cfg)]
+#![feature(slice_from_ptr_range)]
 
 // #![warn(missing_docs)]
 #![warn(clippy::missing_safety_doc)]

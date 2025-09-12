@@ -1,6 +1,14 @@
-use std::{ffi::OsStr, mem};
+use std::ffi::{CString, OsStr};
+use std::mem::{self, MaybeUninit};
+
+use libc::{c_int, stat as Stat};
 
 use super::{Abs, OwnedPath, Path, PathState};
+use crate::fs::error::{ExcessiveLinksError, MetadataOverflowError, MissingComponentError, NoSearchError, NonDirComponentError, OOMError, PathLengthError};
+use crate::fs::file::MetadataError;
+use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, InvalidOpPanic, Panic, UnexpectedErrorPanic};
+use crate::fs::{Directory, Metadata, util};
+use crate::fs::path::{PathError, PathOrMetadataError};
 use crate::util::sealed::Sealed;
 
 #[derive(Debug)]
@@ -34,6 +42,48 @@ impl Path<Rel> {
 
     pub fn resolve_cwd(&self) -> Option<OwnedPath<Abs>> {
         Some(self.resolve(OwnedPath::cwd()?))
+    }
+
+    // TODO: add relative methods which use the ..at syscalls and take a directory.
+
+    pub(crate) fn metadata_raw(&self, relative_to: Directory, flags: c_int) -> Result<Metadata, PathOrMetadataError> {
+        // FIXME: Copy here feels bad.
+        let pathname = CString::from(self.to_owned());
+
+        let mut raw_meta: MaybeUninit<Stat> = MaybeUninit::uninit();
+        if unsafe { libc::fstatat(
+            *relative_to.fd,
+            // Skip the leading '/' so that the path is considered relative.
+            pathname.as_ptr().add(1).cast(),
+            raw_meta.as_mut_ptr(),
+            flags
+        ) } == -1 {
+            match util::err_no() {
+                libc::EACCES => Err(PathError::from(NoSearchError))?,
+                libc::EBADF => BadFdPanic.panic(),
+                libc::EFAULT => BadStackAddrPanic.panic(),
+                libc::EINVAL => InvalidOpPanic.panic(),
+                libc::ELOOP => Err(PathError::from(ExcessiveLinksError))?,
+                libc::ENAMETOOLONG => Err(PathError::from(PathLengthError))?,
+                libc::ENOENT => Err(PathError::from(MissingComponentError))?,
+                libc::ENOMEM => Err(MetadataError::from(OOMError))?,
+                libc::ENOTDIR => Err(PathError::from(NonDirComponentError))?,
+                libc::EOVERFLOW => Err(MetadataError::from(MetadataOverflowError))?,
+                e => UnexpectedErrorPanic(e).panic(),
+            }
+        }
+        // SAFETY: stat either initializes raw_meta or returns an error and diverges.
+        let raw = unsafe { raw_meta.assume_init() };
+
+        Ok(Metadata::from_stat(raw))
+    }
+
+    pub fn metadata(&self, relative_to: Directory) -> Result<Metadata, PathOrMetadataError> {
+        self.metadata_raw(relative_to, 0)
+    }
+
+    pub fn metadata_no_follow(&self, relative_to: Directory) -> Result<Metadata, PathOrMetadataError> {
+        self.metadata_raw(relative_to, libc::AT_SYMLINK_NOFOLLOW)
     }
 }
 

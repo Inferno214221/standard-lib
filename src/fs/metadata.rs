@@ -1,3 +1,5 @@
+use libc::stat;
+
 use super::FileType;
 
 pub struct Metadata {
@@ -17,4 +19,26 @@ pub struct Metadata {
     // 64-bit:
     pub blocks: i64,    // st_blocks
     pub inode_num: u64, // st_ino
+}
+
+impl Metadata {
+    #[allow(clippy::unnecessary_cast)]
+    pub(crate) const fn from_stat(raw: stat) -> Metadata {
+        Metadata {
+            size: raw.st_size,
+            file_type: FileType::from_stat_mode(raw.st_mode),
+            mode: raw.st_mode as u16,
+            uid: raw.st_uid,
+            gid: raw.st_gid,
+            parent_device_id: raw.st_dev,
+            self_device_id: raw.st_rdev,
+            time_accessed: (raw.st_atime as i64, raw.st_atime_nsec),
+            time_modified: (raw.st_mtime as i64, raw.st_mtime_nsec),
+            time_changed: (raw.st_ctime as i64, raw.st_ctime_nsec),
+            links: raw.st_nlink as u64,
+            block_size: raw.st_blksize as i64,
+            blocks: raw.st_blocks as i64,
+            inode_num: raw.st_ino as u64,
+        }
+    }
 }
