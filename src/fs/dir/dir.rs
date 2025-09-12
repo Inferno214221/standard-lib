@@ -11,6 +11,12 @@ use crate::fs::{Fd, Metadata, util};
 
 use super::BUFFER_SIZE;
 
+// TODO: Document that this is dynamic.
+// TODO: Verify that all ..at syscalls support this constant.
+pub const CWD: Directory = Directory {
+    fd: Fd(libc::AT_FDCWD),
+};
+
 #[derive(Debug)]
 pub struct Directory {
     pub(crate) fd: Fd,
@@ -29,6 +35,10 @@ impl Directory {
             }),
         }
     }
+
+    // pub fn create<P: AsRef<Path<Abs>>>(dir_path: P) -> Result<Directory, RawOsError>;
+
+    // TODO: relative open/create variants.
 
     pub fn entries<'a>(&'a self) -> DirEntries<'a> {
         let buf = Array::new_uninit(BUFFER_SIZE);

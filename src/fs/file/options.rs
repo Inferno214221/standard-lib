@@ -5,8 +5,9 @@ use std::marker::PhantomData;
 use libc::{O_APPEND, O_CREAT, O_EXCL, O_NOATIME, O_NOFOLLOW, O_SYNC, O_TRUNC, c_int};
 
 use super::{File, AccessMode};
+use crate::fs::dir::DirEntry;
 use crate::fs::path::{Abs, Path};
-use crate::fs::{Fd, util};
+use crate::fs::{Directory, Fd, Rel, util};
 
 #[derive(Debug, Clone)]
 pub struct OpenOptions<Access: AccessMode> {
@@ -71,6 +72,33 @@ impl<A: AccessMode> OpenOptions<A> {
                 fd: Fd(fd),
             }),
         }
+    }
+
+    pub fn open_rel<P: AsRef<Path<Rel>>>(
+        &self,
+        relative_to: &Directory,
+        file_path: P
+    ) -> Result<File<A>, RawOsError> {
+        let pathname = CString::from(file_path.as_ref().to_owned());
+        let mode = self.mode.unwrap_or(0o644) as c_int;
+
+        match unsafe { libc::openat(
+            *relative_to.fd,
+            // Skip the leading '/' so that the path is considered relative.
+            pathname.as_ptr().add(1).cast(),
+            self.flags(),
+            mode
+        ) } {
+            -1 => Err(util::err_no()),
+            fd => Ok(File::<A> {
+                _access: PhantomData,
+                fd: Fd(fd),
+            }),
+        }
+    }
+
+    pub fn open_dir_entry(&self, dir_ent: DirEntry) -> Result<File<A>, RawOsError> {
+        self.open_rel(dir_ent.parent, dir_ent.path)
     }
 
     pub const fn if_present(&mut self) -> &mut Self {

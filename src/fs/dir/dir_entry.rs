@@ -1,13 +1,15 @@
 use std::ffi::{OsStr, OsString};
 use std::mem::MaybeUninit;
 use std::num::NonZero;
+use std::os::unix::ffi::OsStrExt;
 use std::ptr::NonNull;
+use std::slice;
 
 use crate::collections::contiguous::Array;
 use crate::fs::dir::Directory;
 use crate::fs::error::RemovedDirectoryError;
-use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, NotADir, Panic, UnexpectedErrorPanic};
-use crate::fs::{FileType, util};
+use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, NotADirPanic, Panic, UnexpectedErrorPanic};
+use crate::fs::{FileType, OwnedPath, Rel, util};
 
 #[derive(Debug)]
 #[repr(C)]
@@ -21,8 +23,9 @@ struct DirEntrySized {
 // TODO: Add wrapped methods on DirEntry for the ..at syscalls, e.g. fstatat.
 
 #[derive(Debug)]
-pub struct DirEntry {
-    pub name: OsString,
+pub struct DirEntry<'a> {
+    pub parent: &'a Directory,
+    pub path: OwnedPath<Rel>,
     pub file_type_hint: Option<FileType>,
     pub inode_num: NonZero<u64>,
     // Neither of these have any relevance to users.
@@ -42,13 +45,13 @@ pub struct DirEntries<'a> {
 // TODO: need to ensure that undersized buffer is handled.
 
 impl<'a> Iterator for DirEntries<'a> {
-    type Item = Result<DirEntry, RemovedDirectoryError>;
+    type Item = Result<DirEntry<'a>, RemovedDirectoryError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.rem == 0 {
             loop {
                 match unsafe {
-                    util::getdents(*self.dir.fd, self.buf.as_ptr().cast_mut().cast(), self.buf.size)
+                    util::getdents(*self.dir.fd, self.buf.as_ptr().cast_mut().cast(), self.buf.size())
                 } {
                     -1 => match util::err_no() {
                         libc::EBADF => BadFdPanic.panic(),
@@ -57,15 +60,19 @@ impl<'a> Iterator for DirEntries<'a> {
                         // If the buffer isn't large enough, double it. Panics in the event of an
                         // overflow.
                         // This is currently the only way that the buffer size can change.
-                        libc::EINVAL => self.buf = Array::new_uninit(self.buf.size * 2),
+                        libc::EINVAL => {
+                            self.buf = Array::new_uninit(self.buf.size * 2);
+                            continue;
+                        },
                         // TODO: Do I really have to return this? Result from an Iterator is gross.
                         libc::ENOENT => return Some(Err(RemovedDirectoryError)),
-                        libc::ENOTDIR => NotADir.panic(),
+                        libc::ENOTDIR => NotADirPanic.panic(),
                         e => UnexpectedErrorPanic(e).panic(),
                     },
                     0 => None?,
                     count => self.rem = count as usize,
                 }
+                break;
             }
         }
         let sized = unsafe { self.head.cast::<DirEntrySized>().as_ref() };
@@ -73,26 +80,26 @@ impl<'a> Iterator for DirEntries<'a> {
         let entry_size = sized.d_reclen as usize;
 
         let entry = if let Ok(inode_num) = NonZero::try_from(sized.d_ino) {
-            // name can go from (head + 19)..=(head + entry_size - 2).
-            let mut name_vec = Vec::with_capacity(entry_size - 20);
-            unsafe {
-                let mut char_ptr = self.head.add(19).cast();
-                while char_ptr.read() != 0 {
-                    name_vec.push(char_ptr.read());
-                    char_ptr = char_ptr.add(1);
-                }
+            let char_head = unsafe { self.head.add(19).cast() };
+            let mut char_tail = char_head;
+            while unsafe { char_tail.read() } != 0 {
+                char_tail = unsafe { char_tail.add(1) };
             }
 
-            let name = unsafe { OsString::from_encoded_bytes_unchecked(name_vec) };
+            let name = unsafe { OwnedPath::<Rel>::from_os_str_sanitized(OsStr::from_bytes(
+                slice::from_ptr_range(char_head.as_ptr()..char_tail.as_ptr())
+            )) };
 
-            if name == OsStr::new(".") || name == OsStr::new("..") {
-                // Skip redundant "." and ".." entries.
+            if name.as_os_str() == OsStr::new("/") || name.as_os_str() == OsStr::new("/..") {
+                // Skip redundant "." and ".." entries. "." will be normalized to "/", which we
+                // don't want either.
                 None
             } else {
                 Some(DirEntry {
+                    parent: self.dir,
                     inode_num,
                     file_type_hint: FileType::from_dirent_type(sized.d_type),
-                    name,
+                    path: name,
                 })
             }
         } else {
@@ -116,4 +123,16 @@ impl<'a> Iterator for DirEntries<'a> {
             None => self.next(),
         }
     }
+}
+
+impl<'a> DirEntry<'a> {
+    pub fn name(&self) -> &OsStr {
+        self.path.as_os_str_no_lead()
+    }
+
+    // pub fn open_file(&self) -> Result<File<_>, _>; // openat
+
+    // pub fn open_dir(&self) -> Result<Directory, _>; // openat
+    
+    // TODO: forward to path methods
 }
