@@ -1,4 +1,5 @@
 use std::ffi::OsStr;
+use std::io::RawOsError;
 use std::mem::MaybeUninit;
 use std::num::NonZero;
 use std::os::unix::ffi::OsStrExt;
@@ -8,12 +9,13 @@ use std::slice;
 use crate::collections::contiguous::Array;
 use crate::fs::dir::Directory;
 use crate::fs::error::RemovedDirectoryError;
+use crate::fs::file::ReadWrite;
 use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, NotADirPanic, Panic, UnexpectedErrorPanic};
-use crate::fs::{FileType, OwnedPath, Rel, util};
+use crate::fs::{File, FileType, OwnedPath, Rel, util};
 
 #[derive(Debug)]
 #[repr(C)]
-struct DirEntrySized {
+pub(crate) struct DirEntrySized {
     pub d_ino: u64,
     pub d_off: i64,
     pub d_reclen: u8,
@@ -22,6 +24,7 @@ struct DirEntrySized {
 
 // TODO: Add wrapped methods on DirEntry for the ..at syscalls, e.g. fstatat.
 
+// TODO: Debug and Display consistency for all fs types.
 #[derive(Debug)]
 pub struct DirEntry<'a> {
     pub parent: &'a Directory,
@@ -130,7 +133,9 @@ impl<'a> DirEntry<'a> {
         self.path.as_os_str_no_lead()
     }
 
-    // pub fn open_file(&self) -> Result<File<_>, _>; // openat
+    pub fn open_file(&self) -> Result<File<ReadWrite>, RawOsError> {
+        File::options().open_dir_entry(self)
+    }
 
     // pub fn open_dir(&self) -> Result<Directory, _>; // openat
     

@@ -9,7 +9,7 @@ pub enum FileType {
     Symlink,
     Regular,
     Socket,
-    Unknown,
+    Other,
 }
 
 use FileType::*;
@@ -25,7 +25,7 @@ impl FileType {
             libc::S_IFLNK => Symlink,
             libc::S_IFREG => Regular,
             libc::S_IFSOCK => Socket,
-            _ => Unknown,
+            _ => Other,
         }
     }
 
@@ -39,7 +39,7 @@ impl FileType {
             libc::DT_REG => Regular,
             libc::DT_SOCK => Socket,
             libc::DT_UNKNOWN => None?,
-            _ => Unknown,
+            _ => Other,
         })
     }
 }

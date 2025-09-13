@@ -8,8 +8,7 @@
 //! Applicable type here implement [`Deref<Target = [T]>`](std::ops::Deref) (and DerefMut), which
 //! saves me from writing some of the more repetitive functionality.
 
-/* pub */
-mod binary_tree;
+// pub mod binary_tree;
 pub mod contiguous;
 pub mod hash;
 pub mod linked;

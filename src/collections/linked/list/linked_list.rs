@@ -1,5 +1,3 @@
-#![warn(missing_docs)]
-
 use std::fmt::{self, Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;

@@ -1,13 +1,14 @@
 use std::ffi::{CString, OsStr};
+use std::io::RawOsError;
 use std::mem::{self, MaybeUninit};
 
 use libc::{c_int, stat as Stat};
 
 use super::{Abs, OwnedPath, Path, PathState};
 use crate::fs::error::{ExcessiveLinksError, MetadataOverflowError, MissingComponentError, NoSearchError, NonDirComponentError, OOMError, PathLengthError};
-use crate::fs::file::MetadataError;
+use crate::fs::file::{MetadataError, ReadWrite};
 use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, InvalidOpPanic, Panic, UnexpectedErrorPanic};
-use crate::fs::{Directory, Metadata, util};
+use crate::fs::{Directory, File, Metadata, util};
 use crate::fs::path::{PathError, PathOrMetadataError};
 use crate::util::sealed::Sealed;
 
@@ -84,6 +85,10 @@ impl Path<Rel> {
 
     pub fn metadata_no_follow(&self, relative_to: Directory) -> Result<Metadata, PathOrMetadataError> {
         self.metadata_raw(relative_to, libc::AT_SYMLINK_NOFOLLOW)
+    }
+
+    pub fn open_file(&self, relative_to: &Directory) -> Result<File<ReadWrite>, RawOsError> {
+        File::options().open_rel(relative_to, self)
     }
 }
 

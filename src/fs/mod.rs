@@ -16,11 +16,11 @@
 //!
 //! Some types in the module very closely resemble [`std::fs`], but others differ significantly.
 //! Notable differences include:
-//! - A [`Directory`](dir::Directory) type, which leverages the file descriptor and open syscall's
+//! - A [`Directory`] type, which leverages the file descriptor and open syscall's
 //!   ability to open and refer to a directory by a descriptor rather then just a path. This could
 //!   help to prevent TOCTOU bugs / exploits.
-//! - Distinct absolute ([`Path<Abs>`](path::Path<Abs>)) and relative
-//!   ([`Path<Rel>`](path::Path<Rel>)) path types with additional formatting invariants for both.
+//! - Distinct absolute ([`Path<Abs>`](Path<Abs>)) and relative
+//!   ([`Path<Rel>`](Path<Rel>)) path types with additional formatting invariants for both.
 //!   Among other things, this prevents unexpected behavior such as absolute paths replacing each
 //!   other when joined (as they do in [`std`]).
 //! - Statically dispatched error types for more explicit error handling.

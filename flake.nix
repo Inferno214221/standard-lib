@@ -37,6 +37,7 @@
           pkg-config
           gcc
           cargo-expand
+          cargo-public-api
           man-pages
           rust-analyzer-nightly
         ] ++ buildInputs;

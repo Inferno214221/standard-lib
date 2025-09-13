@@ -10,8 +10,8 @@ use super::{OwnedPath, Path, PathState};
 use crate::fs::error::{ExcessiveLinksError, MetadataOverflowError, MissingComponentError, NoSearchError, NonDirComponentError, OOMError, PathLengthError};
 use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, Panic, UnexpectedErrorPanic};
 use crate::fs::path::{PathError, PathOrMetadataError};
-use crate::fs::{Metadata, util};
-use crate::fs::file::MetadataError;
+use crate::fs::{File, Metadata, util};
+use crate::fs::file::{MetadataError, ReadWrite};
 use crate::util::sealed::Sealed;
 
 #[derive(Debug)]
@@ -99,6 +99,10 @@ impl Path<Abs> {
         let raw = unsafe { raw_meta.assume_init() };
 
         Ok(Metadata::from_stat(raw))
+    }
+
+    pub fn open_file(&self) -> Result<File<ReadWrite>, RawOsError> {
+        File::options().open(self)
     }
 
     // NOTE: Symlinks can't be opened, so all symlink-related APIs need to be handled here.

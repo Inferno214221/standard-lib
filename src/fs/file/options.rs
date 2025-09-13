@@ -97,8 +97,13 @@ impl<A: AccessMode> OpenOptions<A> {
         }
     }
 
-    pub fn open_dir_entry(&self, dir_ent: DirEntry) -> Result<File<A>, RawOsError> {
-        self.open_rel(dir_ent.parent, dir_ent.path)
+    pub fn open_dir_entry(&self, dir_ent: &DirEntry) -> Result<File<A>, RawOsError> {
+        self.open_rel(dir_ent.parent, &dir_ent.path)
+    }
+
+    pub const fn create_mode(&mut self, value: Create) -> &mut Self {
+        self.create = Some(value);
+        self
     }
 
     pub const fn if_present(&mut self) -> &mut Self {
