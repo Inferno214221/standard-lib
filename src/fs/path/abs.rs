@@ -10,9 +10,9 @@ use super::{OwnedPath, Path, PathState};
 use crate::fs::error::{ExcessiveLinksError, MetadataOverflowError, MissingComponentError, NoSearchError, NonDirComponentError, OOMError, PathLengthError};
 use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, Panic, UnexpectedErrorPanic};
 use crate::fs::path::{PathError, PathOrMetadataError};
-use crate::fs::{File, Metadata, util};
+use crate::fs::{File, Metadata};
 use crate::fs::file::{MetadataError, ReadWrite};
-use crate::util::sealed::Sealed;
+use crate::util::{self, sealed::Sealed};
 
 #[derive(Debug)]
 pub enum Abs {}
@@ -60,7 +60,7 @@ impl Path<Abs> {
     // read_* shortcuts for file
 
     pub(crate) fn match_metadata_error() -> Result<(), PathOrMetadataError> {
-        match util::err_no() {
+        match util::fs::err_no() {
             libc::EACCES => Err(PathError::from(NoSearchError))?,
             libc::EBADF => BadFdPanic.panic(),
             libc::EFAULT => BadStackAddrPanic.panic(),

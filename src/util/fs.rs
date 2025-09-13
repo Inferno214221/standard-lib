@@ -1,3 +1,5 @@
+#![cfg(target_os = "linux")]
+
 use std::io::{self, RawOsError};
 
 #[allow(unused_imports)]

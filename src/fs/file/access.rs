@@ -1,10 +1,8 @@
-use std::fmt::Debug;
-
 use libc::{O_RDONLY, O_RDWR, O_WRONLY, c_int};
 
 use crate::util::sealed::Sealed;
 
-pub trait AccessMode: Sealed + Debug {
+pub trait AccessMode: Sealed {
     const FLAGS: libc::c_int;
 }
 
@@ -12,7 +10,6 @@ pub trait Read: AccessMode {}
 
 pub trait Write: AccessMode {}
 
-#[derive(Debug)]
 pub enum ReadOnly {}
 
 impl Sealed for ReadOnly {}
@@ -23,7 +20,6 @@ impl AccessMode for ReadOnly {
 
 impl Read for ReadOnly {}
 
-#[derive(Debug)]
 pub enum WriteOnly {}
 
 impl Sealed for WriteOnly {}
@@ -34,7 +30,6 @@ impl AccessMode for WriteOnly {
 
 impl Write for ReadOnly {}
 
-#[derive(Debug)]
 pub enum ReadWrite {}
 
 impl Sealed for ReadWrite {}

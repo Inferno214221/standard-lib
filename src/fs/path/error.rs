@@ -3,7 +3,7 @@ use derive_more::{Display, Error, From};
 use crate::fs::error::{ExcessiveLinksError, MissingComponentError, NoSearchError, NonDirComponentError, PathLengthError};
 use crate::fs::file::MetadataError;
 
-#[derive(Debug, Display, From, Error)]
+#[derive(Debug, Display, Clone, From, Error)]
 pub enum PathError {
     NoSearch(NoSearchError),
     ExcessiveLinks(ExcessiveLinksError),
@@ -12,7 +12,7 @@ pub enum PathError {
     NonDirComponent(NonDirComponentError),
 }
 
-#[derive(Debug, Display, From, Error)]
+#[derive(Debug, Display, Clone, From, Error)]
 // TODO: Maybe make this a union type?
 pub enum PathOrMetadataError {
     Path(PathError),

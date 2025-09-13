@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::ffi::{CString, OsStr, OsString};
-use std::fmt::Debug;
+use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::Deref;
@@ -9,20 +9,20 @@ use std::os::unix::ffi::{OsStrExt, OsStringExt};
 
 use super::{DisplayPath, Rel};
 use crate::collections::contiguous::Vector;
+use crate::util;
 use crate::util::sealed::Sealed;
 
 use derive_more::IsVariant;
 
 pub trait PathState: Sealed + Debug {}
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 #[repr(transparent)]
 pub struct OwnedPath<State: PathState> {
     pub(crate) _state: PhantomData<fn() -> State>,
     pub(crate) inner: OsString,
 }
 
-#[derive(Debug)]
 #[repr(transparent)]
 pub struct Path<State: PathState> {
     pub(crate) _state: PhantomData<fn() -> State>,
@@ -291,5 +291,23 @@ impl<S: PathState> PartialOrd<Path<S>> for OwnedPath<S> {
 impl<S: PathState> PartialOrd<OwnedPath<S>> for Path<S> {
     fn partial_cmp(&self, other: &OwnedPath<S>) -> Option<Ordering> {
         Some(self.cmp(other.as_ref()))
+    }
+}
+
+impl<S: PathState> Debug for OwnedPath<S> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("OwnedPath")
+            .field("<state>", &util::fmt::raw_type_name::<S>())
+            .field("value", &self.inner)
+            .finish()
+    }
+}
+
+impl<S: PathState> Debug for Path<S> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Path")
+            .field("<state>", &util::fmt::raw_type_name::<S>())
+            .field("value", &&self.inner)
+            .finish()
     }
 }

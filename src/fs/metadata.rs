@@ -2,6 +2,7 @@ use libc::stat;
 
 use super::FileType;
 
+#[derive(Debug, Clone)]
 pub struct Metadata {
     pub size: i64,             // st_size
     pub file_type: FileType,   // st_mode

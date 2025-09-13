@@ -32,7 +32,6 @@ pub mod error;
 pub mod file;
 pub(crate) mod panic;
 pub mod path;
-pub(crate) mod util;
 
 mod fd;
 mod file_type;

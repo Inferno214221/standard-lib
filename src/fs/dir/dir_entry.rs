@@ -11,7 +11,8 @@ use crate::fs::dir::Directory;
 use crate::fs::error::RemovedDirectoryError;
 use crate::fs::file::ReadWrite;
 use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, NotADirPanic, Panic, UnexpectedErrorPanic};
-use crate::fs::{File, FileType, OwnedPath, Rel, util};
+use crate::fs::{File, FileType, OwnedPath, Rel};
+use crate::util;
 
 #[derive(Debug)]
 #[repr(C)]
@@ -36,6 +37,20 @@ pub struct DirEntry<'a> {
     // pub d_reclen: u8,
 }
 
+impl<'a> DirEntry<'a> {
+    pub fn name(&self) -> &OsStr {
+        self.path.as_os_str_no_lead()
+    }
+
+    pub fn open_file(&self) -> Result<File<ReadWrite>, RawOsError> {
+        File::options().open_dir_entry(self)
+    }
+
+    // pub fn open_dir(&self) -> Result<Directory, _>; // openat
+    
+    // TODO: forward to path methods
+}
+
 pub(crate) const BUFFER_SIZE: usize = 1024;
 
 pub struct DirEntries<'a> {
@@ -54,9 +69,9 @@ impl<'a> Iterator for DirEntries<'a> {
         if self.rem == 0 {
             loop {
                 match unsafe {
-                    util::getdents(*self.dir.fd, self.buf.as_ptr().cast_mut().cast(), self.buf.size())
+                    util::fs::getdents(*self.dir.fd, self.buf.as_ptr().cast_mut().cast(), self.buf.size())
                 } {
-                    -1 => match util::err_no() {
+                    -1 => match util::fs::err_no() {
                         libc::EBADF => BadFdPanic.panic(),
                         libc::EFAULT => BadStackAddrPanic.panic(),
                         // TODO: Handle (array) overflows etc here? Smart size selection?
@@ -126,18 +141,4 @@ impl<'a> Iterator for DirEntries<'a> {
             None => self.next(),
         }
     }
-}
-
-impl<'a> DirEntry<'a> {
-    pub fn name(&self) -> &OsStr {
-        self.path.as_os_str_no_lead()
-    }
-
-    pub fn open_file(&self) -> Result<File<ReadWrite>, RawOsError> {
-        File::options().open_dir_entry(self)
-    }
-
-    // pub fn open_dir(&self) -> Result<Directory, _>; // openat
-    
-    // TODO: forward to path methods
 }

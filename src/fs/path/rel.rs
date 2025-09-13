@@ -8,9 +8,9 @@ use super::{Abs, OwnedPath, Path, PathState};
 use crate::fs::error::{ExcessiveLinksError, MetadataOverflowError, MissingComponentError, NoSearchError, NonDirComponentError, OOMError, PathLengthError};
 use crate::fs::file::{MetadataError, ReadWrite};
 use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, InvalidOpPanic, Panic, UnexpectedErrorPanic};
-use crate::fs::{Directory, File, Metadata, util};
+use crate::fs::{Directory, File, Metadata};
 use crate::fs::path::{PathError, PathOrMetadataError};
-use crate::util::sealed::Sealed;
+use crate::util::{self, sealed::Sealed};
 
 #[derive(Debug)]
 pub enum Rel {}
@@ -59,7 +59,7 @@ impl Path<Rel> {
             raw_meta.as_mut_ptr(),
             flags
         ) } == -1 {
-            match util::err_no() {
+            match util::fs::err_no() {
                 libc::EACCES => Err(PathError::from(NoSearchError))?,
                 libc::EBADF => BadFdPanic.panic(),
                 libc::EFAULT => BadStackAddrPanic.panic(),

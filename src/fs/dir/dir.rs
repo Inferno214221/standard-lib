@@ -7,7 +7,8 @@ use crate::collections::contiguous::Array;
 use crate::fs::dir::DirEntries;
 use crate::fs::file::{CloseError, MetadataError};
 use crate::fs::path::{Abs, Path};
-use crate::fs::{Fd, Metadata, util};
+use crate::fs::{Fd, Metadata};
+use crate::util;
 
 use super::BUFFER_SIZE;
 
@@ -29,7 +30,7 @@ impl Directory {
         let flags: c_int = O_DIRECTORY; // Can't open as O_PATH because we need to read entries.
 
         match unsafe { libc::open(pathname.as_ptr().cast(), flags) } {
-            -1 => Err(util::err_no()),
+            -1 => Err(util::fs::err_no()),
             fd => Ok(Directory {
                 fd: Fd(fd),
             }),

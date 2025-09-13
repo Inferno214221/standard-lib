@@ -115,6 +115,7 @@ fn main() {
     println!("{}", &set);
 
     let f = File::open(OwnedPath::<Rel>::from("./hello.txt").resolve(OwnedPath::cwd().unwrap())).unwrap();
+    dbg!(&f);
     println!("{}", f.read_all_string().unwrap());
 
     let downloads = OwnedPath::<Rel>::from("./downloads");

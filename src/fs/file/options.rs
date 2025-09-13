@@ -1,4 +1,6 @@
+use std::fmt;
 use std::ffi::CString;
+use std::fmt::{Debug, Formatter};
 use std::io::RawOsError;
 use std::marker::PhantomData;
 
@@ -7,9 +9,10 @@ use libc::{O_APPEND, O_CREAT, O_EXCL, O_NOATIME, O_NOFOLLOW, O_SYNC, O_TRUNC, c_
 use super::{File, AccessMode};
 use crate::fs::dir::DirEntry;
 use crate::fs::path::{Abs, Path};
-use crate::fs::{Directory, Fd, Rel, util};
+use crate::fs::{Directory, Fd, Rel};
+use crate::util;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct OpenOptions<Access: AccessMode> {
     // TODO: Should I make this pub again so that it can be constructed manually? Maybe just add a
     // new method?
@@ -66,7 +69,7 @@ impl<A: AccessMode> OpenOptions<A> {
         let mode = self.mode.unwrap_or(0o644) as c_int;
 
         match unsafe { libc::open(pathname.as_ptr().cast(), self.flags(), mode) } {
-            -1 => Err(util::err_no()),
+            -1 => Err(util::fs::err_no()),
             fd => Ok(File::<A> {
                 _access: PhantomData,
                 fd: Fd(fd),
@@ -89,7 +92,7 @@ impl<A: AccessMode> OpenOptions<A> {
             self.flags(),
             mode
         ) } {
-            -1 => Err(util::err_no()),
+            -1 => Err(util::fs::err_no()),
             fd => Ok(File::<A> {
                 _access: PhantomData,
                 fd: Fd(fd),
@@ -170,5 +173,20 @@ impl<A: AccessMode> Default for OpenOptions<A> {
             follow_links: Default::default(),
             extra_flags: Default::default()
         }
+    }
+}
+
+impl<A: AccessMode> Debug for OpenOptions<A> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("OpenOptions")
+            .field("<access>", &util::fmt::raw_type_name::<A>())
+            .field("create", &self.create)
+            .field("mode", &self.mode)
+            .field("append", &self.append)
+            .field("force_sync", &self.force_sync)
+            .field("update_access_time", &self.update_access_time)
+            .field("follow_links", &self.follow_links)
+            .field("extra_flags", &self.extra_flags)
+            .finish()
     }
 }

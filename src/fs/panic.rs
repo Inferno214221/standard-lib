@@ -9,27 +9,27 @@ pub trait Panic: Error {
     }
 }
 
-#[derive(Debug, Display, Error)]
+#[derive(Debug, Display, Clone, Error)]
 #[display("file descriptor corruption")]
 pub struct BadFdPanic;
 impl Panic for BadFdPanic {}
 
-#[derive(Debug, Display, Error)]
+#[derive(Debug, Display, Clone, Error)]
 #[display("invalid operation")]
 pub struct InvalidOpPanic;
 impl Panic for InvalidOpPanic {}
 
-#[derive(Debug, Display, Error)]
+#[derive(Debug, Display, Clone, Error)]
 #[display("pointer exceeded stack space")]
 pub struct BadStackAddrPanic;
 impl Panic for BadStackAddrPanic {}
 
-#[derive(Debug, Display, Error)]
+#[derive(Debug, Display, Clone, Error)]
 #[display("file descriptor doesn't refer to a directory")]
 pub struct NotADirPanic;
 impl Panic for NotADirPanic {}
 
-#[derive(Debug, Display, Error)]
+#[derive(Debug, Display, Clone, Error)]
 #[display("unexpected OS error with code: {_0}")]
 pub struct UnexpectedErrorPanic(#[error(not(source))] pub RawOsError);
 impl Panic for UnexpectedErrorPanic {}
