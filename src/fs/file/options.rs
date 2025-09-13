@@ -14,8 +14,6 @@ use crate::util;
 
 #[derive(Clone)]
 pub struct OpenOptions<Access: AccessMode> {
-    // TODO: Should I make this pub again so that it can be constructed manually? Maybe just add a
-    // new method?
     pub(crate) _access: PhantomData<fn() -> Access>,
     pub create: Option<Create>,
     pub mode: Option<u16>,
@@ -109,7 +107,7 @@ impl<A: AccessMode> OpenOptions<A> {
         self
     }
 
-    pub const fn if_present(&mut self) -> &mut Self {
+    pub const fn no_create(&mut self) -> &mut Self {
         self.create = Some(Create::No);
         self
     }

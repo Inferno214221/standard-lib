@@ -13,8 +13,8 @@ use super::{AccessMode, CloneError, CloseError, LockError, MetadataError, OpenOp
 use crate::collections::contiguous::Vector;
 use crate::fs::panic::{BadFdPanic, InvalidOpPanic, Panic, UnexpectedErrorPanic};
 use crate::fs::path::{Abs, Path};
-use crate::fs::{Fd, Metadata};
-use crate::fs::error::{FileCountError, IOError, InterruptError, LockMemError, OOMError, StorageExhaustedError, SyncUnsupportedError, WouldBlockError};
+use crate::fs::{Directory, Fd, Metadata, Rel};
+use crate::fs::error::{IOError, InterruptError, LockMemError, StorageExhaustedError, SyncUnsupportedError, WouldBlockError};
 use crate::util;
 
 pub struct File<Access: AccessMode = ReadWrite> {
@@ -55,18 +55,9 @@ impl<A: AccessMode> File<A> {
     // TODO: applicable metadata setters
 
     pub fn try_clone(&self) -> Result<File, CloneError> {
-        let new_fd = unsafe { libc::dup(*self.fd) };
-        if new_fd == -1 {
-            match util::fs::err_no() {
-                libc::EBADF => BadFdPanic.panic(),
-                libc::EMFILE => Err(FileCountError)?,
-                libc::ENOMEM => Err(OOMError)?,
-                e => UnexpectedErrorPanic(e).panic(),
-            }
-        }
-        Ok(File {
+        self.fd.try_clone().map(|new_fd| File {
             _access: PhantomData,
-            fd: Fd(new_fd),
+            fd: new_fd,
         })
     }
 
@@ -145,6 +136,47 @@ impl File<ReadWrite> {
             .create_if_absent()
             .mode(file_mode)
             .open(file_path)
+    }
+
+    pub fn open_rel<P: AsRef<Path<Rel>>>(
+        relative_to: &Directory,
+        file_path: P
+    ) -> Result<File<ReadWrite>, RawOsError> {
+        File::<ReadWrite>::options().open_rel(relative_to, file_path)
+    }
+
+    pub fn create_rel<P: AsRef<Path<Rel>>>(
+        relative_to: &Directory,
+        file_path: P,
+        file_mode: u16,
+    ) -> Result<File<ReadWrite>, RawOsError> {
+        File::<ReadWrite>::options()
+            .create_only()
+            .mode(file_mode)
+            .open_rel(relative_to, file_path)
+    }
+
+    pub fn open_or_create_rel<P: AsRef<Path<Rel>>>(
+        relative_to: &Directory,
+        file_path: P,
+        file_mode: u16,
+    ) -> Result<File<ReadWrite>, RawOsError> {
+        File::<ReadWrite>::options()
+            .create_if_absent()
+            .mode(file_mode)
+            .open_rel(relative_to, file_path)
+    }
+
+    pub fn create_temp() -> Result<File<ReadWrite>, RawOsError> {
+        File::<ReadWrite>::options()
+            .no_create()
+            .extra_flags(libc::O_TMPFILE | libc::O_EXCL)
+            .mode(0o700)
+            .open(unsafe { Path::<Abs>::from_unchecked("/tmp") })
+        // TODO: Error handling differences:
+        // * EISDIR: Means temp files are unsupported.
+        // * ENOENT: Can occur if temp files are unsupported.
+        // + EOPNOTSUPP: Fs doesn't support temp files.
     }
 }
 

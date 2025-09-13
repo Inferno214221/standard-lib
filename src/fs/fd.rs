@@ -5,8 +5,8 @@ use std::thread;
 
 use libc::{c_int, stat as Stat};
 
-use crate::fs::error::{MetadataOverflowError, IOError, InterruptError, OOMError, StorageExhaustedError};
-use crate::fs::file::{CloseError, MetadataError};
+use crate::fs::error::{FileCountError, IOError, InterruptError, MetadataOverflowError, OOMError, StorageExhaustedError};
+use crate::fs::file::{CloneError, CloseError, MetadataError};
 use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, Panic, UnexpectedErrorPanic};
 use crate::fs::Metadata;
 use crate::util;
@@ -44,6 +44,19 @@ impl Fd {
             }
         }
         Ok(())
+    }
+
+    pub fn try_clone(&self) -> Result<Fd, CloneError> {
+        let new_fd = unsafe { libc::dup(self.0) };
+        if new_fd == -1 {
+            match util::fs::err_no() {
+                libc::EBADF => BadFdPanic.panic(),
+                libc::EMFILE => Err(FileCountError)?,
+                libc::ENOMEM => Err(OOMError)?,
+                e => UnexpectedErrorPanic(e).panic(),
+            }
+        }
+        Ok(Fd(new_fd))
     }
 }
 

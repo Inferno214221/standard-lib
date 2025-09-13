@@ -86,10 +86,6 @@ impl Path<Rel> {
     pub fn metadata_no_follow(&self, relative_to: Directory) -> Result<Metadata, PathOrMetadataError> {
         self.metadata_raw(relative_to, libc::AT_SYMLINK_NOFOLLOW)
     }
-
-    pub fn open_file(&self, relative_to: &Directory) -> Result<File<ReadWrite>, RawOsError> {
-        File::options().open_rel(relative_to, self)
-    }
 }
 
 impl<O: AsRef<OsStr>> From<O> for OwnedPath<Rel> {

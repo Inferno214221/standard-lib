@@ -1,3 +1,5 @@
+use std::{thread, time::Duration};
+
 use standard_lib::{collections::*, fs::*};
 
 use contiguous::{Array, Vector};
@@ -130,4 +132,7 @@ fn main() {
 
     // full.push(OwnedPath::from("/test-file-1"));
     // dbg!(&full);
+
+    let tmp = File::create_temp().unwrap();
+    dbg!(&tmp);
 }

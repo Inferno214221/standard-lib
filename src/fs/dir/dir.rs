@@ -5,7 +5,7 @@ use libc::{O_DIRECTORY, c_int};
 
 use crate::collections::contiguous::Array;
 use crate::fs::dir::DirEntries;
-use crate::fs::file::{CloseError, MetadataError};
+use crate::fs::file::{CloneError, CloseError, MetadataError};
 use crate::fs::path::{Abs, Path};
 use crate::fs::{Fd, Metadata};
 use crate::util;
@@ -57,5 +57,11 @@ impl Directory {
 
     pub fn close(self) -> Result<(), CloseError> {
         self.fd.close()
+    }
+
+    pub fn try_clone(&self) -> Result<Directory, CloneError> {
+        self.fd.try_clone().map(|new_fd| Directory {
+            fd: new_fd,
+        })
     }
 }

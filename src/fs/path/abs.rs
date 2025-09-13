@@ -101,10 +101,6 @@ impl Path<Abs> {
         Ok(Metadata::from_stat(raw))
     }
 
-    pub fn open_file(&self) -> Result<File<ReadWrite>, RawOsError> {
-        File::options().open(self)
-    }
-
     // NOTE: Symlinks can't be opened, so all symlink-related APIs need to be handled here.
 
     // create_symlink
