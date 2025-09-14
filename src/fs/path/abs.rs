@@ -6,12 +6,12 @@ use std::mem::MaybeUninit;
 
 use libc::stat as Stat;
 
-use super::{OwnedPath, Path, PathState};
+use super::{OwnedPath, Path, PathState, Rel};
 use crate::fs::error::{ExcessiveLinksError, MetadataOverflowError, MissingComponentError, NoSearchError, NonDirComponentError, OOMError, PathLengthError};
 use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, Panic, UnexpectedErrorPanic};
 use crate::fs::path::{PathError, PathOrMetadataError};
-use crate::fs::{File, Metadata};
-use crate::fs::file::{MetadataError, ReadWrite};
+use crate::fs::Metadata;
+use crate::fs::file::MetadataError;
 use crate::util::{self, sealed::Sealed};
 
 #[derive(Debug)]
@@ -50,10 +50,10 @@ impl Path<Abs> {
         todo!("use components iter and collect")
     }
 
-    // pub fn make_relative(&self, from: &AbsPath) {
-    //     // TODO: Include ../.. etc.
-    //     todo!()
-    // }
+    pub fn make_relative<P: AsRef<Path<Abs>>>(&self, from: P) -> OwnedPath<Rel> {
+        // TODO: Include ../.. etc.
+        todo!("{:?}", &from.as_ref())
+    }
 
     // no follow with O_NOFOLLOW
 

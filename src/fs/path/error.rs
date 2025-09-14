@@ -1,6 +1,6 @@
 use derive_more::{Display, Error, From};
 
-use crate::fs::error::{ExcessiveLinksError, MissingComponentError, NoSearchError, NonDirComponentError, PathLengthError};
+use crate::fs::error::{EmptyStrError, ExcessiveLinksError, HomeResolutionError, MissingComponentError, NoSearchError, NonDirComponentError, PathLengthError};
 use crate::fs::file::MetadataError;
 
 #[derive(Debug, Display, Clone, From, Error)]
@@ -17,4 +17,11 @@ pub enum PathError {
 pub enum PathOrMetadataError {
     Path(PathError),
     Metadata(MetadataError),
+}
+
+
+#[derive(Debug, Display, Clone, From, Error)]
+pub enum PathParseError {
+    EmptyStr(EmptyStrError),
+    HomeResolution(HomeResolutionError),
 }

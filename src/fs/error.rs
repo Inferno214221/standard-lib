@@ -59,3 +59,11 @@ pub struct MissingComponentError;
 #[derive(Debug, Display, Clone, Error)]
 #[display("a component of the provide path is not a directory")]
 pub struct NonDirComponentError;
+
+#[derive(Debug, Display, Clone, Error)]
+#[display("provided string is empty")]
+pub struct EmptyStrError;
+
+#[derive(Debug, Display, Clone, Error)]
+#[display("unable to get home directory")]
+pub struct HomeResolutionError;

@@ -17,7 +17,6 @@ use derive_more::IsVariant;
 pub trait PathState: Sealed + Debug {}
 
 #[derive(Clone)]
-#[repr(transparent)]
 pub struct OwnedPath<State: PathState> {
     pub(crate) _state: PhantomData<fn() -> State>,
     pub(crate) inner: OsString,

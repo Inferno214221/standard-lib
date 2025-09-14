@@ -1,4 +1,5 @@
-//! Types for representing valid file system paths.
+//! Types for representing valid file system paths. [`OwnedPath`] and [`Path`] are available as
+//! owned and slice representations, respectively.
 //! 
 //! This module provides types which represent valid (although not necessarily existent) paths for
 //! an operating system / file system. (Currently only for Linux, like the rest of [`fs`](super)).
@@ -34,6 +35,7 @@
 // TODO: determine approach for existence checking methods and document TOCTOU choices.
 
 mod abs;
+mod dispatch;
 mod display;
 mod error;
 mod iter;
@@ -41,6 +43,7 @@ mod path;
 mod rel;
 
 pub use abs::*;
+pub use dispatch::*;
 pub use display::*;
 pub use error::*;
 pub use iter::*;

@@ -1,14 +1,14 @@
 use std::ffi::{CString, OsStr};
-use std::io::RawOsError;
-use std::mem::{self, MaybeUninit};
+use std::marker::PhantomData;
+use std::mem::MaybeUninit;
 
 use libc::{c_int, stat as Stat};
 
 use super::{Abs, OwnedPath, Path, PathState};
 use crate::fs::error::{ExcessiveLinksError, MetadataOverflowError, MissingComponentError, NoSearchError, NonDirComponentError, OOMError, PathLengthError};
-use crate::fs::file::{MetadataError, ReadWrite};
+use crate::fs::file::MetadataError;
 use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, InvalidOpPanic, Panic, UnexpectedErrorPanic};
-use crate::fs::{Directory, File, Metadata};
+use crate::fs::{Directory, Metadata};
 use crate::fs::path::{PathError, PathOrMetadataError};
 use crate::util::{self, sealed::Sealed};
 
@@ -21,9 +21,11 @@ impl PathState for Rel {}
 
 impl OwnedPath<Rel> {
     pub fn resolve_root(self) -> OwnedPath<Abs> {
-        // SAFETY: OwnedPath<Rel> has the same layout as OwnedPath<Abs> and represents the same
-        // result as resolving relative to the root.
-        unsafe { mem::transmute(self) }
+        let OwnedPath { _state, inner } = self;
+        OwnedPath {
+            _state: PhantomData,
+            inner
+        }
     }
 }
 
