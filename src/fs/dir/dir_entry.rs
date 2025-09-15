@@ -25,7 +25,14 @@ pub(crate) struct DirEntrySized {
 
 // TODO: Add wrapped methods on DirEntry for the ..at syscalls, e.g. fstatat.
 
-// TODO: Debug and Display consistency for all fs types.
+/// An entry in a [`Directory`]'s records, taking the form of a reference to the parent `Directory`
+/// and the relative path to this entry, along with a few other pieces of information.
+/// 
+/// Among these other pieces of information, is the entry's inode number and a hint about the
+/// [`FileType`] of the entry. Unfortunately, this field is often not present, and therefore
+/// considered only a hint. If the `FileType` is present and has some value, it can be trusted
+/// (subject to TOCTOU restrictions), but the possibility of it not existing should always be
+/// considered or even expected.
 #[derive(Debug)]
 pub struct DirEntry<'a> {
     pub parent: &'a Directory,
@@ -53,6 +60,13 @@ impl<'a> DirEntry<'a> {
 
 pub(crate) const BUFFER_SIZE: usize = 1024;
 
+/// An iterator over a [`Directory`]'s contained entries. Obtainable via
+/// [`Directory::read_entries`], this buffered iterator produces [`DirEntry`]s for the referenced
+/// directory.
+/// 
+/// When reading from the file system, the redundant "." and ".." entries are skipped, along with
+/// any deleted entries.
+// TODO: Heaps of TOCTOU notes.
 pub struct DirEntries<'a> {
     pub(crate) dir: &'a Directory,
     pub(crate) buf: Array<MaybeUninit<u8>>,
@@ -68,9 +82,11 @@ impl<'a> Iterator for DirEntries<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.rem == 0 {
             loop {
-                match unsafe {
-                    util::fs::getdents(*self.dir.fd, self.buf.as_ptr().cast_mut().cast(), self.buf.size())
-                } {
+                match unsafe { util::fs::getdents(
+                    *self.dir.fd,
+                    self.buf.as_ptr().cast_mut().cast(),
+                    self.buf.size()
+                ) } {
                     -1 => match util::fs::err_no() {
                         libc::EBADF => BadFdPanic.panic(),
                         libc::EFAULT => BadStackAddrPanic.panic(),

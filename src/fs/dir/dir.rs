@@ -12,12 +12,21 @@ use crate::util;
 
 use super::BUFFER_SIZE;
 
-// TODO: Document that this is dynamic.
 // TODO: Verify that all ..at syscalls support this constant.
+// TODO: This might be better placed in an env module or something.
+/// A special constant [`Directory`] that always represents to current directory of the process. Can
+/// be passed to functions in place of a manually opened `Directory` to indicate that the operation
+/// should use the process's cwd.
 pub const CWD: Directory = Directory {
     fd: Fd(libc::AT_FDCWD),
 };
 
+/// An open directory that is guaranteed to exist for the lifetime of the `Directory`. Can also be
+/// used to obtain an iterator over each contained [`DirEntry`](super::DirEntry).
+/// 
+/// Unlike [`File`](crate::fs::File)s, `Directory`s are currently not associated with an access mode
+/// to restrict operations at compile time. This may be changed in the future however, if it helps
+/// to better represent the underlying entity and its functionality.
 #[derive(Debug)]
 pub struct Directory {
     pub(crate) fd: Fd,
@@ -41,7 +50,7 @@ impl Directory {
 
     // TODO: relative open/create variants.
 
-    pub fn entries<'a>(&'a self) -> DirEntries<'a> {
+    pub fn read_entries<'a>(&'a self) -> DirEntries<'a> {
         let buf = Array::new_uninit(BUFFER_SIZE);
         DirEntries {
             dir: self,

@@ -23,6 +23,7 @@ impl FromStr for DispatchedPath {
                     OwnedPath::from_os_str_sanitized(s.as_ref())
                 ))
             },
+            // TODO: Handle '~' more consistently.
             Some('~') => {
                 Ok(DispatchedPath::Abs(
                     OwnedPath::from_os_str_sanitized(s[1..].as_ref())

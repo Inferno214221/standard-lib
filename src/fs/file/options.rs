@@ -12,6 +12,9 @@ use crate::fs::path::{Abs, Path};
 use crate::fs::{Directory, Fd, Rel};
 use crate::util;
 
+/// A builder struct to help with opening files, using customizable options and logical defaults.
+/// Available via [`File::options`] to avoid additional use statements.
+// TODO: More docs here.
 #[derive(Clone)]
 pub struct OpenOptions<Access: AccessMode> {
     pub(crate) _access: PhantomData<fn() -> Access>,

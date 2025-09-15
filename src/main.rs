@@ -126,7 +126,7 @@ fn main() {
     println!("{}, {}", full.display(), full.display().shrink_home());
 
     let dir = Directory::open(full).unwrap();
-    for e in dir.entries() {
+    for e in dir.read_entries() {
         dbg!(e.unwrap());
     }
 

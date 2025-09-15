@@ -17,6 +17,9 @@ use crate::fs::{Directory, Fd, Metadata, Rel};
 use crate::fs::error::{IOError, InterruptError, LockMemError, StorageExhaustedError, SyncUnsupportedError, WouldBlockError};
 use crate::util;
 
+/// An open file, allowing for reading and writing according to the associated [`AccessMode`]. The
+/// underlying file is guaranteed to exist for the lifetime of the `File`.
+// TODO: More docs here.
 pub struct File<Access: AccessMode = ReadWrite> {
     pub(crate) _access: PhantomData<fn() -> Access>,
     pub(crate) fd: Fd,

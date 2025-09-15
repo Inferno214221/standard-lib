@@ -19,6 +19,7 @@ pub struct Metadata {
     pub block_size: i64,           // st_blksize
     // 64-bit:
     pub blocks: i64,    // st_blocks
+    // TODO: Make NonZero
     pub inode_num: u64, // st_ino
 }
 
