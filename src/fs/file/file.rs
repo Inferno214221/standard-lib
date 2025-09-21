@@ -12,8 +12,7 @@ use libc::{c_int, c_void};
 use super::{AccessMode, CloneError, CloseError, LockError, MetadataError, OpenOptions, Read, ReadWrite, SyncError, TryLockError, Write};
 use crate::collections::contiguous::Vector;
 use crate::fs::panic::{BadFdPanic, InvalidOpPanic, Panic, UnexpectedErrorPanic};
-use crate::fs::path::{Abs, Path};
-use crate::fs::{Directory, Fd, Metadata, Rel};
+use crate::fs::{Abs, Directory, Fd, Metadata, Path, Rel};
 use crate::fs::error::{IOError, InterruptError, LockMemError, StorageExhaustedError, SyncUnsupportedError, WouldBlockError};
 use crate::util;
 

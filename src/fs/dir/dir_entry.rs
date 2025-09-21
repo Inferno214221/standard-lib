@@ -74,7 +74,7 @@ pub struct DirEntries<'a> {
     pub(crate) rem: usize,
 }
 
-// TODO: need to ensure that undersized buffer is handled.
+// TODO: impl other Iterator traits
 
 impl<'a> Iterator for DirEntries<'a> {
     type Item = Result<DirEntry<'a>, RemovedDirectoryError>;

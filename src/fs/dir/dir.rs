@@ -23,10 +23,6 @@ pub const CWD: Directory = Directory {
 
 /// An open directory that is guaranteed to exist for the lifetime of the `Directory`. Can also be
 /// used to obtain an iterator over each contained [`DirEntry`](super::DirEntry).
-/// 
-/// Unlike [`File`](crate::fs::File)s, `Directory`s are currently not associated with an access mode
-/// to restrict operations at compile time. This may be changed in the future however, if it helps
-/// to better represent the underlying entity and its functionality.
 #[derive(Debug)]
 pub struct Directory {
     pub(crate) fd: Fd,

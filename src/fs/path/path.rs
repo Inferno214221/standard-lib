@@ -10,8 +10,7 @@ use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use super::{DisplayPath, Rel};
 use crate::collections::contiguous::Vector;
 use crate::fs::path::{Ancestors, Components};
-use crate::util;
-use crate::util::sealed::Sealed;
+use crate::util::{self, sealed::Sealed};
 
 use derive_more::IsVariant;
 
