@@ -9,6 +9,7 @@ use std::os::unix::ffi::{OsStrExt, OsStringExt};
 
 use super::{DisplayPath, Rel};
 use crate::collections::contiguous::Vector;
+use crate::fs::path::{Ancestors, Components};
 use crate::util;
 use crate::util::sealed::Sealed;
 
@@ -125,6 +126,22 @@ impl<S: PathState> Path<S> {
             Some(replaced) => unsafe {
                 Some(Path::<Rel>::from_unchecked(OsStr::from_bytes(replaced)))
             },
+        }
+    }
+
+    pub fn components<'a>(&'a self) -> Components<'a, S> {
+        Components {
+            _state: PhantomData,
+            path: self.as_bytes(),
+            head: 0,
+        }
+    }
+
+    pub fn ancestors<'a>(&'a self) -> Ancestors<'a, S> {
+        Ancestors {
+            _state: PhantomData,
+            path: self.as_bytes(),
+            index: 0,
         }
     }
 }

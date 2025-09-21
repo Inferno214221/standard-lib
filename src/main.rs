@@ -123,6 +123,17 @@ fn main() {
     let downloads = OwnedPath::<Rel>::from("./downloads");
     println!("{}, {}, {}", downloads.display(), downloads.display().slash(), downloads.display().no_lead());
     let full = downloads.resolve(OwnedPath::home().unwrap());
+
+    for c in full.components() {
+        dbg!(c);
+    }
+
+    dbg!("Break");
+
+    for c in full.ancestors() {
+        dbg!(c);
+    }
+
     println!("{}, {}", full.display(), full.display().shrink_home());
 
     let dir = Directory::open(full).unwrap();
