@@ -4,10 +4,11 @@ use std::fmt::{Debug, Formatter};
 use std::io::RawOsError;
 use std::marker::PhantomData;
 
-use libc::{O_APPEND, O_CREAT, O_EXCL, O_NOATIME, O_NOFOLLOW, O_SYNC, O_TRUNC, c_int};
+use libc::{O_APPEND, O_NOATIME, O_NOFOLLOW, O_SYNC, c_int};
 
 use super::{File, AccessMode};
 use crate::fs::dir::DirEntry;
+use crate::fs::file::{Create, CreateIfMissing, CreateOrEmpty, NoCreate, OpenMode, ReadOnly, ReadWrite, WriteOnly};
 use crate::fs::path::{Abs, Path};
 use crate::fs::{Directory, Fd, Rel};
 use crate::util;
@@ -16,9 +17,9 @@ use crate::util;
 /// Available via [`File::options`] to avoid additional use statements.
 // TODO: More docs here.
 #[derive(Clone)]
-pub struct OpenOptions<Access: AccessMode> {
+pub struct OpenOptions<Access: AccessMode, Open: OpenMode> {
     pub(crate) _access: PhantomData<fn() -> Access>,
-    pub create: Option<Create>,
+    pub(crate) _open: PhantomData<fn() -> Open>,
     pub mode: Option<u16>,
     pub append: Option<bool>,
     pub force_sync: Option<bool>,
@@ -27,24 +28,9 @@ pub struct OpenOptions<Access: AccessMode> {
     pub extra_flags: Option<i32>,
 }
 
-#[derive(Debug, Clone, Copy, Default)]
-pub enum Create {
-    No,
-    #[default]
-    IfAbsent,
-    OrClear,
-    Require,
-}
-
-impl<A: AccessMode> OpenOptions<A> {
+impl<A: AccessMode, O: OpenMode> OpenOptions<A, O> {
     pub(crate) fn flags(&self) -> c_int {
-        let mut flags = A::FLAGS;
-        match &self.create.unwrap_or_default() {
-            Create::No => (),
-            Create::IfAbsent => flags |= O_CREAT,
-            Create::OrClear =>  flags |= O_CREAT | O_TRUNC,
-            Create::Require =>  flags |= O_CREAT | O_EXCL,
-        }
+        let mut flags = A::FLAGS | O::FLAGS;
         if self.append.unwrap_or(false) {
             flags |= O_APPEND;
         }
@@ -60,8 +46,8 @@ impl<A: AccessMode> OpenOptions<A> {
         flags | self.extra_flags.unwrap_or_default()
     }
 
-    pub fn new() -> OpenOptions<A> {
-        OpenOptions::<A>::default()
+    pub fn new() -> OpenOptions<A, O> {
+        OpenOptions::<A, O>::default()
     }
 
     pub fn open<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File<A>, RawOsError> {
@@ -105,29 +91,53 @@ impl<A: AccessMode> OpenOptions<A> {
         self.open_rel(dir_ent.parent, &dir_ent.path)
     }
 
-    pub const fn create_mode(&mut self, value: Create) -> &mut Self {
-        self.create = Some(value);
-        self
+    pub const fn no_create(self) -> OpenOptions<A, NoCreate> {
+        OpenOptions::<A, NoCreate> {
+            _open: PhantomData,
+            ..self
+        }
     }
 
-    pub const fn no_create(&mut self) -> &mut Self {
-        self.create = Some(Create::No);
-        self
+    pub const fn create_if_missing(self) -> OpenOptions<A, CreateIfMissing> {
+        OpenOptions::<A, CreateIfMissing> {
+            _open: PhantomData,
+            ..self
+        }
     }
 
-    pub const fn create_if_absent(&mut self) -> &mut Self {
-        self.create = Some(Create::IfAbsent);
-        self
+    pub const fn create_or_empty(self) -> OpenOptions<A, CreateOrEmpty> {
+        OpenOptions::<A, CreateOrEmpty> {
+            _open: PhantomData,
+            ..self
+        }
     }
 
-    pub const fn create_or_clear(&mut self) -> &mut Self {
-        self.create = Some(Create::OrClear);
-        self
+    pub const fn create(self) -> OpenOptions<A, Create> {
+        OpenOptions::<A, Create> {
+            _open: PhantomData,
+            ..self
+        }
     }
 
-    pub const fn create_only(&mut self) -> &mut Self {
-        self.create = Some(Create::Require);
-        self
+    pub const fn read_only(self) -> OpenOptions<ReadOnly, O> {
+        OpenOptions::<ReadOnly, O> {
+            _access: PhantomData,
+            ..self
+        }
+    }
+
+    pub const fn write_only(self) -> OpenOptions<WriteOnly, O> {
+        OpenOptions::<WriteOnly, O> {
+            _access: PhantomData,
+            ..self
+        }
+    }
+
+    pub const fn read_write(self) -> OpenOptions<ReadWrite, O> {
+        OpenOptions::<ReadWrite, O> {
+            _access: PhantomData,
+            ..self
+        }
     }
 
     pub const fn mode(&mut self, value: u16) -> &mut Self {
@@ -162,11 +172,11 @@ impl<A: AccessMode> OpenOptions<A> {
 }
 
 // The Default derive macro doesn't like my spooky zero-variant enums.
-impl<A: AccessMode> Default for OpenOptions<A> {
+impl<A: AccessMode, O: OpenMode> Default for OpenOptions<A, O> {
     fn default() -> Self {
         Self {
             _access: Default::default(),
-            create: Default::default(),
+            _open: Default::default(),
             mode: Default::default(),
             append: Default::default(),
             force_sync: Default::default(),
@@ -177,11 +187,11 @@ impl<A: AccessMode> Default for OpenOptions<A> {
     }
 }
 
-impl<A: AccessMode> Debug for OpenOptions<A> {
+impl<A: AccessMode, O: OpenMode> Debug for OpenOptions<A, O> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("OpenOptions")
             .field("<access>", &util::fmt::raw_type_name::<A>())
-            .field("create", &self.create)
+            .field("<open>", &util::fmt::raw_type_name::<O>())
             .field("mode", &self.mode)
             .field("append", &self.append)
             .field("force_sync", &self.force_sync)

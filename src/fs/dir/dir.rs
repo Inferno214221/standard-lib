@@ -6,8 +6,7 @@ use libc::{O_DIRECTORY, c_int};
 use crate::collections::contiguous::Array;
 use crate::fs::dir::DirEntries;
 use crate::fs::file::{CloneError, CloseError, MetadataError};
-use crate::fs::path::{Abs, Path};
-use crate::fs::{Fd, Metadata};
+use crate::fs::{Abs, Fd, Metadata, Path, Rel};
 use crate::util;
 
 use super::BUFFER_SIZE;
@@ -35,6 +34,28 @@ impl Directory {
         let flags: c_int = O_DIRECTORY; // Can't open as O_PATH because we need to read entries.
 
         match unsafe { libc::open(pathname.as_ptr().cast(), flags) } {
+            -1 => Err(util::fs::err_no()),
+            fd => Ok(Directory {
+                fd: Fd(fd),
+            }),
+        }
+    }
+
+    pub fn open_rel<P: AsRef<Path<Rel>>>(
+        &self,
+        relative_to: &Directory,
+        file_path: P
+    ) -> Result<Directory, RawOsError> {
+        let pathname = CString::from(file_path.as_ref().to_owned());
+
+        let flags: c_int = O_DIRECTORY;
+
+        match unsafe { libc::openat(
+            *relative_to.fd,
+            // Skip the leading '/' so that the path is considered relative.
+            pathname.as_ptr().add(1).cast(),
+            flags
+        ) } {
             -1 => Err(util::fs::err_no()),
             fd => Ok(Directory {
                 fd: Fd(fd),

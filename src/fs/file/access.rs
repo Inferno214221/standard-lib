@@ -3,7 +3,7 @@ use libc::{O_RDONLY, O_RDWR, O_WRONLY, c_int};
 use crate::util::sealed::Sealed;
 
 pub trait AccessMode: Sealed {
-    const FLAGS: libc::c_int;
+    const FLAGS: c_int;
 }
 
 pub trait Read: AccessMode {}

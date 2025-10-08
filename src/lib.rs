@@ -62,6 +62,7 @@
 #![feature(ptr_as_ref_unchecked)]
 #![feature(doc_cfg)]
 #![feature(slice_from_ptr_range)]
+#![feature(type_changing_struct_update)]
 
 // #![warn(missing_docs)]
 #![warn(clippy::missing_safety_doc)]

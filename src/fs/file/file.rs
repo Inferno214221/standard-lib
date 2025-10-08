@@ -11,6 +11,7 @@ use libc::{c_int, c_void};
 
 use super::{AccessMode, CloneError, CloseError, LockError, MetadataError, OpenOptions, Read, ReadWrite, SyncError, TryLockError, Write};
 use crate::collections::contiguous::Vector;
+use crate::fs::file::NoCreate;
 use crate::fs::panic::{BadFdPanic, InvalidOpPanic, Panic, UnexpectedErrorPanic};
 use crate::fs::{Abs, Directory, Fd, Metadata, Path, Rel};
 use crate::fs::error::{IOError, InterruptError, LockMemError, StorageExhaustedError, SyncUnsupportedError, WouldBlockError};
@@ -25,8 +26,8 @@ pub struct File<Access: AccessMode = ReadWrite> {
 }
 
 impl<A: AccessMode> File<A> {
-    pub fn options() -> OpenOptions<A> {
-        OpenOptions::<A>::new()
+    pub fn options() -> OpenOptions<A, NoCreate> {
+        OpenOptions::<A, NoCreate>::new()
     }
     
     pub fn metadata(&self) -> Result<Metadata, MetadataError> {
@@ -117,15 +118,16 @@ impl File<ReadWrite> {
     pub fn open<P: AsRef<Path<Abs>>>(
         file_path: P,
     ) -> Result<File<ReadWrite>, RawOsError> {
-        File::<ReadWrite>::options().open(file_path)
+        File::options()
+            .open(file_path)
     }
 
     pub fn create<P: AsRef<Path<Abs>>>(
         file_path: P,
         file_mode: u16,
     ) -> Result<File<ReadWrite>, RawOsError> {
-        File::<ReadWrite>::options()
-            .create_only()
+        File::options()
+            .create()
             .mode(file_mode)
             .open(file_path)
     }
@@ -134,8 +136,8 @@ impl File<ReadWrite> {
         file_path: P,
         file_mode: u16,
     ) -> Result<File<ReadWrite>, RawOsError> {
-        File::<ReadWrite>::options()
-            .create_if_absent()
+        File::options()
+            .create_if_missing()
             .mode(file_mode)
             .open(file_path)
     }
@@ -144,7 +146,8 @@ impl File<ReadWrite> {
         relative_to: &Directory,
         file_path: P
     ) -> Result<File<ReadWrite>, RawOsError> {
-        File::<ReadWrite>::options().open_rel(relative_to, file_path)
+        File::options()
+            .open_rel(relative_to, file_path)
     }
 
     pub fn create_rel<P: AsRef<Path<Rel>>>(
@@ -152,8 +155,8 @@ impl File<ReadWrite> {
         file_path: P,
         file_mode: u16,
     ) -> Result<File<ReadWrite>, RawOsError> {
-        File::<ReadWrite>::options()
-            .create_only()
+        File::options()
+            .create()
             .mode(file_mode)
             .open_rel(relative_to, file_path)
     }
@@ -163,8 +166,8 @@ impl File<ReadWrite> {
         file_path: P,
         file_mode: u16,
     ) -> Result<File<ReadWrite>, RawOsError> {
-        File::<ReadWrite>::options()
-            .create_if_absent()
+        File::options()
+            .create_if_missing()
             .mode(file_mode)
             .open_rel(relative_to, file_path)
     }

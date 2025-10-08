@@ -5,7 +5,7 @@
 //! such as pointers, allocations, iterators and hashing.
 //!
 //! # Method
-//! Applicable type here implement [`Deref<Target = [T]>`](std::ops::Deref) (and DerefMut), which
+//! Applicable types here implement [`Deref<Target = [T]>`](std::ops::Deref) (and DerefMut), which
 //! saves me from writing some of the more repetitive functionality.
 
 // pub mod binary_tree;
