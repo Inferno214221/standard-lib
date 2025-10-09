@@ -1,17 +1,25 @@
+use std::error::Error;
 use std::fmt;
 use std::ffi::CString;
 use std::fmt::{Debug, Formatter};
 use std::io::RawOsError;
 use std::marker::PhantomData;
 
-use libc::{O_APPEND, O_NOATIME, O_NOFOLLOW, O_SYNC, c_int};
+use libc::{EACCES, EFAULT, EFBIG, EINTR, EINVAL, EISDIR, ELOOP, EMFILE, ENAMETOOLONG, ENFILE, ENODEV, ENOENT, ENOMEM, ENOSPC, ENOTDIR, ENXIO, EOVERFLOW, EPERM, EROFS, ETXTBSY, O_APPEND, O_CREAT, O_EXCL, O_NOATIME, O_NOFOLLOW, O_SYNC, O_TMPFILE, O_TRUNC, c_int};
 
 use super::{File, AccessMode};
 use crate::fs::dir::DirEntry;
-use crate::fs::file::{Create, CreateIfMissing, CreateOrEmpty, NoCreate, OpenMode, ReadOnly, ReadWrite, WriteOnly};
+use crate::fs::error::{AccessError, ExcessiveLinksError, FileCountError, InterruptError, IsDirError, MissingComponentError, NonDirComponentError, OOMError, PathLengthError, StorageExhaustedError};
+use crate::fs::file::{Permanent, Create, CreateIfMissing, CreateOrEmpty, CreateTemp, CreateUnlinked, NoCreate, OpenMode, ReadOnly, ReadWrite, Write, WriteOnly};
+use crate::fs::panic::{BadStackAddrPanic, Panic, UnexpectedErrorPanic};
 use crate::fs::path::{Abs, Path};
 use crate::fs::{Directory, Fd, Rel};
 use crate::util;
+use crate::util::fmt::DebugRaw;
+
+pub(crate) const EXTRA_FLAGS_MASK: c_int = !(
+    O_APPEND | O_NOATIME | O_NOFOLLOW | O_SYNC | O_CREAT | O_EXCL | O_TRUNC | O_TMPFILE
+);
 
 /// A builder struct to help with opening files, using customizable options and logical defaults.
 /// Available via [`File::options`] to avoid additional use statements.
@@ -20,42 +28,42 @@ use crate::util;
 pub struct OpenOptions<Access: AccessMode, Open: OpenMode> {
     pub(crate) _access: PhantomData<fn() -> Access>,
     pub(crate) _open: PhantomData<fn() -> Open>,
-    pub mode: Option<u16>,
-    pub append: Option<bool>,
-    pub force_sync: Option<bool>,
-    pub update_access_time: Option<bool>,
-    pub follow_links: Option<bool>,
-    pub extra_flags: Option<i32>,
+    pub flags: c_int,
+    pub mode: c_int,
+}
+
+macro_rules! set_flag {
+    ($self:ident, $value:expr, $flag:expr) => {
+        if $value {
+            $self.flags |= $flag;
+        } else {
+            $self.flags &= !$flag;
+        }
+    };
+}
+
+macro_rules! get_flag {
+    ($self:ident, $flag:expr) => {
+        $self.flags & $flag != 0
+    };
 }
 
 impl<A: AccessMode, O: OpenMode> OpenOptions<A, O> {
-    pub(crate) fn flags(&self) -> c_int {
-        let mut flags = A::FLAGS | O::FLAGS;
-        if self.append.unwrap_or(false) {
-            flags |= O_APPEND;
-        }
-        if self.force_sync.unwrap_or(false) {
-            flags |= O_SYNC;
-        }
-        if !self.update_access_time.unwrap_or(true) {
-            flags |= O_NOATIME;
-        }
-        if !self.follow_links.unwrap_or(true) {
-            flags |= O_NOFOLLOW;
-        }
-        flags | self.extra_flags.unwrap_or_default()
+    pub(crate) const fn flags(&self) -> c_int {
+        self.flags | A::FLAGS | O::FLAGS
     }
 
     pub fn new() -> OpenOptions<A, O> {
         OpenOptions::<A, O>::default()
     }
 
-    pub fn open<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File<A>, RawOsError> {
+    pub fn open_raw<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File<A>, RawOsError> {
         let pathname = CString::from(file_path.as_ref().to_owned());
         // TODO: Permission builder of some type?
-        let mode = self.mode.unwrap_or(0o644) as c_int;
+        dbg!(&pathname);
+        dbg!(&format!("{:x?}", self.flags()));
 
-        match unsafe { libc::open(pathname.as_ptr().cast(), self.flags(), mode) } {
+        match unsafe { libc::open(pathname.as_ptr().cast(), self.flags(), self.mode as c_int) } {
             -1 => Err(util::fs::err_no()),
             fd => Ok(File::<A> {
                 _access: PhantomData,
@@ -64,20 +72,19 @@ impl<A: AccessMode, O: OpenMode> OpenOptions<A, O> {
         }
     }
 
-    pub fn open_rel<P: AsRef<Path<Rel>>>(
+    pub fn open_rel_raw<P: AsRef<Path<Rel>>>(
         &self,
         relative_to: &Directory,
         file_path: P
     ) -> Result<File<A>, RawOsError> {
         let pathname = CString::from(file_path.as_ref().to_owned());
-        let mode = self.mode.unwrap_or(0o644) as c_int;
 
         match unsafe { libc::openat(
             *relative_to.fd,
             // Skip the leading '/' so that the path is considered relative.
             pathname.as_ptr().add(1).cast(),
             self.flags(),
-            mode
+            self.mode
         ) } {
             -1 => Err(util::fs::err_no()),
             fd => Ok(File::<A> {
@@ -88,7 +95,7 @@ impl<A: AccessMode, O: OpenMode> OpenOptions<A, O> {
     }
 
     pub fn open_dir_entry(&self, dir_ent: &DirEntry) -> Result<File<A>, RawOsError> {
-        self.open_rel(dir_ent.parent, &dir_ent.path)
+        self.open_rel_raw(dir_ent.parent, &dir_ent.path)
     }
 
     pub const fn no_create(self) -> OpenOptions<A, NoCreate> {
@@ -119,13 +126,6 @@ impl<A: AccessMode, O: OpenMode> OpenOptions<A, O> {
         }
     }
 
-    pub const fn read_only(self) -> OpenOptions<ReadOnly, O> {
-        OpenOptions::<ReadOnly, O> {
-            _access: PhantomData,
-            ..self
-        }
-    }
-
     pub const fn write_only(self) -> OpenOptions<WriteOnly, O> {
         OpenOptions::<WriteOnly, O> {
             _access: PhantomData,
@@ -141,33 +141,86 @@ impl<A: AccessMode, O: OpenMode> OpenOptions<A, O> {
     }
 
     pub const fn mode(&mut self, value: u16) -> &mut Self {
-        self.mode = Some(value);
+        self.mode = value as c_int;
         self
     }
 
     pub const fn append(&mut self, value: bool) -> &mut Self {
-        self.append = Some(value);
+        set_flag!(self, value, O_APPEND);
         self
     }
 
     pub const fn force_sync(&mut self, value: bool) -> &mut Self {
-        self.force_sync = Some(value);
+        set_flag!(self, value, O_SYNC);
         self
     }
 
     pub const fn update_access_time(&mut self, value: bool) -> &mut Self {
-        self.update_access_time = Some(value);
+        set_flag!(self, !value, O_NOATIME);
         self
     }
 
     pub const fn follow_links(&mut self, value: bool) -> &mut Self {
-        self.follow_links = Some(value);
+        set_flag!(self, !value, O_NOFOLLOW);
         self
     }
 
-    pub const fn extra_flags(&mut self, value: i32) -> &mut Self {
-        self.extra_flags = Some(value);
+    pub const unsafe fn extra_flags(&mut self, value: i32) -> &mut Self {
+        self.flags |= value & EXTRA_FLAGS_MASK;
         self
+    }
+}
+
+impl<A: AccessMode, O: Permanent> OpenOptions<A, O> {
+    pub const fn read_only(self) -> OpenOptions<ReadOnly, O> {
+        OpenOptions::<ReadOnly, O> {
+            _access: PhantomData,
+            ..self
+        }
+    }
+}
+
+impl<A: Write, O: OpenMode> OpenOptions<A, O> {
+    pub const fn create_temp(self) -> OpenOptions<A, CreateTemp> {
+        OpenOptions::<A, CreateTemp> {
+            _open: PhantomData,
+            ..self
+        }
+    }
+
+    pub const fn create_unlinked(self) -> OpenOptions<A, CreateUnlinked> {
+        OpenOptions::<A, CreateUnlinked> {
+            _open: PhantomData,
+            ..self
+        }
+    }
+}
+
+impl<A: AccessMode> OpenOptions<A, NoCreate> {
+    pub fn open<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File<A>, Box<dyn Error>> {
+        match self.open_raw(file_path) {
+            Ok(f) => Ok(f),
+            Err(e) => match e {
+                EACCES            => Err(AccessError)?,
+                EFAULT            => BadStackAddrPanic.panic(),
+                EFBIG | EOVERFLOW => todo!(),
+                EINTR             => Err(InterruptError)?,
+                EINVAL            => todo!(),
+                EISDIR            => Err(IsDirError)?,
+                ELOOP             => Err(ExcessiveLinksError)?,
+                EMFILE | ENFILE   => Err(FileCountError)?,
+                ENAMETOOLONG      => Err(PathLengthError)?,
+                ENODEV | ENXIO    => todo!(),
+                ENOENT            => Err(MissingComponentError)?,
+                ENOMEM            => Err(OOMError)?,
+                ENOSPC            => Err(StorageExhaustedError)?, 
+                ENOTDIR           => Err(NonDirComponentError)?,
+                EPERM             => todo!(),
+                EROFS             => todo!(),
+                ETXTBSY           => todo!(),
+                e                 => UnexpectedErrorPanic(e).panic(),
+            },
+        }
     }
 }
 
@@ -177,12 +230,8 @@ impl<A: AccessMode, O: OpenMode> Default for OpenOptions<A, O> {
         Self {
             _access: Default::default(),
             _open: Default::default(),
-            mode: Default::default(),
-            append: Default::default(),
-            force_sync: Default::default(),
-            update_access_time: Default::default(),
-            follow_links: Default::default(),
-            extra_flags: Default::default()
+            mode: 0o644,
+            flags: 0x0,
         }
     }
 }
@@ -192,12 +241,12 @@ impl<A: AccessMode, O: OpenMode> Debug for OpenOptions<A, O> {
         f.debug_struct("OpenOptions")
             .field("<access>", &util::fmt::raw_type_name::<A>())
             .field("<open>", &util::fmt::raw_type_name::<O>())
-            .field("mode", &self.mode)
-            .field("append", &self.append)
-            .field("force_sync", &self.force_sync)
-            .field("update_access_time", &self.update_access_time)
-            .field("follow_links", &self.follow_links)
-            .field("extra_flags", &self.extra_flags)
+            .field("mode", &DebugRaw(format!("0o{:o}", self.mode)))
+            .field("append", &get_flag!(self, O_APPEND))
+            .field("force_sync", &get_flag!(self, O_SYNC))
+            .field("update_access_time", &!get_flag!(self, O_NOATIME))
+            .field("follow_links", &!get_flag!(self, O_NOFOLLOW))
+            .field("extra_flags", &DebugRaw(format!("0x{:x}", self.flags & EXTRA_FLAGS_MASK)))
             .finish()
     }
 }

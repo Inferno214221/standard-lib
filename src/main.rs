@@ -136,7 +136,7 @@ fn main() {
 
     println!("{}, {}", full.display(), full.display().shrink_home());
 
-    let dir = Directory::open(full).unwrap();
+    let dir = Directory::open(&full).unwrap();
     for e in dir.read_entries() {
         dbg!(e.unwrap());
     }
@@ -144,6 +144,16 @@ fn main() {
     // full.push(OwnedPath::from("/test-file-1"));
     // dbg!(&full);
 
-    let tmp = File::create_temp().unwrap();
-    dbg!(&tmp);
+    // let tmp = File::create_temp().unwrap();
+    // dbg!(&tmp);
+
+    unsafe {
+        dbg!(
+            File::options()
+                .read_only()
+                .append(true)
+                .follow_links(false)
+                .extra_flags(libc::O_CLOEXEC)
+        );
+    }
 }

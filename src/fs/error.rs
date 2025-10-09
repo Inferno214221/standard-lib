@@ -33,7 +33,7 @@ pub struct FileCountError;
 pub struct LockMemError;
 
 #[derive(Debug, Display, Clone, Error)]
-#[display("operating would block but called via non-blocking method")]
+#[display("operation would block but called via non-blocking method")]
 pub struct WouldBlockError;
 
 #[derive(Debug, Display, Clone, Error)]
@@ -53,11 +53,11 @@ pub struct ExcessiveLinksError;
 pub struct PathLengthError;
 
 #[derive(Debug, Display, Clone, Error)]
-#[display("a component of the provide path does not exist")]
+#[display("a component of the provided path does not exist")]
 pub struct MissingComponentError;
 
 #[derive(Debug, Display, Clone, Error)]
-#[display("a component of the provide path is not a directory")]
+#[display("a component of the provided path is not a directory")]
 pub struct NonDirComponentError;
 
 #[derive(Debug, Display, Clone, Error)]
@@ -67,3 +67,15 @@ pub struct EmptyStrError;
 #[derive(Debug, Display, Clone, Error)]
 #[display("unable to get home directory")]
 pub struct HomeResolutionError;
+
+#[derive(Debug, Display, Clone, Error)]
+#[display("access to file system component denied")]
+pub struct AccessError;
+
+#[derive(Debug, Display, Clone, Error)]
+#[display("the provided path already exists")]
+pub struct AlreadyExistsError;
+
+#[derive(Debug, Display, Clone, Error)]
+#[display("the provided path refers to a directory")]
+pub struct IsDirError;

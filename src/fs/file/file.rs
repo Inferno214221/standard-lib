@@ -7,7 +7,7 @@ use std::fmt::{self, Debug, Formatter};
 use std::io::RawOsError;
 use std::marker::PhantomData;
 
-use libc::{c_int, c_void};
+use libc::{EBADF, EDQUOT, EINTR, EINVAL, EIO, ENOLCK, ENOSPC, EROFS, EWOULDBLOCK, c_int, c_void};
 
 use super::{AccessMode, CloneError, CloseError, LockError, MetadataError, OpenOptions, Read, ReadWrite, SyncError, TryLockError, Write};
 use crate::collections::contiguous::Vector;
@@ -25,11 +25,13 @@ pub struct File<Access: AccessMode = ReadWrite> {
     pub(crate) fd: Fd,
 }
 
-impl<A: AccessMode> File<A> {
-    pub fn options() -> OpenOptions<A, NoCreate> {
-        OpenOptions::<A, NoCreate>::new()
+impl File {
+    pub fn options() -> OpenOptions<ReadWrite, NoCreate> {
+        OpenOptions::<ReadWrite, NoCreate>::new()
     }
-    
+}
+
+impl<A: AccessMode> File<A> {
     pub fn metadata(&self) -> Result<Metadata, MetadataError> {
         self.fd.metadata()
     }
@@ -42,11 +44,11 @@ impl<A: AccessMode> File<A> {
         // SAFETY: There is no memory management here and any returned errors are handled.
         if unsafe { libc::fsync(*self.fd) } == -1 {
             match util::fs::err_no() {
-                libc::EBADF => BadFdPanic.panic(),
-                libc::EINTR => Err(InterruptError)?,
-                libc::EIO => Err(IOError)?,
-                libc::EROFS | libc::EINVAL => Err(SyncUnsupportedError)?,
-                libc::ENOSPC | libc::EDQUOT => Err(StorageExhaustedError)?,
+                EBADF => BadFdPanic.panic(),
+                EINTR => Err(InterruptError)?,
+                EIO => Err(IOError)?,
+                EROFS | EINVAL => Err(SyncUnsupportedError)?,
+                ENOSPC | EDQUOT => Err(StorageExhaustedError)?,
                 e => UnexpectedErrorPanic(e).panic(),
             }
         }
@@ -67,10 +69,10 @@ impl<A: AccessMode> File<A> {
     pub(crate) fn flock_raw(&self, flags: c_int) -> Result<(), LockError> {
         if unsafe { libc::flock(*self.fd, flags) } == -1 {
             match util::fs::err_no() {
-                libc::EBADF => BadFdPanic.panic(),
-                libc::EINTR => Err(InterruptError)?,
-                libc::EINVAL => InvalidOpPanic.panic(),
-                libc::ENOLCK => Err(LockMemError)?,
+                EBADF => BadFdPanic.panic(),
+                EINTR => Err(InterruptError)?,
+                EINVAL => InvalidOpPanic.panic(),
+                ENOLCK => Err(LockMemError)?,
                 // EWOULDBLOCK gets grouped under unexpected.
                 e => UnexpectedErrorPanic(e).panic(),
             }
@@ -89,11 +91,11 @@ impl<A: AccessMode> File<A> {
     pub(crate) fn try_flock_raw(&self, flags: c_int) -> Result<(), TryLockError> {
         if unsafe { libc::flock(*self.fd, flags | libc::LOCK_NB) } == -1 {
             match util::fs::err_no() {
-                libc::EBADF => BadFdPanic.panic(),
-                libc::EINTR => Err(InterruptError)?,
-                libc::EINVAL => InvalidOpPanic.panic(),
-                libc::ENOLCK => Err(LockMemError)?,
-                libc::EWOULDBLOCK => Err(WouldBlockError)?,
+                EBADF => BadFdPanic.panic(),
+                EINTR => Err(InterruptError)?,
+                EINVAL => InvalidOpPanic.panic(),
+                ENOLCK => Err(LockMemError)?,
+                EWOULDBLOCK => Err(WouldBlockError)?,
                 e => UnexpectedErrorPanic(e).panic(),
             }
         }
@@ -119,7 +121,7 @@ impl File<ReadWrite> {
         file_path: P,
     ) -> Result<File<ReadWrite>, RawOsError> {
         File::options()
-            .open(file_path)
+            .open_raw(file_path)
     }
 
     pub fn create<P: AsRef<Path<Abs>>>(
@@ -129,7 +131,7 @@ impl File<ReadWrite> {
         File::options()
             .create()
             .mode(file_mode)
-            .open(file_path)
+            .open_raw(file_path)
     }
 
     pub fn open_or_create<P: AsRef<Path<Abs>>>(
@@ -139,7 +141,7 @@ impl File<ReadWrite> {
         File::options()
             .create_if_missing()
             .mode(file_mode)
-            .open(file_path)
+            .open_raw(file_path)
     }
 
     pub fn open_rel<P: AsRef<Path<Rel>>>(
@@ -147,7 +149,7 @@ impl File<ReadWrite> {
         file_path: P
     ) -> Result<File<ReadWrite>, RawOsError> {
         File::options()
-            .open_rel(relative_to, file_path)
+            .open_rel_raw(relative_to, file_path)
     }
 
     pub fn create_rel<P: AsRef<Path<Rel>>>(
@@ -158,7 +160,7 @@ impl File<ReadWrite> {
         File::options()
             .create()
             .mode(file_mode)
-            .open_rel(relative_to, file_path)
+            .open_rel_raw(relative_to, file_path)
     }
 
     pub fn open_or_create_rel<P: AsRef<Path<Rel>>>(
@@ -169,15 +171,15 @@ impl File<ReadWrite> {
         File::options()
             .create_if_missing()
             .mode(file_mode)
-            .open_rel(relative_to, file_path)
+            .open_rel_raw(relative_to, file_path)
     }
 
+    // TODO: Move to options, with open taking no path and open_rel taking a dir?
     pub fn create_temp() -> Result<File<ReadWrite>, RawOsError> {
-        File::<ReadWrite>::options()
-            .no_create()
-            .extra_flags(libc::O_TMPFILE | libc::O_EXCL)
-            .mode(0o700)
-            .open(unsafe { Path::<Abs>::from_unchecked("/tmp") })
+        dbg!(File::<ReadWrite>::options()
+            .create_temp()
+            .mode(0o700))
+            .open_raw(unsafe { Path::<Abs>::from_unchecked("/tmp") })
         // TODO: Error handling differences:
         // * EISDIR: Means temp files are unsupported.
         // * ENOENT: Can occur if temp files are unsupported.
