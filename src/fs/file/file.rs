@@ -7,11 +7,11 @@ use std::fmt::{self, Debug, Formatter};
 use std::io::RawOsError;
 use std::marker::PhantomData;
 
-use libc::{EBADF, EDQUOT, EINTR, EINVAL, EIO, ENOLCK, ENOSPC, EROFS, EWOULDBLOCK, c_int, c_void};
+use libc::{EBADF, EDQUOT, EINTR, EINVAL, EIO, ENOLCK, ENOSPC, EROFS, EWOULDBLOCK, LOCK_EX, LOCK_SH, LOCK_UN, c_int, c_void};
 
 use super::{AccessMode, CloneError, CloseError, LockError, MetadataError, OpenOptions, Read, ReadWrite, SyncError, TryLockError, Write};
 use crate::collections::contiguous::Vector;
-use crate::fs::file::NoCreate;
+use crate::fs::file::{NoCreate, OpenError};
 use crate::fs::panic::{BadFdPanic, InvalidOpPanic, Panic, UnexpectedErrorPanic};
 use crate::fs::{Abs, Directory, Fd, Metadata, Path, Rel};
 use crate::fs::error::{IOError, InterruptError, LockMemError, StorageExhaustedError, SyncUnsupportedError, WouldBlockError};
@@ -44,12 +44,12 @@ impl<A: AccessMode> File<A> {
         // SAFETY: There is no memory management here and any returned errors are handled.
         if unsafe { libc::fsync(*self.fd) } == -1 {
             match util::fs::err_no() {
-                EBADF => BadFdPanic.panic(),
-                EINTR => Err(InterruptError)?,
-                EIO => Err(IOError)?,
-                EROFS | EINVAL => Err(SyncUnsupportedError)?,
+                EBADF           => BadFdPanic.panic(),
+                EINTR           => Err(InterruptError)?,
+                EIO             => Err(IOError)?,
+                EROFS | EINVAL  => Err(SyncUnsupportedError)?,
                 ENOSPC | EDQUOT => Err(StorageExhaustedError)?,
-                e => UnexpectedErrorPanic(e).panic(),
+                e               => UnexpectedErrorPanic(e).panic(),
             }
         }
         Ok(())
@@ -69,122 +69,122 @@ impl<A: AccessMode> File<A> {
     pub(crate) fn flock_raw(&self, flags: c_int) -> Result<(), LockError> {
         if unsafe { libc::flock(*self.fd, flags) } == -1 {
             match util::fs::err_no() {
-                EBADF => BadFdPanic.panic(),
-                EINTR => Err(InterruptError)?,
+                EBADF  => BadFdPanic.panic(),
+                EINTR  => Err(InterruptError)?,
                 EINVAL => InvalidOpPanic.panic(),
                 ENOLCK => Err(LockMemError)?,
                 // EWOULDBLOCK gets grouped under unexpected.
-                e => UnexpectedErrorPanic(e).panic(),
+                e      => UnexpectedErrorPanic(e).panic(),
             }
         }
         Ok(())
     }
 
     pub fn lock(&self) -> Result<(), LockError> {
-        self.flock_raw(libc::LOCK_EX)
+        self.flock_raw(LOCK_EX)
     }
 
     pub fn lock_shared(&self) -> Result<(), LockError> {
-        self.flock_raw(libc::LOCK_SH)
+        self.flock_raw(LOCK_SH)
     }
 
     pub(crate) fn try_flock_raw(&self, flags: c_int) -> Result<(), TryLockError> {
         if unsafe { libc::flock(*self.fd, flags | libc::LOCK_NB) } == -1 {
             match util::fs::err_no() {
-                EBADF => BadFdPanic.panic(),
-                EINTR => Err(InterruptError)?,
-                EINVAL => InvalidOpPanic.panic(),
-                ENOLCK => Err(LockMemError)?,
+                EBADF       => BadFdPanic.panic(),
+                EINTR       => Err(InterruptError)?,
+                EINVAL      => InvalidOpPanic.panic(),
+                ENOLCK      => Err(LockMemError)?,
                 EWOULDBLOCK => Err(WouldBlockError)?,
-                e => UnexpectedErrorPanic(e).panic(),
+                e           => UnexpectedErrorPanic(e).panic(),
             }
         }
         Ok(())
     }
 
     pub fn try_lock(&self) -> Result<(), TryLockError> {
-        self.try_flock_raw(libc::LOCK_EX)
+        self.try_flock_raw(LOCK_EX)
     }
 
     pub fn try_lock_shared(&self) -> Result<(), TryLockError> {
-        self.try_flock_raw(libc::LOCK_SH)
+        self.try_flock_raw(LOCK_SH)
     }
     
 
     pub fn unlock(&self) -> Result<(), LockError> {
-        self.flock_raw(libc::LOCK_UN)
+        self.flock_raw(LOCK_UN)
     }
 }
 
 impl File<ReadWrite> {
     pub fn open<P: AsRef<Path<Abs>>>(
         file_path: P,
-    ) -> Result<File<ReadWrite>, RawOsError> {
+    ) -> Result<File<ReadWrite>, OpenError> {
         File::options()
-            .open_raw(file_path)
+            .open(file_path)
     }
 
-    pub fn create<P: AsRef<Path<Abs>>>(
-        file_path: P,
-        file_mode: u16,
-    ) -> Result<File<ReadWrite>, RawOsError> {
-        File::options()
-            .create()
-            .mode(file_mode)
-            .open_raw(file_path)
-    }
+    // pub fn create<P: AsRef<Path<Abs>>>(
+    //     file_path: P,
+    //     file_mode: u16,
+    // ) -> Result<File<ReadWrite>, RawOsError> {
+    //     File::options()
+    //         .create()
+    //         .mode(file_mode)
+    //         .open_raw(file_path)
+    // }
 
-    pub fn open_or_create<P: AsRef<Path<Abs>>>(
-        file_path: P,
-        file_mode: u16,
-    ) -> Result<File<ReadWrite>, RawOsError> {
-        File::options()
-            .create_if_missing()
-            .mode(file_mode)
-            .open_raw(file_path)
-    }
+    // pub fn open_or_create<P: AsRef<Path<Abs>>>(
+    //     file_path: P,
+    //     file_mode: u16,
+    // ) -> Result<File<ReadWrite>, RawOsError> {
+    //     File::options()
+    //         .create_if_missing()
+    //         .mode(file_mode)
+    //         .open_raw(file_path)
+    // }
 
-    pub fn open_rel<P: AsRef<Path<Rel>>>(
-        relative_to: &Directory,
-        file_path: P
-    ) -> Result<File<ReadWrite>, RawOsError> {
-        File::options()
-            .open_rel_raw(relative_to, file_path)
-    }
+    // pub fn open_rel<P: AsRef<Path<Rel>>>(
+    //     relative_to: &Directory,
+    //     file_path: P
+    // ) -> Result<File<ReadWrite>, RawOsError> {
+    //     File::options()
+    //         .open_rel_raw(relative_to, file_path)
+    // }
 
-    pub fn create_rel<P: AsRef<Path<Rel>>>(
-        relative_to: &Directory,
-        file_path: P,
-        file_mode: u16,
-    ) -> Result<File<ReadWrite>, RawOsError> {
-        File::options()
-            .create()
-            .mode(file_mode)
-            .open_rel_raw(relative_to, file_path)
-    }
+    // pub fn create_rel<P: AsRef<Path<Rel>>>(
+    //     relative_to: &Directory,
+    //     file_path: P,
+    //     file_mode: u16,
+    // ) -> Result<File<ReadWrite>, RawOsError> {
+    //     File::options()
+    //         .create()
+    //         .mode(file_mode)
+    //         .open_rel_raw(relative_to, file_path)
+    // }
 
-    pub fn open_or_create_rel<P: AsRef<Path<Rel>>>(
-        relative_to: &Directory,
-        file_path: P,
-        file_mode: u16,
-    ) -> Result<File<ReadWrite>, RawOsError> {
-        File::options()
-            .create_if_missing()
-            .mode(file_mode)
-            .open_rel_raw(relative_to, file_path)
-    }
+    // pub fn open_or_create_rel<P: AsRef<Path<Rel>>>(
+    //     relative_to: &Directory,
+    //     file_path: P,
+    //     file_mode: u16,
+    // ) -> Result<File<ReadWrite>, RawOsError> {
+    //     File::options()
+    //         .create_if_missing()
+    //         .mode(file_mode)
+    //         .open_rel_raw(relative_to, file_path)
+    // }
 
-    // TODO: Move to options, with open taking no path and open_rel taking a dir?
-    pub fn create_temp() -> Result<File<ReadWrite>, RawOsError> {
-        dbg!(File::<ReadWrite>::options()
-            .create_temp()
-            .mode(0o700))
-            .open_raw(unsafe { Path::<Abs>::from_unchecked("/tmp") })
-        // TODO: Error handling differences:
-        // * EISDIR: Means temp files are unsupported.
-        // * ENOENT: Can occur if temp files are unsupported.
-        // + EOPNOTSUPP: Fs doesn't support temp files.
-    }
+    // // TODO: Move to options, with open taking no path and open_rel taking a dir?
+    // pub fn create_temp() -> Result<File<ReadWrite>, RawOsError> {
+    //     dbg!(File::<ReadWrite>::options()
+    //         .create_temp()
+    //         .mode(0o700))
+    //         .open_raw(unsafe { Path::<Abs>::from_unchecked("/tmp") })
+    //     // TODO: Error handling differences:
+    //     // * EISDIR: Means temp files are unsupported.
+    //     // * ENOENT: Can occur if temp files are unsupported.
+    //     // + EOPNOTSUPP: Fs doesn't support temp files.
+    // }
 }
 
 

@@ -3,26 +3,34 @@ use std::mem::MaybeUninit;
 use std::ops::Deref;
 use std::thread;
 
-use libc::{c_int, stat as Stat};
+use libc::{EBADF, EDQUOT, EFAULT, EINTR, EIO, EMFILE, ENOMEM, ENOSPC, EOVERFLOW, c_int, stat as Stat};
 
-use crate::fs::error::{FileCountError, IOError, InterruptError, MetadataOverflowError, OOMError, StorageExhaustedError};
-use crate::fs::file::{CloneError, CloseError, MetadataError};
+use crate::fs::error::{FileCountError, IOError, InterruptError, MetadataOverflowError, IrregularFileError, OOMError, StorageExhaustedError};
+use crate::fs::file::{CloneError, CloseError, FileTypeError, MetadataError};
 use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, Panic, UnexpectedErrorPanic};
-use crate::fs::Metadata;
+use crate::fs::{FileType, Metadata};
 use crate::util;
 
 pub(crate) struct Fd(pub c_int);
 
 impl Fd {
+    pub fn assert_type_reg(self) -> Result<Fd, FileTypeError> {
+        if self.metadata()?.file_type == FileType::Regular {
+            Ok(self)
+        } else {
+            Err(IrregularFileError)?
+        }
+    }
+
     pub fn metadata(&self) -> Result<Metadata, MetadataError> {
         let mut raw_meta: MaybeUninit<Stat> = MaybeUninit::uninit();
         if unsafe { libc::fstat(self.0, raw_meta.as_mut_ptr()) } == -1 {
             match util::fs::err_no() {
-                libc::EBADF => BadFdPanic.panic(),
-                libc::EFAULT => BadStackAddrPanic.panic(),
-                libc::ENOMEM => Err(OOMError)?,
-                libc::EOVERFLOW => Err(MetadataOverflowError)?,
-                e => UnexpectedErrorPanic(e).panic(),
+                EBADF =>     BadFdPanic.panic(),
+                EFAULT =>    BadStackAddrPanic.panic(),
+                ENOMEM =>    Err(OOMError)?,
+                EOVERFLOW => Err(MetadataOverflowError)?,
+                e =>         UnexpectedErrorPanic(e).panic(),
             }
         }
         // SAFETY: fstat either initializes raw_meta or returns an error and diverges.
@@ -36,11 +44,11 @@ impl Fd {
         // method takes ownership of self.
         if unsafe { libc::close(self.0) } == -1 {
             match util::fs::err_no() {
-                libc::EBADF => BadFdPanic.panic(),
-                libc::EINTR => Err(InterruptError)?,
-                libc::EIO => Err(IOError)?,
-                libc::ENOSPC | libc::EDQUOT => Err(StorageExhaustedError)?,
-                e => UnexpectedErrorPanic(e).panic(),
+                EBADF =>           BadFdPanic.panic(),
+                EINTR =>           Err(InterruptError)?,
+                EIO =>             Err(IOError)?,
+                ENOSPC | EDQUOT => Err(StorageExhaustedError)?,
+                e =>               UnexpectedErrorPanic(e).panic(),
             }
         }
         Ok(())
@@ -50,10 +58,10 @@ impl Fd {
         let new_fd = unsafe { libc::dup(self.0) };
         if new_fd == -1 {
             match util::fs::err_no() {
-                libc::EBADF => BadFdPanic.panic(),
-                libc::EMFILE => Err(FileCountError)?,
-                libc::ENOMEM => Err(OOMError)?,
-                e => UnexpectedErrorPanic(e).panic(),
+                EBADF =>  BadFdPanic.panic(),
+                EMFILE => Err(FileCountError)?,
+                ENOMEM => Err(OOMError)?,
+                e =>      UnexpectedErrorPanic(e).panic(),
             }
         }
         Ok(Fd(new_fd))
@@ -77,11 +85,11 @@ impl Drop for Fd {
             && !thread::panicking()
         {
             panic!("error while dropping file descriptor: {}", match util::fs::err_no() {
-                libc::EBADF => BadFdPanic.to_string(),
-                libc::EINTR => InterruptError.to_string(),
-                libc::EIO => IOError.to_string(),
-                libc::ENOSPC | libc::EDQUOT => StorageExhaustedError.to_string(),
-                e => UnexpectedErrorPanic(e).to_string(),
+                EBADF =>           BadFdPanic.to_string(),
+                EINTR =>           InterruptError.to_string(),
+                EIO =>             IOError.to_string(),
+                ENOSPC | EDQUOT => StorageExhaustedError.to_string(),
+                e =>               UnexpectedErrorPanic(e).to_string(),
             });
         }
     }

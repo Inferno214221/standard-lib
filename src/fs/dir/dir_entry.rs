@@ -49,9 +49,9 @@ impl<'a> DirEntry<'a> {
         self.path.as_os_str_no_lead()
     }
 
-    pub fn open_file(&self) -> Result<File<ReadWrite>, RawOsError> {
-        File::options().open_dir_entry(self)
-    }
+    // pub fn open_file(&self) -> Result<File<ReadWrite>, RawOsError> {
+    //     File::options().open_dir_entry_raw(self)
+    // }
 
     // pub fn open_dir(&self) -> Result<Directory, _>; // openat
     

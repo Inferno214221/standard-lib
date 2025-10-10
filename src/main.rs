@@ -138,7 +138,7 @@ fn main() {
 
     let dir = Directory::open(&full).unwrap();
     for e in dir.read_entries() {
-        dbg!(e.unwrap());
+        dbg!(full.join(e.unwrap().path).metadata());
     }
 
     // full.push(OwnedPath::from("/test-file-1"));

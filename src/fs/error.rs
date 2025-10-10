@@ -1,5 +1,7 @@
 use derive_more::{Display, Error};
 
+use crate::fs::FileType;
+
 #[derive(Debug, Display, Clone, Error)]
 #[display("interrupted by signal")]
 pub struct InterruptError;
@@ -73,9 +75,29 @@ pub struct HomeResolutionError;
 pub struct AccessError;
 
 #[derive(Debug, Display, Clone, Error)]
-#[display("the provided path already exists")]
+#[display("provided path already exists")]
 pub struct AlreadyExistsError;
 
 #[derive(Debug, Display, Clone, Error)]
-#[display("the provided path refers to a directory")]
-pub struct IsDirError;
+#[display("file is too large to open")]
+pub struct OversizedFileError;
+
+#[derive(Debug, Display, Clone, Error)]
+#[display("operation was prevented by a file seal or lack or privileges to avoid updating access time")]
+pub struct PermissionError;
+
+#[derive(Debug, Display, Clone, Error)]
+#[display("write access requested for file on a read-only filesystem")]
+pub struct ReadOnlyFSError;
+
+#[derive(Debug, Display, Clone, Error)]
+#[display("the basename of the provided path is not permitted by the filesystem")]
+pub struct InvalidBasenameError;
+
+#[derive(Debug, Display, Clone, Error)]
+#[display("write access was requested on a file that is currently being executed or used by the kernel in some way")]
+pub struct BusyExecutableError;
+
+#[derive(Debug, Display, Clone, Error)]
+#[display("provided path doesn't refer to a regular file")]
+pub struct IrregularFileError;

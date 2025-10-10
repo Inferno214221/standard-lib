@@ -1,16 +1,15 @@
-use std::error::Error;
 use std::fmt;
 use std::ffi::CString;
 use std::fmt::{Debug, Formatter};
 use std::io::RawOsError;
 use std::marker::PhantomData;
 
-use libc::{EACCES, EFAULT, EFBIG, EINTR, EINVAL, EISDIR, ELOOP, EMFILE, ENAMETOOLONG, ENFILE, ENODEV, ENOENT, ENOMEM, ENOSPC, ENOTDIR, ENXIO, EOVERFLOW, EPERM, EROFS, ETXTBSY, O_APPEND, O_CREAT, O_EXCL, O_NOATIME, O_NOFOLLOW, O_SYNC, O_TMPFILE, O_TRUNC, c_int};
+use libc::{EACCES, EFAULT, EFBIG, EINTR, EINVAL, EISDIR, ELOOP, EMFILE, ENAMETOOLONG, ENFILE, ENODEV, ENOENT, ENOMEM, ENOSPC, ENOTDIR, ENXIO, EOVERFLOW, EPERM, EROFS, ETXTBSY, O_APPEND, O_CREAT, O_DIRECTORY, O_EXCL, O_NOATIME, O_NOFOLLOW, O_SYNC, O_TMPFILE, O_TRUNC, c_int};
 
 use super::{File, AccessMode};
 use crate::fs::dir::DirEntry;
-use crate::fs::error::{AccessError, ExcessiveLinksError, FileCountError, InterruptError, IsDirError, MissingComponentError, NonDirComponentError, OOMError, PathLengthError, StorageExhaustedError};
-use crate::fs::file::{Permanent, Create, CreateIfMissing, CreateOrEmpty, CreateTemp, CreateUnlinked, NoCreate, OpenMode, ReadOnly, ReadWrite, Write, WriteOnly};
+use crate::fs::error::{AccessError, BusyExecutableError, ExcessiveLinksError, FileCountError, InterruptError, InvalidBasenameError, IrregularFileError, MissingComponentError, NonDirComponentError, OOMError, OversizedFileError, PathLengthError, PermissionError, ReadOnlyFSError, StorageExhaustedError};
+use crate::fs::file::{Create, CreateIfMissing, CreateOrEmpty, CreateTemp, CreateUnlinked, NoCreate, OpenError, OpenMode, Permanent, ReadOnly, ReadWrite, Write, WriteOnly};
 use crate::fs::panic::{BadStackAddrPanic, Panic, UnexpectedErrorPanic};
 use crate::fs::path::{Abs, Path};
 use crate::fs::{Directory, Fd, Rel};
@@ -18,7 +17,7 @@ use crate::util;
 use crate::util::fmt::DebugRaw;
 
 pub(crate) const EXTRA_FLAGS_MASK: c_int = !(
-    O_APPEND | O_NOATIME | O_NOFOLLOW | O_SYNC | O_CREAT | O_EXCL | O_TRUNC | O_TMPFILE
+    O_APPEND | O_NOATIME | O_NOFOLLOW | O_SYNC | O_CREAT | O_EXCL | O_TRUNC | O_TMPFILE | O_DIRECTORY
 );
 
 /// A builder struct to help with opening files, using customizable options and logical defaults.
@@ -28,8 +27,8 @@ pub(crate) const EXTRA_FLAGS_MASK: c_int = !(
 pub struct OpenOptions<Access: AccessMode, Open: OpenMode> {
     pub(crate) _access: PhantomData<fn() -> Access>,
     pub(crate) _open: PhantomData<fn() -> Open>,
-    pub flags: c_int,
-    pub mode: c_int,
+    pub(crate) flags: c_int,
+    pub(crate) mode: c_int,
 }
 
 macro_rules! set_flag {
@@ -57,7 +56,7 @@ impl<A: AccessMode, O: OpenMode> OpenOptions<A, O> {
         OpenOptions::<A, O>::default()
     }
 
-    pub fn open_raw<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File<A>, RawOsError> {
+    pub fn open_raw<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<Fd, RawOsError> {
         let pathname = CString::from(file_path.as_ref().to_owned());
         // TODO: Permission builder of some type?
         dbg!(&pathname);
@@ -65,10 +64,7 @@ impl<A: AccessMode, O: OpenMode> OpenOptions<A, O> {
 
         match unsafe { libc::open(pathname.as_ptr().cast(), self.flags(), self.mode as c_int) } {
             -1 => Err(util::fs::err_no()),
-            fd => Ok(File::<A> {
-                _access: PhantomData,
-                fd: Fd(fd),
-            }),
+            fd => Ok(Fd(fd)),
         }
     }
 
@@ -76,7 +72,7 @@ impl<A: AccessMode, O: OpenMode> OpenOptions<A, O> {
         &self,
         relative_to: &Directory,
         file_path: P
-    ) -> Result<File<A>, RawOsError> {
+    ) -> Result<Fd, RawOsError> {
         let pathname = CString::from(file_path.as_ref().to_owned());
 
         match unsafe { libc::openat(
@@ -87,14 +83,11 @@ impl<A: AccessMode, O: OpenMode> OpenOptions<A, O> {
             self.mode
         ) } {
             -1 => Err(util::fs::err_no()),
-            fd => Ok(File::<A> {
-                _access: PhantomData,
-                fd: Fd(fd),
-            }),
+            fd => Ok(Fd(fd)),
         }
     }
 
-    pub fn open_dir_entry(&self, dir_ent: &DirEntry) -> Result<File<A>, RawOsError> {
+    pub fn open_dir_entry_raw(&self, dir_ent: &DirEntry) -> Result<Fd, RawOsError> {
         self.open_rel_raw(dir_ent.parent, &dir_ent.path)
     }
 
@@ -197,28 +190,30 @@ impl<A: Write, O: OpenMode> OpenOptions<A, O> {
 }
 
 impl<A: AccessMode> OpenOptions<A, NoCreate> {
-    pub fn open<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File<A>, Box<dyn Error>> {
+    pub fn open<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File<A>, OpenError> {
         match self.open_raw(file_path) {
-            Ok(f) => Ok(f),
+            Ok(fd) => Ok(File::<A> {
+                _access: PhantomData,
+                fd: fd.assert_type_reg()?,
+            }),
             Err(e) => match e {
-                EACCES            => Err(AccessError)?,
-                EFAULT            => BadStackAddrPanic.panic(),
-                EFBIG | EOVERFLOW => todo!(),
-                EINTR             => Err(InterruptError)?,
-                EINVAL            => todo!(),
-                EISDIR            => Err(IsDirError)?,
-                ELOOP             => Err(ExcessiveLinksError)?,
-                EMFILE | ENFILE   => Err(FileCountError)?,
-                ENAMETOOLONG      => Err(PathLengthError)?,
-                ENODEV | ENXIO    => todo!(),
-                ENOENT            => Err(MissingComponentError)?,
-                ENOMEM            => Err(OOMError)?,
-                ENOSPC            => Err(StorageExhaustedError)?, 
-                ENOTDIR           => Err(NonDirComponentError)?,
-                EPERM             => todo!(),
-                EROFS             => todo!(),
-                ETXTBSY           => todo!(),
-                e                 => UnexpectedErrorPanic(e).panic(),
+                EACCES                  => Err(AccessError)?,
+                EFAULT                  => BadStackAddrPanic.panic(),
+                EFBIG | EOVERFLOW       => Err(OversizedFileError)?,
+                EINTR                   => Err(InterruptError)?,
+                EINVAL                  => Err(InvalidBasenameError)?,
+                EISDIR | ENODEV | ENXIO => Err(IrregularFileError)?,
+                ELOOP                   => Err(ExcessiveLinksError)?,
+                EMFILE | ENFILE         => Err(FileCountError)?,
+                ENAMETOOLONG            => Err(PathLengthError)?,
+                ENOENT                  => Err(MissingComponentError)?,
+                ENOMEM                  => Err(OOMError)?,
+                ENOSPC                  => Err(StorageExhaustedError)?, 
+                ENOTDIR                 => Err(NonDirComponentError)?,
+                EPERM                   => Err(PermissionError)?,
+                EROFS                   => Err(ReadOnlyFSError)?,
+                ETXTBSY                 => Err(BusyExecutableError)?,
+                e                       => UnexpectedErrorPanic(e).panic(),
             },
         }
     }
