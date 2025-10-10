@@ -1,7 +1,5 @@
 use derive_more::{Display, Error};
 
-use crate::fs::FileType;
-
 #[derive(Debug, Display, Clone, Error)]
 #[display("interrupted by signal")]
 pub struct InterruptError;
@@ -17,6 +15,10 @@ pub struct StorageExhaustedError;
 #[derive(Debug, Display, Clone, Error)]
 #[display("sync not supported by file")]
 pub struct SyncUnsupportedError;
+
+#[derive(Debug, Display, Clone, Error)]
+#[display("temp file not supported by filesystem")]
+pub struct TempFileUnsupportedError;
 
 #[derive(Debug, Display, Clone, Error)]
 #[display("file metadata would overflow capacity")]

@@ -4,13 +4,11 @@ use std::fmt::{Debug, Formatter};
 use std::io::RawOsError;
 use std::marker::PhantomData;
 
-use libc::{EACCES, EFAULT, EFBIG, EINTR, EINVAL, EISDIR, ELOOP, EMFILE, ENAMETOOLONG, ENFILE, ENODEV, ENOENT, ENOMEM, ENOSPC, ENOTDIR, ENXIO, EOVERFLOW, EPERM, EROFS, ETXTBSY, O_APPEND, O_CREAT, O_DIRECTORY, O_EXCL, O_NOATIME, O_NOFOLLOW, O_SYNC, O_TMPFILE, O_TRUNC, c_int};
+use libc::{O_APPEND, O_CREAT, O_DIRECTORY, O_EXCL, O_NOATIME, O_NOFOLLOW, O_SYNC, O_TMPFILE, O_TRUNC, c_int};
 
 use super::{File, AccessMode};
 use crate::fs::dir::DirEntry;
-use crate::fs::error::{AccessError, BusyExecutableError, ExcessiveLinksError, FileCountError, InterruptError, InvalidBasenameError, IrregularFileError, MissingComponentError, NonDirComponentError, OOMError, OversizedFileError, PathLengthError, PermissionError, ReadOnlyFSError, StorageExhaustedError};
-use crate::fs::file::{Create, CreateIfMissing, CreateOrEmpty, CreateTemp, CreateUnlinked, NoCreate, OpenError, OpenMode, Permanent, ReadOnly, ReadWrite, Write, WriteOnly};
-use crate::fs::panic::{BadStackAddrPanic, Panic, UnexpectedErrorPanic};
+use crate::fs::file::{Create, CreateError, CreateIfMissing, CreateOrEmpty, CreateTemp, CreateUnlinked, NoCreate, OpenError, OpenMode, Permanent, ReadOnly, ReadWrite, TempError, Write, WriteOnly};
 use crate::fs::path::{Abs, Path};
 use crate::fs::{Directory, Fd, Rel};
 use crate::util;
@@ -56,11 +54,9 @@ impl<A: AccessMode, O: OpenMode> OpenOptions<A, O> {
         OpenOptions::<A, O>::default()
     }
 
-    pub fn open_raw<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<Fd, RawOsError> {
+    pub(crate) fn open_raw<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<Fd, RawOsError> {
         let pathname = CString::from(file_path.as_ref().to_owned());
         // TODO: Permission builder of some type?
-        dbg!(&pathname);
-        dbg!(&format!("{:x?}", self.flags()));
 
         match unsafe { libc::open(pathname.as_ptr().cast(), self.flags(), self.mode as c_int) } {
             -1 => Err(util::fs::err_no()),
@@ -68,7 +64,7 @@ impl<A: AccessMode, O: OpenMode> OpenOptions<A, O> {
         }
     }
 
-    pub fn open_rel_raw<P: AsRef<Path<Rel>>>(
+    pub(crate) fn open_rel_raw<P: AsRef<Path<Rel>>>(
         &self,
         relative_to: &Directory,
         file_path: P
@@ -85,10 +81,6 @@ impl<A: AccessMode, O: OpenMode> OpenOptions<A, O> {
             -1 => Err(util::fs::err_no()),
             fd => Ok(Fd(fd)),
         }
-    }
-
-    pub fn open_dir_entry_raw(&self, dir_ent: &DirEntry) -> Result<Fd, RawOsError> {
-        self.open_rel_raw(dir_ent.parent, &dir_ent.path)
     }
 
     pub const fn no_create(self) -> OpenOptions<A, NoCreate> {
@@ -189,35 +181,89 @@ impl<A: Write, O: OpenMode> OpenOptions<A, O> {
     }
 }
 
-impl<A: AccessMode> OpenOptions<A, NoCreate> {
-    pub fn open<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File<A>, OpenError> {
-        match self.open_raw(file_path) {
-            Ok(fd) => Ok(File::<A> {
-                _access: PhantomData,
-                fd: fd.assert_type_reg()?,
-            }),
-            Err(e) => match e {
-                EACCES                  => Err(AccessError)?,
-                EFAULT                  => BadStackAddrPanic.panic(),
-                EFBIG | EOVERFLOW       => Err(OversizedFileError)?,
-                EINTR                   => Err(InterruptError)?,
-                EINVAL                  => Err(InvalidBasenameError)?,
-                EISDIR | ENODEV | ENXIO => Err(IrregularFileError)?,
-                ELOOP                   => Err(ExcessiveLinksError)?,
-                EMFILE | ENFILE         => Err(FileCountError)?,
-                ENAMETOOLONG            => Err(PathLengthError)?,
-                ENOENT                  => Err(MissingComponentError)?,
-                ENOMEM                  => Err(OOMError)?,
-                ENOSPC                  => Err(StorageExhaustedError)?, 
-                ENOTDIR                 => Err(NonDirComponentError)?,
-                EPERM                   => Err(PermissionError)?,
-                EROFS                   => Err(ReadOnlyFSError)?,
-                ETXTBSY                 => Err(BusyExecutableError)?,
-                e                       => UnexpectedErrorPanic(e).panic(),
-            },
+macro_rules! impl_open_permanent {
+    ($mode:ty => $error:ty) => {
+        impl<A: AccessMode> OpenOptions<A, $mode> {
+            pub fn open<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File<A>, $error> {
+                match self.open_raw(file_path) {
+                    Ok(fd) => Ok(File::<A> {
+                        _access: PhantomData,
+                        fd: fd.assert_type_reg()?,
+                    }),
+                    Err(e) => Err(<$error>::interpret_raw_error(e)),
+                }
+            }
+
+            pub fn open_rel<P: AsRef<Path<Rel>>>(
+                &self,
+                relative_to: &Directory,
+                file_path: P
+            ) -> Result<File<A>, $error> {
+                match self.open_rel_raw(relative_to, file_path) {
+                    Ok(fd) => Ok(File::<A> {
+                        _access: PhantomData,
+                        fd: fd.assert_type_reg()?,
+                    }),
+                    Err(e) => Err(<$error>::interpret_raw_error(e)),
+                }
+            }
+
+            pub fn open_dir_entry(&self, dir_ent: &DirEntry) -> Result<File<A>, $error> {
+                self.open_rel(dir_ent.parent, &dir_ent.path)
+            }
         }
-    }
+    };
+    ($mode:ty => $error:ty, $($a:ty => $b:ty),+) => {
+        impl_open_permanent!($mode => $error);
+        impl_open_permanent!($($a => $b),+);
+    };
 }
+
+macro_rules! impl_open_temporary {
+    ($mode:ty => $error:ty) => {
+        impl<A: AccessMode> OpenOptions<A, $mode> {
+            pub fn open<P: AsRef<Path<Abs>>>(&self, dir_path: P) -> Result<File<A>, $error> {
+                match self.open_raw(dir_path) {
+                    Ok(fd) => Ok(File::<A> {
+                        _access: PhantomData,
+                        fd: fd.assert_type_reg()?,
+                    }),
+                    Err(e) => Err(<$error>::interpret_raw_error(e)),
+                }
+            }
+
+            pub fn open_rel<P: AsRef<Path<Rel>>>(
+                &self,
+                relative_to: &Directory
+            ) -> Result<File<A>, $error> {
+                match self.open_rel_raw(relative_to, unsafe { Path::<Rel>::from_unchecked("/") }) {
+                    Ok(fd) => Ok(File::<A> {
+                        _access: PhantomData,
+                        fd: fd.assert_type_reg()?,
+                    }),
+                    Err(e) => Err(<$error>::interpret_raw_error(e)),
+                }
+            }
+        }
+    };
+    ($mode:ty => $error:ty, $($a:ty => $b:ty),+) => {
+        impl_open_temporary!($mode => $error);
+        impl_open_temporary!($($a => $b),+);
+    };
+}
+
+impl_open_permanent! {
+    NoCreate        => OpenError,
+    CreateIfMissing => OpenError,
+    CreateOrEmpty   => OpenError,
+    Create          => CreateError
+}
+
+impl_open_temporary! {
+    CreateTemp      => TempError,
+    CreateUnlinked  => TempError
+}
+
 
 // The Default derive macro doesn't like my spooky zero-variant enums.
 impl<A: AccessMode, O: OpenMode> Default for OpenOptions<A, O> {

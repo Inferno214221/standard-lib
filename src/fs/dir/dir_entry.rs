@@ -1,5 +1,4 @@
 use std::ffi::OsStr;
-use std::io::RawOsError;
 use std::mem::MaybeUninit;
 use std::num::NonZero;
 use std::os::unix::ffi::OsStrExt;
@@ -9,7 +8,7 @@ use std::slice;
 use crate::collections::contiguous::Array;
 use crate::fs::dir::Directory;
 use crate::fs::error::RemovedDirectoryError;
-use crate::fs::file::ReadWrite;
+use crate::fs::file::{OpenError, ReadWrite};
 use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, NotADirPanic, Panic, UnexpectedErrorPanic};
 use crate::fs::{File, FileType, OwnedPath, Rel};
 use crate::util;
@@ -25,14 +24,14 @@ pub(crate) struct DirEntrySized {
 
 // TODO: Add wrapped methods on DirEntry for the ..at syscalls, e.g. fstatat.
 
-/// An entry in a [`Directory`]'s records, taking the form of a reference to the parent `Directory`
-/// and the relative path to this entry, along with a few other pieces of information.
+/// An entry in a [`Directory`]'s records, holding a reference to the parent `Directory` and the
+/// relative path to this entry, along with a few other pieces of information.
 /// 
 /// Among these other pieces of information, is the entry's inode number and a hint about the
 /// [`FileType`] of the entry. Unfortunately, this field is often not present, and therefore
-/// considered only a hint. If the `FileType` is present and has some value, it can be trusted
-/// (subject to TOCTOU restrictions), but the possibility of it not existing should always be
-/// considered or even expected.
+/// considered only a hint. If the `FileType` is present and has some value, it's accuracy can be
+/// trusted (subject to TOCTOU restrictions), but the possibility of it not being included should
+/// always be considered or even expected.
 #[derive(Debug)]
 pub struct DirEntry<'a> {
     pub parent: &'a Directory,
@@ -49,9 +48,9 @@ impl<'a> DirEntry<'a> {
         self.path.as_os_str_no_lead()
     }
 
-    // pub fn open_file(&self) -> Result<File<ReadWrite>, RawOsError> {
-    //     File::options().open_dir_entry_raw(self)
-    // }
+    pub fn open_file(&self) -> Result<File<ReadWrite>, OpenError> {
+        File::options().open_dir_entry(self)
+    }
 
     // pub fn open_dir(&self) -> Result<Directory, _>; // openat
     
@@ -61,8 +60,7 @@ impl<'a> DirEntry<'a> {
 pub(crate) const BUFFER_SIZE: usize = 1024;
 
 /// An iterator over a [`Directory`]'s contained entries. Obtainable via
-/// [`Directory::read_entries`], this buffered iterator produces [`DirEntry`]s for the referenced
-/// directory.
+/// [`Directory::read_entries`], this buffered iterator produces [`DirEntry`]s for the directory.
 /// 
 /// When reading from the file system, the redundant "." and ".." entries are skipped, along with
 /// any deleted entries.

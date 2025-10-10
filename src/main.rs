@@ -144,8 +144,8 @@ fn main() {
     // full.push(OwnedPath::from("/test-file-1"));
     // dbg!(&full);
 
-    // let tmp = File::create_temp().unwrap();
-    // dbg!(&tmp);
+    let tmp = File::create_temp().unwrap();
+    dbg!(&tmp);
 
     unsafe {
         dbg!(

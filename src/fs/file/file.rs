@@ -11,7 +11,7 @@ use libc::{EBADF, EDQUOT, EINTR, EINVAL, EIO, ENOLCK, ENOSPC, EROFS, EWOULDBLOCK
 
 use super::{AccessMode, CloneError, CloseError, LockError, MetadataError, OpenOptions, Read, ReadWrite, SyncError, TryLockError, Write};
 use crate::collections::contiguous::Vector;
-use crate::fs::file::{NoCreate, OpenError};
+use crate::fs::file::{CreateError, NoCreate, OpenError, TempError};
 use crate::fs::panic::{BadFdPanic, InvalidOpPanic, Panic, UnexpectedErrorPanic};
 use crate::fs::{Abs, Directory, Fd, Metadata, Path, Rel};
 use crate::fs::error::{IOError, InterruptError, LockMemError, StorageExhaustedError, SyncUnsupportedError, WouldBlockError};
@@ -124,67 +124,62 @@ impl File<ReadWrite> {
             .open(file_path)
     }
 
-    // pub fn create<P: AsRef<Path<Abs>>>(
-    //     file_path: P,
-    //     file_mode: u16,
-    // ) -> Result<File<ReadWrite>, RawOsError> {
-    //     File::options()
-    //         .create()
-    //         .mode(file_mode)
-    //         .open_raw(file_path)
-    // }
+    pub fn create<P: AsRef<Path<Abs>>>(
+        file_path: P,
+        file_mode: u16,
+    ) -> Result<File<ReadWrite>, CreateError> {
+        File::options()
+            .create()
+            .mode(file_mode)
+            .open(file_path)
+    }
 
-    // pub fn open_or_create<P: AsRef<Path<Abs>>>(
-    //     file_path: P,
-    //     file_mode: u16,
-    // ) -> Result<File<ReadWrite>, RawOsError> {
-    //     File::options()
-    //         .create_if_missing()
-    //         .mode(file_mode)
-    //         .open_raw(file_path)
-    // }
+    pub fn open_or_create<P: AsRef<Path<Abs>>>(
+        file_path: P,
+        file_mode: u16,
+    ) -> Result<File<ReadWrite>, OpenError> {
+        File::options()
+            .create_if_missing()
+            .mode(file_mode)
+            .open(file_path)
+    }
 
-    // pub fn open_rel<P: AsRef<Path<Rel>>>(
-    //     relative_to: &Directory,
-    //     file_path: P
-    // ) -> Result<File<ReadWrite>, RawOsError> {
-    //     File::options()
-    //         .open_rel_raw(relative_to, file_path)
-    // }
+    pub fn open_rel<P: AsRef<Path<Rel>>>(
+        relative_to: &Directory,
+        file_path: P
+    ) -> Result<File<ReadWrite>, OpenError> {
+        File::options()
+            .open_rel(relative_to, file_path)
+    }
 
-    // pub fn create_rel<P: AsRef<Path<Rel>>>(
-    //     relative_to: &Directory,
-    //     file_path: P,
-    //     file_mode: u16,
-    // ) -> Result<File<ReadWrite>, RawOsError> {
-    //     File::options()
-    //         .create()
-    //         .mode(file_mode)
-    //         .open_rel_raw(relative_to, file_path)
-    // }
+    pub fn create_rel<P: AsRef<Path<Rel>>>(
+        relative_to: &Directory,
+        file_path: P,
+        file_mode: u16,
+    ) -> Result<File<ReadWrite>, CreateError> {
+        File::options()
+            .create()
+            .mode(file_mode)
+            .open_rel(relative_to, file_path)
+    }
 
-    // pub fn open_or_create_rel<P: AsRef<Path<Rel>>>(
-    //     relative_to: &Directory,
-    //     file_path: P,
-    //     file_mode: u16,
-    // ) -> Result<File<ReadWrite>, RawOsError> {
-    //     File::options()
-    //         .create_if_missing()
-    //         .mode(file_mode)
-    //         .open_rel_raw(relative_to, file_path)
-    // }
+    pub fn open_or_create_rel<P: AsRef<Path<Rel>>>(
+        relative_to: &Directory,
+        file_path: P,
+        file_mode: u16,
+    ) -> Result<File<ReadWrite>, OpenError> {
+        File::options()
+            .create_if_missing()
+            .mode(file_mode)
+            .open_rel(relative_to, file_path)
+    }
 
-    // // TODO: Move to options, with open taking no path and open_rel taking a dir?
-    // pub fn create_temp() -> Result<File<ReadWrite>, RawOsError> {
-    //     dbg!(File::<ReadWrite>::options()
-    //         .create_temp()
-    //         .mode(0o700))
-    //         .open_raw(unsafe { Path::<Abs>::from_unchecked("/tmp") })
-    //     // TODO: Error handling differences:
-    //     // * EISDIR: Means temp files are unsupported.
-    //     // * ENOENT: Can occur if temp files are unsupported.
-    //     // + EOPNOTSUPP: Fs doesn't support temp files.
-    // }
+    pub fn create_temp() -> Result<File<ReadWrite>, TempError> {
+        File::<ReadWrite>::options()
+            .create_temp()
+            .mode(0o700)
+            .open(unsafe { Path::<Abs>::from_unchecked("/tmp") })
+    }
 }
 
 

@@ -5,7 +5,8 @@ use libc::{O_DIRECTORY, c_int};
 
 use crate::collections::contiguous::Array;
 use crate::fs::dir::DirEntries;
-use crate::fs::file::{CloneError, CloseError, MetadataError};
+#[doc(inline)]
+pub use crate::fs::file::{CloneError, CloseError, MetadataError};
 use crate::fs::{Abs, Fd, Metadata, Path, Rel};
 use crate::util;
 

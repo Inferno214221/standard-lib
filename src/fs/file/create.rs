@@ -3,6 +3,7 @@ use libc::{O_CREAT, O_EXCL, O_TMPFILE, O_TRUNC, c_int};
 use crate::util::sealed::Sealed;
 
 pub trait OpenMode: Sealed {
+    // TODO: I don't really want the internals to be pub.
     const FLAGS: c_int;
 }
 
@@ -43,11 +44,11 @@ impl Sealed for CreateTemp {}
 impl OpenMode for CreateTemp {
     const FLAGS: c_int = O_TMPFILE | O_EXCL;
 }
-impl Permanent for CreateTemp {}
+impl Temporary for CreateTemp {}
 
 pub enum CreateUnlinked {}
 impl Sealed for CreateUnlinked {}
 impl OpenMode for CreateUnlinked {
     const FLAGS: c_int = O_TMPFILE;
 }
-impl Permanent for CreateUnlinked {}
+impl Temporary for CreateUnlinked {}
