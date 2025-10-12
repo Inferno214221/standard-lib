@@ -9,6 +9,7 @@ use crate::fs::error::*;
 use crate::fs::panic::*;
 
 #[derive(Debug, Display, Clone, From, Error)]
+#[display("error closing file or directory: {_0}")]
 pub enum CloseError {
     Interrupt(InterruptError),
     IO(IOError),
@@ -16,6 +17,7 @@ pub enum CloseError {
 }
 
 #[derive(Debug, Display, Clone, From, Error)]
+#[display("error syncing file to disk: {_0}")]
 pub enum SyncError {
     Interrupt(InterruptError),
     IO(IOError),
@@ -24,18 +26,21 @@ pub enum SyncError {
 }
 
 #[derive(Debug, Display, Clone, From, Error)]
+#[display("error cloning file or directory: {_0}")]
 pub enum CloneError {
     FileCount(FileCountError),
     OOM(OOMError),
 }
 
 #[derive(Debug, Display, Clone, From, Error)]
+#[display("error locking file: {_0}")]
 pub enum LockError {
     Interrupt(InterruptError),
     LockMem(LockMemError),
 }
 
 #[derive(Debug, Display, Clone, From, Error)]
+#[display("error locking file: {_0}")]
 pub enum TryLockError {
     Interrupt(InterruptError),
     LockMem(LockMemError),
@@ -43,13 +48,14 @@ pub enum TryLockError {
 }
 
 #[derive(Debug, Display, Clone, From, Error)]
+#[display("error retrieving metadata: {_0}")]
 pub enum MetadataError {
     OOM(OOMError),
     MetadataOverflow(MetadataOverflowError),
 }
 
 #[derive(Debug, Display, Clone, From, Error)]
-pub enum FileTypeError {
+pub(crate) enum FileTypeError {
     OOM(OOMError),
     IrregularFile(IrregularFileError),
     MetadataOverflow(MetadataOverflowError),
@@ -65,6 +71,7 @@ impl From<MetadataError> for FileTypeError {
 }
 
 #[derive(Debug, Display, Clone, From, Error)]
+#[display("error opening file: {_0}")]
 pub enum OpenError {
     Access(AccessError),
     Interrupt(InterruptError),
@@ -120,6 +127,7 @@ impl From<FileTypeError> for OpenError {
 }
 
 #[derive(Debug, Display, Clone, From, Error)]
+#[display("error creating file: {_0}")]
 pub enum CreateError {
     Access(AccessError),
     Interrupt(InterruptError),
@@ -177,6 +185,7 @@ impl From<FileTypeError> for CreateError {
 }
 
 #[derive(Debug, Display, Clone, From, Error)]
+#[display("error creating temporary file: {_0}")]
 pub enum TempError {
     Access(AccessError),
     Interrupt(InterruptError),

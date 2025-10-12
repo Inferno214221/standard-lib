@@ -232,11 +232,11 @@ macro_rules! impl_open_temporary {
                 }
             }
 
-            pub fn open_rel<P: AsRef<Path<Rel>>>(
+            pub fn open_rel(
                 &self,
                 relative_to: &Directory
             ) -> Result<File<A>, $error> {
-                match self.open_rel_raw(relative_to, unsafe { Path::<Rel>::from_unchecked("/") }) {
+                match self.open_rel_raw(relative_to, unsafe { Path::<Rel>::from_unchecked("/.") }) {
                     Ok(fd) => Ok(File::<A> {
                         _access: PhantomData,
                         fd: fd.assert_type_reg()?,

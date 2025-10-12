@@ -241,7 +241,10 @@ impl<S: PathState> ToOwned for Path<S> {
     type Owned = OwnedPath<S>;
 
     fn to_owned(&self) -> Self::Owned {
-        OwnedPath::<S>::from_os_str_sanitized(self.as_os_str())
+        OwnedPath::<S> {
+            _state: PhantomData,
+            inner: self.as_os_str().to_owned(),
+        }
     }
 }
 
