@@ -4,7 +4,7 @@ use std::io::RawOsError;
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 
-use libc::stat as Stat;
+use libc::{EACCES, EBADF, EFAULT, ELOOP, ENAMETOOLONG, ENOENT, ENOMEM, ENOTDIR, EOVERFLOW, stat as Stat};
 
 use super::{OwnedPath, Path, PathState, Rel};
 use crate::fs::error::{ExcessiveLinksError, MetadataOverflowError, MissingComponentError, NoSearchError, NonDirComponentError, OOMError, PathLengthError};
@@ -61,16 +61,16 @@ impl Path<Abs> {
 
     pub(crate) fn match_metadata_error() -> Result<(), PathOrMetadataError> {
         match util::fs::err_no() {
-            libc::EACCES => Err(PathError::from(NoSearchError))?,
-            libc::EBADF => BadFdPanic.panic(),
-            libc::EFAULT => BadStackAddrPanic.panic(),
-            libc::ELOOP => Err(PathError::from(ExcessiveLinksError))?,
-            libc::ENAMETOOLONG => Err(PathError::from(PathLengthError))?,
-            libc::ENOENT => Err(PathError::from(MissingComponentError))?,
-            libc::ENOMEM => Err(MetadataError::from(OOMError))?,
-            libc::ENOTDIR => Err(PathError::from(NonDirComponentError))?,
-            libc::EOVERFLOW => Err(MetadataError::from(MetadataOverflowError))?,
-            e => UnexpectedErrorPanic(e).panic(),
+            EACCES       => Err(PathError::from(NoSearchError))?,
+            EBADF        => BadFdPanic.panic(),
+            EFAULT       => BadStackAddrPanic.panic(),
+            ELOOP        => Err(PathError::from(ExcessiveLinksError))?,
+            ENAMETOOLONG => Err(PathError::from(PathLengthError))?,
+            ENOENT       => Err(PathError::from(MissingComponentError))?,
+            ENOMEM       => Err(MetadataError::from(OOMError))?,
+            ENOTDIR      => Err(PathError::from(NonDirComponentError))?,
+            EOVERFLOW    => Err(MetadataError::from(MetadataOverflowError))?,
+            e            => UnexpectedErrorPanic(e).panic(),
         }
     }
 

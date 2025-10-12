@@ -2,7 +2,7 @@ use std::ffi::{CString, OsStr, OsString};
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 
-use libc::{c_int, stat as Stat};
+use libc::{EACCES, EBADF, EFAULT, EINVAL, ELOOP, ENAMETOOLONG, ENOENT, ENOMEM, ENOTDIR, EOVERFLOW, c_int, stat as Stat};
 
 use super::{Abs, OwnedPath, Path, PathState};
 use crate::fs::error::{ExcessiveLinksError, MetadataOverflowError, MissingComponentError, NoSearchError, NonDirComponentError, OOMError, PathLengthError};
@@ -69,17 +69,17 @@ impl Path<Rel> {
             flags
         ) } == -1 {
             match util::fs::err_no() {
-                libc::EACCES => Err(PathError::from(NoSearchError))?,
-                libc::EBADF => BadFdPanic.panic(),
-                libc::EFAULT => BadStackAddrPanic.panic(),
-                libc::EINVAL => InvalidOpPanic.panic(),
-                libc::ELOOP => Err(PathError::from(ExcessiveLinksError))?,
-                libc::ENAMETOOLONG => Err(PathError::from(PathLengthError))?,
-                libc::ENOENT => Err(PathError::from(MissingComponentError))?,
-                libc::ENOMEM => Err(MetadataError::from(OOMError))?,
-                libc::ENOTDIR => Err(PathError::from(NonDirComponentError))?,
-                libc::EOVERFLOW => Err(MetadataError::from(MetadataOverflowError))?,
-                e => UnexpectedErrorPanic(e).panic(),
+                EACCES       => Err(PathError::from(NoSearchError))?,
+                EBADF        => BadFdPanic.panic(),
+                EFAULT       => BadStackAddrPanic.panic(),
+                EINVAL       => InvalidOpPanic.panic(),
+                ELOOP        => Err(PathError::from(ExcessiveLinksError))?,
+                ENAMETOOLONG => Err(PathError::from(PathLengthError))?,
+                ENOENT       => Err(PathError::from(MissingComponentError))?,
+                ENOMEM       => Err(MetadataError::from(OOMError))?,
+                ENOTDIR      => Err(PathError::from(NonDirComponentError))?,
+                EOVERFLOW    => Err(MetadataError::from(MetadataOverflowError))?,
+                e            => UnexpectedErrorPanic(e).panic(),
             }
         }
         // SAFETY: stat either initializes raw_meta or returns an error and diverges.

@@ -1,5 +1,3 @@
-// TODO: Ensure that only Files are supported? Preferably while keeping Metadata lazy - Metadata
-// has a size of 120 bytes.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileType {
     BlockDevice,

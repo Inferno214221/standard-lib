@@ -5,6 +5,8 @@ use std::os::unix::ffi::OsStrExt;
 use std::ptr::NonNull;
 use std::slice;
 
+use libc::{EBADF, EFAULT, EINVAL, ENOENT, ENOTDIR};
+
 use crate::collections::contiguous::Array;
 use crate::fs::dir::Directory;
 use crate::fs::error::RemovedDirectoryError;
@@ -86,20 +88,20 @@ impl<'a> Iterator for DirEntries<'a> {
                     self.buf.size()
                 ) } {
                     -1 => match util::fs::err_no() {
-                        libc::EBADF => BadFdPanic.panic(),
-                        libc::EFAULT => BadStackAddrPanic.panic(),
+                        EBADF   => BadFdPanic.panic(),
+                        EFAULT  => BadStackAddrPanic.panic(),
                         // TODO: Handle (array) overflows etc here? Smart size selection?
                         // If the buffer isn't large enough, double it. Panics in the event of an
                         // overflow.
                         // This is currently the only way that the buffer size can change.
-                        libc::EINVAL => {
+                        EINVAL  => {
                             self.buf = Array::new_uninit(self.buf.size * 2);
                             continue;
                         },
                         // TODO: Do I really have to return this? Result from an Iterator is gross.
-                        libc::ENOENT => return Some(Err(RemovedDirectoryError)),
-                        libc::ENOTDIR => NotADirPanic.panic(),
-                        e => UnexpectedErrorPanic(e).panic(),
+                        ENOENT  => return Some(Err(RemovedDirectoryError)),
+                        ENOTDIR => NotADirPanic.panic(),
+                        e       => UnexpectedErrorPanic(e).panic(),
                     },
                     0 => None?,
                     count => self.rem = count as usize,
