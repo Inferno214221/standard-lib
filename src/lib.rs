@@ -52,7 +52,6 @@
 //! - Data structures:
 //!   - Binary Tree Map/Set
 //!   - BTree Map/Set
-#![feature(strict_overflow_ops)]
 #![feature(box_vec_non_null)]
 #![feature(extend_one)]
 #![feature(extend_one_unchecked)]
