@@ -1,24 +1,57 @@
+use std::ffi::CString;
 use std::fmt::{self, Debug, Formatter};
+use std::io::RawOsError;
 use std::mem::MaybeUninit;
 use std::ops::Deref;
 use std::thread;
 
 use libc::{EBADF, EDQUOT, EFAULT, EINTR, EIO, EMFILE, ENOMEM, ENOSPC, EOVERFLOW, c_int, stat as Stat};
 
-use crate::fs::error::{FileCountError, IOError, InterruptError, MetadataOverflowError, IrregularFileError, OOMError, StorageExhaustedError};
+use crate::fs::error::{FileCountError, IOError, InterruptError, MetadataOverflowError, IncorrectTypeError, OOMError, StorageExhaustedError};
 use crate::fs::file::{CloneError, CloseError, FileTypeError, MetadataError};
 use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, Panic, UnexpectedErrorPanic};
-use crate::fs::{FileType, Metadata};
+use crate::fs::{Abs, Directory, FileType, Metadata, Path, Rel};
 use crate::util;
 
 pub(crate) struct Fd(pub c_int);
 
 impl Fd {
-    pub fn assert_type_reg(self) -> Result<Fd, FileTypeError> {
-        if self.metadata()?.file_type == FileType::Regular {
+    pub fn open<P: AsRef<Path<Abs>>>(file_path: P, flags: c_int, mode: c_int) -> Result<Fd, RawOsError> {
+        let pathname = CString::from(file_path.as_ref().to_owned());
+        // TODO: Permission builder of some type?
+
+        match unsafe { libc::open(pathname.as_ptr().cast(), flags, mode) } {
+            -1 => Err(util::fs::err_no()),
+            fd => Ok(Fd(fd)),
+        }
+    }
+
+    pub fn open_rel<P: AsRef<Path<Rel>>>(
+        relative_to: &Directory,
+        file_path: P,
+        flags: c_int,
+        mode: c_int
+    ) -> Result<Fd, RawOsError> {
+        let pathname = CString::from(file_path.as_ref().to_owned());
+
+        match unsafe { libc::openat(
+            *relative_to.fd,
+            // Skip the leading '/' so that the path is considered relative by the OS.
+            pathname.as_ptr().add(1).cast(),
+            flags,
+            mode
+        ) } {
+            -1 => Err(util::fs::err_no()),
+            fd => Ok(Fd(fd)),
+        }
+    }
+
+    #[inline(always)]
+    pub fn assert_type(self, file_type: FileType) -> Result<Fd, FileTypeError> {
+        if self.metadata()?.file_type == file_type {
             Ok(self)
         } else {
-            Err(IrregularFileError)?
+            Err(IncorrectTypeError)?
         }
     }
 

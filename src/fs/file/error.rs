@@ -57,7 +57,7 @@ pub enum MetadataError {
 #[derive(Debug, Display, Clone, From, Error)]
 pub(crate) enum FileTypeError {
     OOM(OOMError),
-    IrregularFile(IrregularFileError),
+    IncorrectType(IncorrectTypeError),
     MetadataOverflow(MetadataOverflowError),
 }
 
@@ -71,13 +71,13 @@ impl From<MetadataError> for FileTypeError {
 }
 
 #[derive(Debug, Display, Clone, From, Error)]
-#[display("error opening file: {_0}")]
+#[display("error opening file or directory: {_0}")]
 pub enum OpenError {
     Access(AccessError),
     Interrupt(InterruptError),
     StorageExhausted(StorageExhaustedError),
     OversizedFile(OversizedFileError),
-    IrregularFile(IrregularFileError),
+    IncorrectType(IncorrectTypeError),
     InvalidBasename(InvalidBasenameError),
     ExcessiveLinks(ExcessiveLinksError),
     FileCount(FileCountError),
@@ -96,7 +96,7 @@ impl OpenError {
         match error {
             EACCES                          => AccessError.into(),
             EBADF                           => BadFdPanic.panic(),
-            EBUSY | EISDIR | ENODEV | ENXIO => IrregularFileError.into(),
+            EBUSY | EISDIR | ENODEV | ENXIO => IncorrectTypeError.into(),
             EDQUOT | ENOSPC                 => StorageExhaustedError.into(),
             EFAULT                          => BadStackAddrPanic.panic(),
             EFBIG | EOVERFLOW               => OversizedFileError.into(),
@@ -120,7 +120,7 @@ impl From<FileTypeError> for OpenError {
     fn from(value: FileTypeError) -> Self {
         match value {
             FileTypeError::OOM(e) => e.into(),
-            FileTypeError::IrregularFile(e) => e.into(),
+            FileTypeError::IncorrectType(e) => e.into(),
             FileTypeError::MetadataOverflow(e) => e.into(),
         }
     }
@@ -133,7 +133,7 @@ pub enum CreateError {
     Interrupt(InterruptError),
     StorageExhausted(StorageExhaustedError),
     OversizedFile(OversizedFileError),
-    IrregularFile(IrregularFileError),
+    IncorrectType(IncorrectTypeError),
     InvalidBasename(InvalidBasenameError),
     ExcessiveLinks(ExcessiveLinksError),
     FileCount(FileCountError),
@@ -153,7 +153,7 @@ impl CreateError {
         match error {
             EACCES                          => AccessError.into(),
             EBADF                           => BadFdPanic.panic(),
-            EBUSY | EISDIR | ENODEV | ENXIO => IrregularFileError.into(),
+            EBUSY | EISDIR | ENODEV | ENXIO => IncorrectTypeError.into(),
             EDQUOT | ENOSPC                 => StorageExhaustedError.into(),
             EEXIST                          => AlreadyExistsError.into(),
             EFAULT                          => BadStackAddrPanic.panic(),
@@ -178,7 +178,7 @@ impl From<FileTypeError> for CreateError {
     fn from(value: FileTypeError) -> Self {
         match value {
             FileTypeError::OOM(e) => e.into(),
-            FileTypeError::IrregularFile(e) => e.into(),
+            FileTypeError::IncorrectType(e) => e.into(),
             FileTypeError::MetadataOverflow(e) => e.into(),
         }
     }
@@ -191,7 +191,7 @@ pub enum TempError {
     Interrupt(InterruptError),
     StorageExhausted(StorageExhaustedError),
     OversizedFile(OversizedFileError),
-    IrregularFile(IrregularFileError),
+    IncorrectType(IncorrectTypeError),
     InvalidBasename(InvalidBasenameError),
     ExcessiveLinks(ExcessiveLinksError),
     FileCount(FileCountError),
@@ -211,7 +211,7 @@ impl TempError {
         match error {
             EACCES                 => AccessError.into(),
             EBADF                  => BadFdPanic.panic(),
-            EBUSY | ENODEV | ENXIO => IrregularFileError.into(),
+            EBUSY | ENODEV | ENXIO => IncorrectTypeError.into(),
             EDQUOT | ENOSPC        => StorageExhaustedError.into(),
             EFAULT                 => BadStackAddrPanic.panic(),
             EFBIG | EOVERFLOW      => OversizedFileError.into(),
@@ -237,7 +237,7 @@ impl From<FileTypeError> for TempError {
     fn from(value: FileTypeError) -> Self {
         match value {
             FileTypeError::OOM(e) => e.into(),
-            FileTypeError::IrregularFile(e) => e.into(),
+            FileTypeError::IncorrectType(e) => e.into(),
             FileTypeError::MetadataOverflow(e) => e.into(),
         }
     }

@@ -17,6 +17,8 @@ use crate::fs::{Abs, Directory, Fd, Metadata, Path, Rel};
 use crate::fs::error::{IOError, InterruptError, LockMemError, StorageExhaustedError, SyncUnsupportedError, WouldBlockError};
 use crate::util;
 
+pub(crate) const DEF_FILE_MODE: c_int = 0o666;
+
 /// An open file, allowing for reading and writing according to the associated [`AccessMode`]. The
 /// underlying file is guaranteed to exist for the lifetime of the `File`.
 // TODO: More docs here.

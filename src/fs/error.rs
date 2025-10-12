@@ -101,5 +101,5 @@ pub struct InvalidBasenameError;
 pub struct BusyExecutableError;
 
 #[derive(Debug, Display, Clone, Error)]
-#[display("provided path doesn't refer to a regular file")]
-pub struct IrregularFileError;
+#[display("provided path refers to a file of the wrong type")]
+pub struct IncorrectTypeError;

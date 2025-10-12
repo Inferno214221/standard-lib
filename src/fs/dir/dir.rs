@@ -1,18 +1,19 @@
 use std::ffi::CString;
 use std::io::RawOsError;
 
-use libc::{O_DIRECTORY, c_int};
+use libc::{O_DIRECTORY, c_int, mode_t};
 
 use crate::collections::contiguous::Array;
-use crate::fs::dir::DirEntries;
+use crate::fs::dir::{DirEntries, DirEntry};
 #[doc(inline)]
-pub use crate::fs::file::{CloneError, CloseError, MetadataError};
-use crate::fs::{Abs, Fd, Metadata, Path, Rel};
+pub use crate::fs::file::{CloneError, CloseError, MetadataError, OpenError};
+use crate::fs::{Abs, Fd, FileType, Metadata, Path, Rel};
 use crate::util;
 
 use super::BUFFER_SIZE;
 
-// TODO: Verify that all ..at syscalls support this constant.
+pub(crate) const DEF_DIR_MODE: c_int = 0o777;
+
 // TODO: This might be better placed in an env module or something.
 /// A special constant [`Directory`] that always represents to current directory of the process. Can
 /// be passed to functions in place of a manually opened `Directory` to indicate that the operation
@@ -29,44 +30,46 @@ pub struct Directory {
 }
 
 impl Directory {
-    pub fn open<P: AsRef<Path<Abs>>>(dir_path: P) -> Result<Directory, RawOsError> {
-        let pathname = CString::from(dir_path.as_ref().to_owned());
-
-        let flags: c_int = O_DIRECTORY; // Can't open as O_PATH because we need to read entries.
-
-        match unsafe { libc::open(pathname.as_ptr().cast(), flags) } {
-            -1 => Err(util::fs::err_no()),
-            fd => Ok(Directory {
-                fd: Fd(fd),
+    // TODO: Fix dir_path, file_path naming scheme to path and parent_path
+    pub fn open<P: AsRef<Path<Abs>>>(dir_path: P) -> Result<Directory, OpenError> {
+        match Fd::open(dir_path, O_DIRECTORY, DEF_DIR_MODE) {
+            Ok(fd) => Ok(Directory {
+                fd: fd.assert_type(FileType::Directory)?,
             }),
+            Err(e) => Err(OpenError::interpret_raw_error(e)),
         }
     }
 
     pub fn open_rel<P: AsRef<Path<Rel>>>(
         &self,
         relative_to: &Directory,
-        file_path: P
+        dir_path: P
+    ) -> Result<Directory, OpenError> {
+        match Fd::open_rel(relative_to, dir_path, O_DIRECTORY, DEF_DIR_MODE) {
+            Ok(fd) => Ok(Directory {
+                fd: fd.assert_type(FileType::Directory)?,
+            }),
+            Err(e) => Err(OpenError::interpret_raw_error(e)),
+        }
+    }
+
+    pub fn open_dir_entry(&self, dir_ent: &DirEntry) -> Result<Directory, OpenError> {
+        self.open_rel(dir_ent.parent, &dir_ent.path)
+    }
+
+    pub fn create<P: AsRef<Path<Abs>>>(
+        dir_path: P,
+        file_mode: u16
     ) -> Result<Directory, RawOsError> {
-        let pathname = CString::from(file_path.as_ref().to_owned());
+        let pathname = CString::from(dir_path.as_ref().to_owned());
 
-        let flags: c_int = O_DIRECTORY;
-
-        match unsafe { libc::openat(
-            *relative_to.fd,
-            // Skip the leading '/' so that the path is considered relative.
-            pathname.as_ptr().add(1).cast(),
-            flags
-        ) } {
-            -1 => Err(util::fs::err_no()),
+        match unsafe { libc::mkdir(pathname.as_ptr().cast(), file_mode as mode_t) } {
+            -1 => Err(util::fs::err_no()), // TODO: interpret raw error
             fd => Ok(Directory {
                 fd: Fd(fd),
             }),
         }
     }
-
-    // pub fn create<P: AsRef<Path<Abs>>>(dir_path: P) -> Result<Directory, RawOsError>;
-
-    // TODO: relative open/create variants.
 
     pub fn read_entries<'a>(&'a self) -> DirEntries<'a> {
         let buf = Array::new_uninit(BUFFER_SIZE);

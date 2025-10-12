@@ -1,16 +1,13 @@
 use std::fmt;
-use std::ffi::CString;
 use std::fmt::{Debug, Formatter};
-use std::io::RawOsError;
 use std::marker::PhantomData;
 
 use libc::{O_APPEND, O_CREAT, O_DIRECTORY, O_EXCL, O_NOATIME, O_NOFOLLOW, O_SYNC, O_TMPFILE, O_TRUNC, c_int};
 
-use super::{File, AccessMode};
+use super::{AccessMode, DEF_FILE_MODE, File};
 use crate::fs::dir::DirEntry;
 use crate::fs::file::{Create, CreateError, CreateIfMissing, CreateOrEmpty, CreateTemp, CreateUnlinked, NoCreate, OpenError, OpenMode, Permanent, ReadOnly, ReadWrite, TempError, Write, WriteOnly};
-use crate::fs::path::{Abs, Path};
-use crate::fs::{Directory, Fd, Rel};
+use crate::fs::{Abs, Directory, Fd, FileType, OwnedPath, Path, Rel};
 use crate::util;
 use crate::util::fmt::DebugRaw;
 
@@ -52,35 +49,6 @@ impl<A: AccessMode, O: OpenMode> OpenOptions<A, O> {
 
     pub fn new() -> OpenOptions<A, O> {
         OpenOptions::<A, O>::default()
-    }
-
-    pub(crate) fn open_raw<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<Fd, RawOsError> {
-        let pathname = CString::from(file_path.as_ref().to_owned());
-        // TODO: Permission builder of some type?
-
-        match unsafe { libc::open(pathname.as_ptr().cast(), self.flags(), self.mode as c_int) } {
-            -1 => Err(util::fs::err_no()),
-            fd => Ok(Fd(fd)),
-        }
-    }
-
-    pub(crate) fn open_rel_raw<P: AsRef<Path<Rel>>>(
-        &self,
-        relative_to: &Directory,
-        file_path: P
-    ) -> Result<Fd, RawOsError> {
-        let pathname = CString::from(file_path.as_ref().to_owned());
-
-        match unsafe { libc::openat(
-            *relative_to.fd,
-            // Skip the leading '/' so that the path is considered relative.
-            pathname.as_ptr().add(1).cast(),
-            self.flags(),
-            self.mode
-        ) } {
-            -1 => Err(util::fs::err_no()),
-            fd => Ok(Fd(fd)),
-        }
     }
 
     pub const fn no_create(self) -> OpenOptions<A, NoCreate> {
@@ -185,10 +153,10 @@ macro_rules! impl_open_permanent {
     ($mode:ty => $error:ty) => {
         impl<A: AccessMode> OpenOptions<A, $mode> {
             pub fn open<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File<A>, $error> {
-                match self.open_raw(file_path) {
+                match Fd::open(file_path, self.flags(), self.mode) {
                     Ok(fd) => Ok(File::<A> {
                         _access: PhantomData,
-                        fd: fd.assert_type_reg()?,
+                        fd: fd.assert_type(FileType::Regular)?,
                     }),
                     Err(e) => Err(<$error>::interpret_raw_error(e)),
                 }
@@ -199,10 +167,10 @@ macro_rules! impl_open_permanent {
                 relative_to: &Directory,
                 file_path: P
             ) -> Result<File<A>, $error> {
-                match self.open_rel_raw(relative_to, file_path) {
+                match Fd::open_rel(relative_to, file_path, self.flags(), self.mode) {
                     Ok(fd) => Ok(File::<A> {
                         _access: PhantomData,
-                        fd: fd.assert_type_reg()?,
+                        fd: fd.assert_type(FileType::Regular)?,
                     }),
                     Err(e) => Err(<$error>::interpret_raw_error(e)),
                 }
@@ -223,10 +191,10 @@ macro_rules! impl_open_temporary {
     ($mode:ty => $error:ty) => {
         impl<A: AccessMode> OpenOptions<A, $mode> {
             pub fn open<P: AsRef<Path<Abs>>>(&self, dir_path: P) -> Result<File<A>, $error> {
-                match self.open_raw(dir_path) {
+                match Fd::open(dir_path, self.flags(), self.mode) {
                     Ok(fd) => Ok(File::<A> {
                         _access: PhantomData,
-                        fd: fd.assert_type_reg()?,
+                        fd: fd.assert_type(FileType::Regular)?,
                     }),
                     Err(e) => Err(<$error>::interpret_raw_error(e)),
                 }
@@ -236,10 +204,15 @@ macro_rules! impl_open_temporary {
                 &self,
                 relative_to: &Directory
             ) -> Result<File<A>, $error> {
-                match self.open_rel_raw(relative_to, unsafe { Path::<Rel>::from_unchecked("/.") }) {
+                match Fd::open_rel(
+                    relative_to,
+                    OwnedPath::dot_slash_dot(),
+                    self.flags(),
+                    self.mode
+                ) {
                     Ok(fd) => Ok(File::<A> {
                         _access: PhantomData,
-                        fd: fd.assert_type_reg()?,
+                        fd: fd.assert_type(FileType::Regular)?,
                     }),
                     Err(e) => Err(<$error>::interpret_raw_error(e)),
                 }
@@ -256,6 +229,8 @@ impl_open_permanent! {
     NoCreate        => OpenError,
     CreateIfMissing => OpenError,
     CreateOrEmpty   => OpenError,
+    // TODO: Remove open_dir_entry for this one
+    // TODO: Actually, don't need the type assertion for this or the temp ones
     Create          => CreateError
 }
 
@@ -271,7 +246,7 @@ impl<A: AccessMode, O: OpenMode> Default for OpenOptions<A, O> {
         Self {
             _access: Default::default(),
             _open: Default::default(),
-            mode: 0o644,
+            mode: DEF_FILE_MODE,
             flags: 0x0,
         }
     }

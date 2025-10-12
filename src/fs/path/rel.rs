@@ -1,4 +1,4 @@
-use std::ffi::{CString, OsStr};
+use std::ffi::{CString, OsStr, OsString};
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 
@@ -20,6 +20,13 @@ impl Sealed for Rel {}
 impl PathState for Rel {}
 
 impl OwnedPath<Rel> {
+    pub fn dot_slash_dot() -> OwnedPath<Rel> {
+        OwnedPath::<Rel> {
+            _state: PhantomData,
+            inner: OsString::from("/."),
+        }
+    }
+
     pub fn resolve_root(self) -> OwnedPath<Abs> {
         let OwnedPath { _state, inner } = self;
         OwnedPath {
