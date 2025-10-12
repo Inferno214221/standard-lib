@@ -6,7 +6,7 @@ use libc::{O_APPEND, O_CREAT, O_DIRECTORY, O_EXCL, O_NOATIME, O_NOFOLLOW, O_SYNC
 
 use super::{AccessMode, DEF_FILE_MODE, File};
 use crate::fs::dir::DirEntry;
-use crate::fs::file::{Create, CreateError, CreateIfMissing, CreateOrEmpty, CreateTemp, CreateUnlinked, NoCreate, OpenError, OpenMode, Permanent, ReadOnly, ReadWrite, TempError, Write, WriteOnly};
+use crate::fs::file::{Create, CreateError, CreateIfMissing, CreateOrEmpty, CreateTemp, CreateUnlinked, NoCreate, OpenError, OpenMode, Permanent, ReadOnly, ReadWrite, TempError, Temporary, Write, WriteOnly};
 use crate::fs::{Abs, Directory, Fd, FileType, OwnedPath, Path, Rel};
 use crate::util;
 use crate::util::fmt::DebugRaw;
@@ -149,16 +149,16 @@ impl<A: Write, O: OpenMode> OpenOptions<A, O> {
     }
 }
 
-macro_rules! impl_open_permanent {
-    ($mode:ty => $error:ty) => {
+macro_rules! impl_open {
+    ($mode:ty) => {
         impl<A: AccessMode> OpenOptions<A, $mode> {
-            pub fn open<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File<A>, $error> {
+            pub fn open<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File<A>, OpenError> {
                 match Fd::open(file_path, self.flags(), self.mode) {
                     Ok(fd) => Ok(File::<A> {
                         _access: PhantomData,
                         fd: fd.assert_type(FileType::Regular)?,
                     }),
-                    Err(e) => Err(<$error>::interpret_raw_error(e)),
+                    Err(e) => Err(OpenError::interpret_raw_error(e)),
                 }
             }
 
@@ -166,44 +166,78 @@ macro_rules! impl_open_permanent {
                 &self,
                 relative_to: &Directory,
                 file_path: P
-            ) -> Result<File<A>, $error> {
+            ) -> Result<File<A>, OpenError> {
                 match Fd::open_rel(relative_to, file_path, self.flags(), self.mode) {
                     Ok(fd) => Ok(File::<A> {
                         _access: PhantomData,
                         fd: fd.assert_type(FileType::Regular)?,
                     }),
-                    Err(e) => Err(<$error>::interpret_raw_error(e)),
+                    Err(e) => Err(OpenError::interpret_raw_error(e)),
                 }
             }
 
-            pub fn open_dir_entry(&self, dir_ent: &DirEntry) -> Result<File<A>, $error> {
+            pub fn open_dir_entry(&self, dir_ent: &DirEntry) -> Result<File<A>, OpenError> {
                 self.open_rel(dir_ent.parent, &dir_ent.path)
             }
         }
     };
-    ($mode:ty => $error:ty, $($a:ty => $b:ty),+) => {
-        impl_open_permanent!($mode => $error);
-        impl_open_permanent!($($a => $b),+);
+    ($mode:ty, $($a:ty),+) => {
+        impl_open!($mode);
+        impl_open!($($a),+);
     };
 }
 
-macro_rules! impl_open_temporary {
-    ($mode:ty => $error:ty) => {
+macro_rules! impl_create {
+    ($mode:ty) => {
         impl<A: AccessMode> OpenOptions<A, $mode> {
-            pub fn open<P: AsRef<Path<Abs>>>(&self, dir_path: P) -> Result<File<A>, $error> {
+            pub fn open<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File<A>, CreateError> {
+                match Fd::open(file_path, self.flags(), self.mode) {
+                    Ok(fd) => Ok(File::<A> {
+                        _access: PhantomData,
+                        fd,
+                    }),
+                    Err(e) => Err(CreateError::interpret_raw_error(e)),
+                }
+            }
+
+            pub fn open_rel<P: AsRef<Path<Rel>>>(
+                &self,
+                relative_to: &Directory,
+                file_path: P
+            ) -> Result<File<A>, CreateError> {
+                match Fd::open_rel(relative_to, file_path, self.flags(), self.mode) {
+                    Ok(fd) => Ok(File::<A> {
+                        _access: PhantomData,
+                        fd,
+                    }),
+                    Err(e) => Err(CreateError::interpret_raw_error(e)),
+                }
+            }
+        }
+    };
+    ($mode:ty, $($a:ty),+) => {
+        impl_create!($mode);
+        impl_create!($($a),+);
+    };
+}
+
+macro_rules! impl_create_temp {
+    ($mode:ty) => {
+        impl<A: AccessMode> OpenOptions<A, $mode> {
+            pub fn open<P: AsRef<Path<Abs>>>(&self, dir_path: P) -> Result<File<A>, TempError> {
                 match Fd::open(dir_path, self.flags(), self.mode) {
                     Ok(fd) => Ok(File::<A> {
                         _access: PhantomData,
-                        fd: fd.assert_type(FileType::Regular)?,
+                        fd,
                     }),
-                    Err(e) => Err(<$error>::interpret_raw_error(e)),
+                    Err(e) => Err(TempError::interpret_raw_error(e)),
                 }
             }
 
             pub fn open_rel(
                 &self,
                 relative_to: &Directory
-            ) -> Result<File<A>, $error> {
+            ) -> Result<File<A>, TempError> {
                 match Fd::open_rel(
                     relative_to,
                     OwnedPath::dot_slash_dot(),
@@ -212,33 +246,33 @@ macro_rules! impl_open_temporary {
                 ) {
                     Ok(fd) => Ok(File::<A> {
                         _access: PhantomData,
-                        fd: fd.assert_type(FileType::Regular)?,
+                        fd,
                     }),
-                    Err(e) => Err(<$error>::interpret_raw_error(e)),
+                    Err(e) => Err(TempError::interpret_raw_error(e)),
                 }
             }
         }
     };
-    ($mode:ty => $error:ty, $($a:ty => $b:ty),+) => {
-        impl_open_temporary!($mode => $error);
-        impl_open_temporary!($($a => $b),+);
+    ($mode:ty, $($a:ty),+) => {
+        impl_create_temp!($mode);
+        impl_create_temp!($($a),+);
     };
 }
 
-impl_open_permanent! {
-    NoCreate        => OpenError,
-    CreateIfMissing => OpenError,
-    CreateOrEmpty   => OpenError,
-    // TODO: Remove open_dir_entry for this one
-    // TODO: Actually, don't need the type assertion for this or the temp ones
-    Create          => CreateError
+impl_open! {
+    NoCreate,
+    CreateIfMissing,
+    CreateOrEmpty
 }
 
-impl_open_temporary! {
-    CreateTemp      => TempError,
-    CreateUnlinked  => TempError
+impl_create! {
+    Create
 }
 
+impl_create_temp! {
+    CreateTemp,
+    CreateUnlinked
+}
 
 // The Default derive macro doesn't like my spooky zero-variant enums.
 impl<A: AccessMode, O: OpenMode> Default for OpenOptions<A, O> {

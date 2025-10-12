@@ -94,24 +94,24 @@ pub enum OpenError {
 impl OpenError {
     pub(crate) fn interpret_raw_error(error: RawOsError) -> Self {
         match error {
-            EACCES                          => AccessError.into(),
-            EBADF                           => BadFdPanic.panic(),
+            EACCES            => AccessError.into(),
+            EBADF             => BadFdPanic.panic(),
             EBUSY | EISDIR | ENODEV | ENXIO => IncorrectTypeError.into(),
-            EDQUOT | ENOSPC                 => StorageExhaustedError.into(),
-            EFAULT                          => BadStackAddrPanic.panic(),
-            EFBIG | EOVERFLOW               => OversizedFileError.into(),
-            EINTR                           => InterruptError.into(),
-            EINVAL                          => InvalidBasenameError.into(),
-            ELOOP                           => ExcessiveLinksError.into(),
-            EMFILE | ENFILE                 => FileCountError.into(),
-            ENAMETOOLONG                    => PathLengthError.into(),
-            ENOENT                          => MissingComponentError.into(),
-            ENOMEM                          => OOMError.into(),
-            ENOTDIR                         => NonDirComponentError.into(),
-            EPERM                           => PermissionError.into(),
-            EROFS                           => ReadOnlyFSError.into(),
-            ETXTBSY                         => BusyExecutableError.into(),
-            e                               => UnexpectedErrorPanic(e).panic(),
+            EDQUOT | ENOSPC   => StorageExhaustedError.into(),
+            EFAULT            => BadStackAddrPanic.panic(),
+            EFBIG | EOVERFLOW => OversizedFileError.into(),
+            EINTR             => InterruptError.into(),
+            EINVAL            => InvalidBasenameError.into(),
+            ELOOP             => ExcessiveLinksError.into(),
+            EMFILE | ENFILE   => FileCountError.into(),
+            ENAMETOOLONG      => PathLengthError.into(),
+            ENOENT            => MissingComponentError.into(),
+            ENOMEM            => OOMError.into(),
+            ENOTDIR           => NonDirComponentError.into(),
+            EPERM             => PermissionError.into(),
+            EROFS             => ReadOnlyFSError.into(),
+            ETXTBSY           => BusyExecutableError.into(),
+            e                 => UnexpectedErrorPanic(e).panic(),
         }
     }
 }
@@ -132,13 +132,10 @@ pub enum CreateError {
     Access(AccessError),
     Interrupt(InterruptError),
     StorageExhausted(StorageExhaustedError),
-    OversizedFile(OversizedFileError),
-    IncorrectType(IncorrectTypeError),
     InvalidBasename(InvalidBasenameError),
     ExcessiveLinks(ExcessiveLinksError),
     FileCount(FileCountError),
     PathLength(PathLengthError),
-    MetadataOverflow(MetadataOverflowError),
     MissingComponent(MissingComponentError),
     OOM(OOMError),
     NonDirComponent(NonDirComponentError),
@@ -151,35 +148,23 @@ pub enum CreateError {
 impl CreateError {
     pub(crate) fn interpret_raw_error(error: RawOsError) -> Self {
         match error {
-            EACCES                          => AccessError.into(),
-            EBADF                           => BadFdPanic.panic(),
-            EBUSY | EISDIR | ENODEV | ENXIO => IncorrectTypeError.into(),
-            EDQUOT | ENOSPC                 => StorageExhaustedError.into(),
-            EEXIST                          => AlreadyExistsError.into(),
-            EFAULT                          => BadStackAddrPanic.panic(),
-            EFBIG | EOVERFLOW               => OversizedFileError.into(),
-            EINTR                           => InterruptError.into(),
-            EINVAL                          => InvalidBasenameError.into(),
-            ELOOP                           => ExcessiveLinksError.into(),
-            EMFILE | ENFILE                 => FileCountError.into(),
-            ENAMETOOLONG                    => PathLengthError.into(),
-            ENOENT                          => MissingComponentError.into(),
-            ENOMEM                          => OOMError.into(),
-            ENOTDIR                         => NonDirComponentError.into(),
-            EPERM                           => PermissionError.into(),
-            EROFS                           => ReadOnlyFSError.into(),
-            ETXTBSY                         => BusyExecutableError.into(),
-            e                               => UnexpectedErrorPanic(e).panic(),
-        }
-    }
-}
-
-impl From<FileTypeError> for CreateError {
-    fn from(value: FileTypeError) -> Self {
-        match value {
-            FileTypeError::OOM(e) => e.into(),
-            FileTypeError::IncorrectType(e) => e.into(),
-            FileTypeError::MetadataOverflow(e) => e.into(),
+            EACCES            => AccessError.into(),
+            EBADF             => BadFdPanic.panic(),
+            EBUSY | EEXIST | EFBIG | EISDIR | ENODEV | ENXIO | EOVERFLOW => AlreadyExistsError.into(),
+            EDQUOT | ENOSPC   => StorageExhaustedError.into(),
+            EFAULT            => BadStackAddrPanic.panic(),
+            EINTR             => InterruptError.into(),
+            EINVAL            => InvalidBasenameError.into(),
+            ELOOP             => ExcessiveLinksError.into(),
+            EMFILE | ENFILE   => FileCountError.into(),
+            ENAMETOOLONG      => PathLengthError.into(),
+            ENOENT            => MissingComponentError.into(),
+            ENOMEM            => OOMError.into(),
+            ENOTDIR           => NonDirComponentError.into(),
+            EPERM             => PermissionError.into(),
+            EROFS             => ReadOnlyFSError.into(),
+            ETXTBSY           => BusyExecutableError.into(),
+            e                 => UnexpectedErrorPanic(e).panic(),
         }
     }
 }
@@ -191,12 +176,10 @@ pub enum TempError {
     Interrupt(InterruptError),
     StorageExhausted(StorageExhaustedError),
     OversizedFile(OversizedFileError),
-    IncorrectType(IncorrectTypeError),
     InvalidBasename(InvalidBasenameError),
     ExcessiveLinks(ExcessiveLinksError),
     FileCount(FileCountError),
     PathLength(PathLengthError),
-    MetadataOverflow(MetadataOverflowError),
     MissingComponent(MissingComponentError),
     OOM(OOMError),
     NonDirComponent(NonDirComponentError),
@@ -209,36 +192,23 @@ pub enum TempError {
 impl TempError {
     pub(crate) fn interpret_raw_error(error: RawOsError) -> Self {
         match error {
-            EACCES                 => AccessError.into(),
-            EBADF                  => BadFdPanic.panic(),
-            EBUSY | ENODEV | ENXIO => IncorrectTypeError.into(),
-            EDQUOT | ENOSPC        => StorageExhaustedError.into(),
-            EFAULT                 => BadStackAddrPanic.panic(),
-            EFBIG | EOVERFLOW      => OversizedFileError.into(),
-            EINTR                  => InterruptError.into(),
-            EINVAL                 => InvalidBasenameError.into(),
-            EISDIR | EOPNOTSUPP    => TempFileUnsupportedError.into(),
-            ELOOP                  => ExcessiveLinksError.into(),
-            EMFILE | ENFILE        => FileCountError.into(),
-            ENAMETOOLONG           => PathLengthError.into(),
-            // TODO: Has an additional interpretation for temp files.
-            ENOENT                 => MissingComponentError.into(),
-            ENOMEM                 => OOMError.into(),
-            ENOTDIR                => NonDirComponentError.into(),
-            EPERM                  => PermissionError.into(),
-            EROFS                  => ReadOnlyFSError.into(),
-            ETXTBSY                => BusyExecutableError.into(),
-            e                      => UnexpectedErrorPanic(e).panic(),
-        }
-    }
-}
-
-impl From<FileTypeError> for TempError {
-    fn from(value: FileTypeError) -> Self {
-        match value {
-            FileTypeError::OOM(e) => e.into(),
-            FileTypeError::IncorrectType(e) => e.into(),
-            FileTypeError::MetadataOverflow(e) => e.into(),
+            EACCES          => AccessError.into(),
+            EBADF           => BadFdPanic.panic(),
+            EBUSY | EFBIG | ENODEV | ENXIO | EISDIR | EOPNOTSUPP | EOVERFLOW => TempFileUnsupportedError.into(),
+            EDQUOT | ENOSPC => StorageExhaustedError.into(),
+            EFAULT          => BadStackAddrPanic.panic(),
+            EINTR           => InterruptError.into(),
+            EINVAL          => InvalidFlagPanic.panic(),
+            ELOOP           => ExcessiveLinksError.into(),
+            EMFILE | ENFILE => FileCountError.into(),
+            ENAMETOOLONG    => PathLengthError.into(),
+            ENOENT          => MissingComponentError.into(),
+            ENOMEM          => OOMError.into(),
+            ENOTDIR         => NonDirComponentError.into(),
+            EPERM           => PermissionError.into(),
+            EROFS           => ReadOnlyFSError.into(),
+            ETXTBSY         => BusyExecutableError.into(),
+            e               => UnexpectedErrorPanic(e).panic(),
         }
     }
 }

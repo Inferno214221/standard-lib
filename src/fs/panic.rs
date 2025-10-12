@@ -20,6 +20,11 @@ pub struct InvalidOpPanic;
 impl Panic for InvalidOpPanic {}
 
 #[derive(Debug, Display, Clone, Error)]
+#[display("invalid flag")]
+pub struct InvalidFlagPanic;
+impl Panic for InvalidFlagPanic {}
+
+#[derive(Debug, Display, Clone, Error)]
 #[display("pointer exceeded stack space")]
 pub struct BadStackAddrPanic;
 impl Panic for BadStackAddrPanic {}
