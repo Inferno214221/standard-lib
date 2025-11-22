@@ -45,7 +45,7 @@ impl OwnedPath<Rel> {
 }
 
 impl Path<Rel> {
-    pub fn dot() -> &'static Path<Rel> {
+    pub fn dot_slash() -> &'static Path<Rel> {
         unsafe { Path::from_unchecked("/") }
     }
 

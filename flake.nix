@@ -25,7 +25,7 @@
         };
         toolchain = fenix.packages.${system}.fromToolchainFile {
           file = ./rust-toolchain.toml;
-          sha256 = "sha256-f7d48q24Ijc8Hk3GgdRsl3BypzBLUceJaByhsi16L8A=";
+          sha256 = "sha256-P39FCgpfDT04989+ZTNEdM/k/AE869JKSB4qjatYTSs=";
         };
         naersk = pkgs.callPackage naersk-pkg {
           cargo = toolchain;
