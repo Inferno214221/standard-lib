@@ -42,6 +42,10 @@ impl OwnedPath<Abs> {
 }
 
 impl Path<Abs> {
+    pub fn root() -> &'static Path<Abs> {
+        unsafe { Path::from_unchecked("/") }
+    }
+
     pub fn read_all_links(&self) -> Result<OwnedPath<Abs>, RawOsError> {
         todo!("canonicalize with many readlink calls, needs to handle nonexistence")
     }

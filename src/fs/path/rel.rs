@@ -20,10 +20,18 @@ impl Sealed for Rel {}
 impl PathState for Rel {}
 
 impl OwnedPath<Rel> {
-    pub fn dot_slash_dot() -> OwnedPath<Rel> {
+    // TODO: This is necessary for some operations, but doesn't uphold OwnedPath's invariants.
+    pub(crate) unsafe fn dot_slash_dot() -> OwnedPath<Rel> {
         OwnedPath::<Rel> {
             _state: PhantomData,
             inner: OsString::from("/."),
+        }
+    }
+
+    pub fn dot() -> OwnedPath<Rel> {
+        OwnedPath::<Rel> {
+            _state: PhantomData,
+            inner: OsString::from("/"),
         }
     }
 
@@ -37,6 +45,10 @@ impl OwnedPath<Rel> {
 }
 
 impl Path<Rel> {
+    pub fn dot() -> &'static Path<Rel> {
+        unsafe { Path::from_unchecked("/") }
+    }
+
     pub fn resolve(&self, mut target: OwnedPath<Abs>) -> OwnedPath<Abs> {
         target.push(self);
         target

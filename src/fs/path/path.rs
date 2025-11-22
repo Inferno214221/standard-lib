@@ -4,6 +4,7 @@ use std::ffi::{CString, OsStr, OsString};
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::mem;
+use std::num::NonZero;
 use std::ops::Deref;
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
 
@@ -50,12 +51,37 @@ impl<S: PathState> OwnedPath<S> {
     pub fn push<P: AsRef<Path<Rel>>>(&mut self, other: P) {
         let other_path = other.as_ref();
         let mut vec: Vector<u8> = mem::take(&mut self.inner).into_vec().into();
-        vec.reserve(other_path.len());
+        vec.reserve(other_path.len().get());
         vec.extend(other_path.inner.as_bytes().iter().cloned());
         let _ = mem::replace(
             &mut self.inner,
             OsString::from_vec(vec.into())
         );
+    }
+
+    pub fn pop(&mut self) -> Option<OwnedPath<Rel>> {
+        // OsString doesn't make guarantees about its layout as a Vec, so we have to take and
+        // convert it. Using mem::take replaces the value with an empty Vec, which avoids an
+        // allocation. However, "" is not a valid path, so this function isn't currently unwind
+        // safe. It would be dumb to perform an allocation so that OsString's internal Vec can be
+        // taken and returned shortly after.
+        // TODO: Make this unwind safe.
+        let mut bytes = mem::take(&mut self.inner).into_vec();
+
+        let mut index = bytes.len().checked_sub(1)?;
+
+        while let Some(ch) = bytes.get(index) && *ch != b'/' {
+            index = index.checked_sub(1)?;
+        }
+
+        let split = bytes.split_off(index);
+
+        drop(mem::replace(&mut self.inner, OsString::from_vec(bytes)));
+
+        Some(OwnedPath::<Rel> {
+            _state: PhantomData,
+            inner: OsString::from_vec(split),
+        })
     }
 }
 
@@ -95,9 +121,56 @@ impl<S: PathState> Path<S> {
 
     // TODO: no_lead methods
 
-    // pub fn basename(&self) -> &OsStr
+    /// Returns the basename of this path (the OsStr following the last `/` in the path). This OsStr
+    /// won't contain any instances of `/`.
+    /// 
+    /// See [`parent()`](Path::parent) for more info.
+    pub fn basename(&self) -> &OsStr {
+        let bytes = self.as_bytes();
 
-    // pub fn parent(&self) -> Self
+        let mut index = bytes.len() - 1;
+
+        while let Some(ch) = bytes.get(index) && *ch != b'/' {
+            index -= 1;
+        }
+
+        OsStr::from_bytes(&bytes[(index + 1)..])
+    }
+
+    /// Returns the parent directory of this path (lexically speaking). The result is a Path with
+    /// basename and the preceding slash removed, such that the following holds for any `path`.
+    /// 
+    /// TODO
+    /// 
+    /// Because this method is the counterpart of [`basename`](Path::basename) and `basename` won't
+    /// contain any `/`, the behavior when calling these methods on "/" is as follows:
+    /// 
+    /// ```
+    /// # use standard_lib::fs::path::Path;
+    /// assert_eq!(Path::root().basename(), "");
+    /// assert_eq!(Path::root().parent(), Path::root());
+    /// ```
+    ///
+    /// This behavior is also consistent with Unix defaults: the `..` entry in `/` refers to `/`
+    /// itself.
+    // TODO: Write doctest once a public constructor exists for OwnedPath and Path.
+    pub fn parent(&self) -> &Self {
+        let bytes = self.as_bytes();
+
+        let mut index = bytes.len() - 1;
+
+        while let Some(ch) = bytes.get(index) && *ch != b'/' {
+            index -= 1;
+        }
+        
+        // If we would return an empty string, instead include the first slash representing the
+        // absolute or relative root.
+        if index == 0 {
+            index = 1;
+        }
+
+        unsafe { Path::from_unchecked(OsStr::from_bytes(&bytes[..index])) }
+    }
 
     pub fn join<P: AsRef<Path<Rel>>>(&self, other: P) -> OwnedPath<S> {
         unsafe {
@@ -124,6 +197,8 @@ impl<S: PathState> Path<S> {
         }
     }
 
+    /// Creates an [`Iterator`] over the components of a `Path`. This iterator produces `Path<Rel>`s
+    /// representing each `/`-separated string in the Path, from left to right.
     pub fn components<'a>(&'a self) -> Components<'a, S> {
         Components {
             _state: PhantomData,
@@ -132,6 +207,9 @@ impl<S: PathState> Path<S> {
         }
     }
 
+    /// Creates an [`Iterator`] over the ancestors of a `Path`. This iterator produces `Path<S>`s
+    /// representing each directory in the Path ordered with descending depth and ending with the
+    /// Path itself.
     pub fn ancestors<'a>(&'a self) -> Ancestors<'a, S> {
         Ancestors {
             _state: PhantomData,

@@ -1,3 +1,5 @@
+use std::{ffi::OsStr, ptr};
+
 use standard_lib::{collections::*, fs::*};
 
 use contiguous::{Array, Vector};
@@ -161,4 +163,23 @@ fn main() {
                 .extra_flags(libc::O_CLOEXEC)
         );
     }
+
+    let mut p = OwnedPath::<Abs>::from("/home/inferno214221/main.txt");
+    dbg!(&p);
+    dbg!(p.basename());
+    dbg!(p.parent());
+    dbg!(p.pop());
+    dbg!(p.pop());
+    dbg!(p.pop());
+    dbg!(p.pop());
+
+    let p = OwnedPath::<Abs>::from("/new.txt");
+    dbg!(&p);
+    dbg!(p.basename());
+    dbg!(p.parent());
+
+    let p = OwnedPath::root();
+    dbg!(&p);
+    dbg!(p.basename());
+    dbg!(p.parent());
 }

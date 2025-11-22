@@ -240,7 +240,7 @@ macro_rules! impl_create_temp {
             ) -> Result<File<A>, TempError> {
                 match Fd::open_rel(
                     relative_to,
-                    OwnedPath::dot_slash_dot(),
+                    unsafe { OwnedPath::dot_slash_dot() },
                     self.flags(),
                     self.mode
                 ) {
