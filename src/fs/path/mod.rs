@@ -25,8 +25,8 @@
 //! - The string contains no trailing `/`.
 //! - The string contains no `\0`.
 //! 
-//! Although these invariants are relatively strict, constructing an `OwnedPath` from an `OsStr` or
-//! `str` is infallible because it sanitizes any invalid string provided. On the other hand,
+//! Although these invariants are relatively strict, constructing an `OwnedPath` from an `&OsStr` or
+//! `&str` is infallible because it sanitizes any invalid string provided. On the other hand,
 //! constructing a `Path` from another slice type can fail and may do so relatively often, because
 //! it won't mutate the original value, only verify that it is already valid.
 //! 

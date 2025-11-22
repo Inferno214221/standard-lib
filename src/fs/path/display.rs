@@ -59,7 +59,7 @@ impl<'a> Display for DisplayFull<'a> {
 impl<'a> Display for DisplayHome<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if let Some(home) = OwnedPath::home()
-            && let Some(rel) = self.inner.relative(&home) {
+            && let Some(rel) = self.inner.relative_to(&home) {
             write!(f, "~{}", rel.display().slash())
         } else {
             write!(f, "{}", self.inner.as_os_str().to_string_lossy())

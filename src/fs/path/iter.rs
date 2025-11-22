@@ -1,10 +1,10 @@
-use std::ffi::OsStr;
+use std::{ffi::OsStr, iter::FusedIterator};
 use std::marker::PhantomData;
 use std::os::unix::ffi::OsStrExt;
 
 use crate::fs::path::{Path, PathState, Rel};
 
-// TODO: impl other Iterator traits
+// TODO: OwnedComponents?
 
 pub struct Components<'a, State: PathState> {
     pub(crate) _state: PhantomData<fn() -> State>,
@@ -34,6 +34,8 @@ impl<'a, S: PathState> Iterator for Components<'a, S> {
     }
 }
 
+impl<'a, S: PathState> FusedIterator for Components<'a, S> {}
+
 pub struct Ancestors<'a, State: PathState + 'a> {
     pub(crate) _state: PhantomData<fn() -> State>,
     pub(crate) path: &'a [u8],
@@ -60,3 +62,5 @@ impl<'a, S: PathState> Iterator for Ancestors<'a, S> {
         }
     }
 }
+
+impl<'a, S: PathState> FusedIterator for Ancestors<'a, S> {}

@@ -77,12 +77,8 @@ impl<S: PathState> Path<S> {
         }
     }
 
-    pub fn len(&self) -> usize {
-        self.inner.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
+    pub fn len(&self) -> NonZero<usize> {
+        unsafe { NonZero::new(self.inner.len()).unwrap_unchecked() }
     }
 
     pub const fn as_os_str(&self) -> &OsStr {
@@ -111,7 +107,7 @@ impl<S: PathState> Path<S> {
         }
     }
 
-    pub fn relative(&self, other: &Self) -> Option<&Path<Rel>> {
+    pub fn relative_to(&self, other: &Self) -> Option<&Path<Rel>> {
         // As a general note for path interpretation: paths on Linux have no encoding, with the only
         // constant being that they are delimited by b'/'. Because of this, we don't have to
         // consider encoding, and splitting by b"/" is always entirely valid because thats what
