@@ -51,6 +51,7 @@
 //!   provided and cloned when required. Many file system operation do this, be cause they need to
 //!   extend the underlying OsString to make it valid for passing to glibc functions.
 // TODO: determine approach for existence checking methods and document TOCTOU choices.
+
 #[cfg(doc)]
 use std::convert::From;
 
@@ -61,6 +62,7 @@ mod error;
 mod iter;
 mod path;
 mod rel;
+pub(crate) mod validity;
 
 pub use abs::*;
 pub use dispatch::*;

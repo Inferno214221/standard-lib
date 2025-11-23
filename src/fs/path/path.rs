@@ -10,10 +10,8 @@ use std::os::unix::ffi::{OsStrExt, OsStringExt};
 
 use super::{DisplayPath, Rel};
 use crate::collections::contiguous::Vector;
-use crate::fs::path::{Ancestors, Components};
+use crate::fs::path::{Ancestors, Components, validity};
 use crate::util::{self, sealed::Sealed};
-
-use derive_more::IsVariant;
 
 pub trait PathState: Sealed + Debug {}
 
@@ -32,7 +30,7 @@ impl<T: AsRef<OsStr>, S: PathState> From<T> for OwnedPath<S> {
     fn from(value: T) -> Self {
         Self {
             _state: PhantomData,
-            inner: sanitize_os_str(value.as_ref()),
+            inner: validity::sanitize(value.as_ref()),
         }
     }
 }
@@ -88,14 +86,14 @@ impl<S: PathState> OwnedPath<S> {
 
 impl<S: PathState> Path<S> {
     pub fn new<'a, O: AsRef<OsStr> + ?Sized>(value: &'a O) -> Cow<'a, Path<S>> {
-        match validate_os_str(value.as_ref()) {
+        match validity::validate(value.as_ref()) {
             Some(_) => Cow::Borrowed(unsafe { Path::from_unchecked(value) }),
             None    => Cow::Owned(OwnedPath::from(value)),
         }
     }
 
     pub fn from_checked<O: AsRef<OsStr> + ?Sized>(value: &O) -> Option<&Path<S>> {
-        validate_os_str(value.as_ref())?;
+        validity::validate(value.as_ref())?;
         Some(unsafe { Path::from_unchecked(value) })
     }
 
@@ -172,7 +170,6 @@ impl<S: PathState> Path<S> {
     ///
     /// This behavior is also consistent with Unix defaults: the `..` entry in the root directory
     /// refers to the root itself.
-    // TODO: Write doctest once a public constructor exists for OwnedPath and Path.
     pub fn parent(&self) -> &Self {
         let bytes = self.as_bytes();
 
@@ -236,99 +233,6 @@ impl<S: PathState> Path<S> {
             index: 0,
         }
     }
-}
-
-#[derive(Debug, Clone, Copy, IsVariant)]
-enum Seq {
-    Slash,
-    SlashDot,
-    Other,
-}
-
-// Unfortunately, it's cheaper to copy all values one by one that constantly move all bytes back and
-// forward with insertions and removals.
-pub(crate) fn sanitize_os_str(value: &OsStr) -> OsString {
-    let mut last_seq = Seq::Other;
-    let mut valid = Vector::with_cap(value.len() + 1);
-
-    for ch in b"/".iter().chain(value.as_bytes().iter()).cloned() {
-        match (ch, last_seq) {
-            (b'\0', _) => (),
-            (b'/', Seq::Slash) => (),
-            (b'/', Seq::SlashDot) => {
-                last_seq = Seq::Slash;
-            },
-            (b'/', Seq::Other) => {
-                last_seq = Seq::Slash;
-                valid.push(ch);
-            },
-            (b'.', Seq::Slash) => {
-                last_seq = Seq::SlashDot;
-            },
-            (_, Seq::Slash) => {
-                last_seq = Seq::Other;
-                valid.push(ch);
-            },
-            (_, Seq::SlashDot) => {
-                last_seq = Seq::Other;
-                valid.push(b'.');
-                valid.push(ch);
-            },
-            (_, Seq::Other) => {
-                valid.push(ch);
-            },
-        }
-    }
-
-    if last_seq.is_slash_dot() && valid.len() > 1 {
-        valid.pop();
-    }
-
-    if last_seq.is_slash() && valid.len() > 1 {
-        valid.pop();
-    }
-
-    OsString::from_vec(valid.into())
-}
-
-pub(crate) fn validate_os_str(value: &OsStr) -> Option<()> {
-    let mut last_seq = Seq::Other;
-    let mut bytes = value.as_bytes().iter();
-
-    if bytes.next() != Some(&b'/') {
-        None?
-    }
-
-    for ch in bytes {
-        match (ch, last_seq) {
-            (b'\0', _) => None?,
-            (b'/', Seq::Slash) => None?,
-            (b'/', Seq::SlashDot) => None?,
-            (b'/', Seq::Other) => {
-                last_seq = Seq::Slash;
-            },
-            (b'.', Seq::Slash) => {
-                last_seq = Seq::SlashDot;
-            },
-            (_, Seq::Slash) => {
-                last_seq = Seq::Other;
-            },
-            (_, Seq::SlashDot) => {
-                last_seq = Seq::Other;
-            },
-            (_, Seq::Other) => (),
-        }
-    }
-
-    if last_seq.is_slash_dot() {
-        None?
-    }
-
-    if last_seq.is_slash() && value.len() > 1 {
-        None?
-    }
-
-    Some(())
 }
 
 impl<S: PathState> From<OwnedPath<S>> for CString {
