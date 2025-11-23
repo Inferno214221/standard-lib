@@ -5,7 +5,7 @@ use std::mem;
 use std::ptr::{self, NonNull};
 
 use super::Array;
-#[allow(unused)]
+#[cfg(doc)]
 use crate::collections::contiguous::Vector;
 
 impl<T> IntoIterator for Array<T> {

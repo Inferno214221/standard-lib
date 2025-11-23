@@ -3,7 +3,7 @@ use std::iter::FusedIterator;
 
 use super::HashSet;
 use crate::collections::hash::map::{IntoKeys, Keys};
-#[allow(unused)]
+#[cfg(doc)]
 use crate::collections::traits::set::SetIterator;
 
 impl<T: Hash + Eq, B: BuildHasher> IntoIterator for HashSet<T, B> {

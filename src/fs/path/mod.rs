@@ -30,9 +30,29 @@
 //! constructing a `Path` from another slice type can fail and may do so relatively often, because
 //! it won't mutate the original value, only verify that it is already valid.
 //! 
+//! # Instantiation
+//! | Method | Output | Input | Description |
+//! |-|-|-|-|
+//! | [`OwnedPath::from`] | `OwnedPath` | `AsRef<OsStr>` | Clones and sanitizes. |
+//! | [`OwnedPath::from_unchecked`] | `OwnedPath` | `Into<OsString>` | Moves without sanitizing, **unsafe**. |
+//! | [`Path::new`] | `Cow<_, Path>` | `AsRef<OsStr>` | Validates and sanitizes if required. |
+//! | [`Path::from_checked`] | `Option<&Path>` | `AsRef<OsStr>` | Fallibly validates. |
+//! | [`Path::from_unchecked`] | `&Path` | `AsRef<OsStr>` | Coerces without sanitizing, **unsafe**. |
+//! | [`Path::from_unchecked_mut`] | `&mut Path` | `AsMut<OsStr>` | Coerces mutably without sanitizing, **unsafe**. |
+//! 
 //! # Ensuring Existence
 //! A path being valid doesn't ensure that it exists. TODO
+//! 
+//! # Ownership
+//! Most methods which use Paths will take arguments bound by one the following:
+//! - `T: AsRef<Path<_>>` - for borrowed data, allowing anything which can be converted to a
+//!   `&Path`. This is used by any path manipulation methods that don't require ownership.
+//! - `T: Into<OwnedPath<_>>` - for owned data, allowing either an owned or borrowed `Path` to be
+//!   provided and cloned when required. Many file system operation do this, be cause they need to
+//!   extend the underlying OsString to make it valid for passing to glibc functions.
 // TODO: determine approach for existence checking methods and document TOCTOU choices.
+#[cfg(doc)]
+use std::convert::From;
 
 mod abs;
 mod dispatch;
