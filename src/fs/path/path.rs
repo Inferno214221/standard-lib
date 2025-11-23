@@ -17,7 +17,6 @@ use derive_more::IsVariant;
 
 pub trait PathState: Sealed + Debug {}
 
-#[derive(Clone)]
 pub struct OwnedPath<State: PathState> {
     pub(crate) _state: PhantomData<fn() -> State>,
     pub(crate) inner: OsString,
@@ -39,10 +38,10 @@ impl<T: AsRef<OsStr>, S: PathState> From<T> for OwnedPath<S> {
 }
 
 impl<S: PathState> OwnedPath<S> {
-    pub const unsafe fn from_unchecked(inner: OsString) -> Self {
+    pub unsafe fn from_unchecked<O: Into<OsString>>(inner: O) -> Self {
         Self {
             _state: PhantomData,
-            inner,
+            inner: inner.into(),
         }
     }
 
@@ -195,7 +194,7 @@ impl<S: PathState> Path<S> {
     pub fn join<P: AsRef<Path<Rel>>>(&self, other: P) -> OwnedPath<S> {
         unsafe {
             OwnedPath::<S>::from_unchecked(
-                [self.as_os_str(), other.as_ref().as_os_str()].into_iter().collect()
+                [self.as_os_str(), other.as_ref().as_os_str()].into_iter().collect::<OsString>()
             )
         }
     }
@@ -340,6 +339,12 @@ impl<S: PathState> Deref for OwnedPath<S> {
     }
 }
 
+impl<S: PathState> From<&Path<S>> for OwnedPath<S> {
+    fn from(value: &Path<S>) -> Self {
+        value.to_owned()
+    }
+}
+
 impl<S: PathState> AsRef<Path<S>> for OwnedPath<S> {
     fn as_ref(&self) -> &Path<S> {
         self.deref()
@@ -359,11 +364,14 @@ impl<S: PathState> Borrow<Path<S>> for OwnedPath<S> {
     }
 }
 
-impl<S: PathState> AsRef<OsStr> for Path<S> {
-    fn as_ref(&self) -> &OsStr {
-        &self.inner
-    }
-}
+// AsRef<OsStr> causes conflicting implementations and makes it slightly too easy to interpret a
+// Path as an OsStr. The same functionality has been moved to Path::as_os_str(), which requires
+// explicit usage. Otherwise, users can accidentally convert between Path<Abs> and Path<Rel>.
+// impl<S: PathState> AsRef<OsStr> for Path<S> {
+//     fn as_ref(&self) -> &OsStr {
+//         &self.inner
+//     }
+// }
 
 impl<S: PathState> ToOwned for Path<S> {
     type Owned = OwnedPath<S>;
@@ -372,6 +380,15 @@ impl<S: PathState> ToOwned for Path<S> {
         OwnedPath::<S> {
             _state: PhantomData,
             inner: self.as_os_str().to_owned(),
+        }
+    }
+}
+
+impl<S: PathState> Clone for OwnedPath<S> {
+    fn clone(&self) -> Self {
+        Self {
+            _state: PhantomData,
+            inner: self.inner.clone()
         }
     }
 }

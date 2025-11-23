@@ -7,7 +7,7 @@ use libc::{O_APPEND, O_CREAT, O_DIRECTORY, O_EXCL, O_NOATIME, O_NOFOLLOW, O_SYNC
 use super::{AccessMode, DEF_FILE_MODE, File};
 use crate::fs::dir::DirEntry;
 use crate::fs::file::{Create, CreateError, CreateIfMissing, CreateOrEmpty, CreateTemp, CreateUnlinked, NoCreate, OpenError, OpenMode, Permanent, ReadOnly, ReadWrite, TempError, Temporary, Write, WriteOnly};
-use crate::fs::{Abs, Directory, Fd, FileType, OwnedPath, Path, Rel};
+use crate::fs::{Abs, Directory, Fd, FileType, OwnedPath, Rel};
 use crate::util;
 use crate::util::fmt::DebugRaw;
 
@@ -152,7 +152,7 @@ impl<A: Write, O: OpenMode> OpenOptions<A, O> {
 macro_rules! impl_open {
     ($mode:ty) => {
         impl<A: AccessMode> OpenOptions<A, $mode> {
-            pub fn open<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File<A>, OpenError> {
+            pub fn open<P: Into<OwnedPath<Abs>>>(&self, file_path: P) -> Result<File<A>, OpenError> {
                 match Fd::open(file_path, self.flags(), self.mode) {
                     Ok(fd) => Ok(File::<A> {
                         _access: PhantomData,
@@ -162,7 +162,7 @@ macro_rules! impl_open {
                 }
             }
 
-            pub fn open_rel<P: AsRef<Path<Rel>>>(
+            pub fn open_rel<P: Into<OwnedPath<Rel>>>(
                 &self,
                 relative_to: &Directory,
                 file_path: P
@@ -177,7 +177,8 @@ macro_rules! impl_open {
             }
 
             pub fn open_dir_entry(&self, dir_ent: &DirEntry) -> Result<File<A>, OpenError> {
-                self.open_rel(dir_ent.parent, &dir_ent.path)
+                // TODO: This could take ownership of DirEntry instead of cloning?
+                self.open_rel(dir_ent.parent, dir_ent.path.clone())
             }
         }
     };
@@ -190,7 +191,7 @@ macro_rules! impl_open {
 macro_rules! impl_create {
     ($mode:ty) => {
         impl<A: AccessMode> OpenOptions<A, $mode> {
-            pub fn open<P: AsRef<Path<Abs>>>(&self, file_path: P) -> Result<File<A>, CreateError> {
+            pub fn open<P: Into<OwnedPath<Abs>>>(&self, file_path: P) -> Result<File<A>, CreateError> {
                 match Fd::open(file_path, self.flags(), self.mode) {
                     Ok(fd) => Ok(File::<A> {
                         _access: PhantomData,
@@ -200,7 +201,7 @@ macro_rules! impl_create {
                 }
             }
 
-            pub fn open_rel<P: AsRef<Path<Rel>>>(
+            pub fn open_rel<P: Into<OwnedPath<Rel>>>(
                 &self,
                 relative_to: &Directory,
                 file_path: P
@@ -224,7 +225,7 @@ macro_rules! impl_create {
 macro_rules! impl_create_temp {
     ($mode:ty) => {
         impl<A: AccessMode> OpenOptions<A, $mode> {
-            pub fn open<P: AsRef<Path<Abs>>>(&self, dir_path: P) -> Result<File<A>, TempError> {
+            pub fn open<P: Into<OwnedPath<Abs>>>(&self, dir_path: P) -> Result<File<A>, TempError> {
                 match Fd::open(dir_path, self.flags(), self.mode) {
                     Ok(fd) => Ok(File::<A> {
                         _access: PhantomData,

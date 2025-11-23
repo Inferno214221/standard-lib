@@ -13,7 +13,7 @@ use super::{AccessMode, CloneError, CloseError, LockError, MetadataError, OpenOp
 use crate::collections::contiguous::Vector;
 use crate::fs::file::{CreateError, NoCreate, OpenError, TempError};
 use crate::fs::panic::{BadFdPanic, InvalidOpPanic, Panic, UnexpectedErrorPanic};
-use crate::fs::{Abs, Directory, Fd, Metadata, Path, Rel};
+use crate::fs::{Abs, Directory, Fd, Metadata, OwnedPath, Path, Rel};
 use crate::fs::error::{IOError, InterruptError, LockMemError, StorageExhaustedError, SyncUnsupportedError, WouldBlockError};
 use crate::util;
 
@@ -119,14 +119,14 @@ impl<A: AccessMode> File<A> {
 }
 
 impl File<ReadWrite> {
-    pub fn open<P: AsRef<Path<Abs>>>(
+    pub fn open<P: Into<OwnedPath<Abs>>>(
         file_path: P,
     ) -> Result<File<ReadWrite>, OpenError> {
         File::options()
             .open(file_path)
     }
 
-    pub fn create<P: AsRef<Path<Abs>>>(
+    pub fn create<P: Into<OwnedPath<Abs>>>(
         file_path: P,
         file_mode: u16,
     ) -> Result<File<ReadWrite>, CreateError> {
@@ -136,7 +136,7 @@ impl File<ReadWrite> {
             .open(file_path)
     }
 
-    pub fn open_or_create<P: AsRef<Path<Abs>>>(
+    pub fn open_or_create<P: Into<OwnedPath<Abs>>>(
         file_path: P,
         file_mode: u16,
     ) -> Result<File<ReadWrite>, OpenError> {
@@ -146,7 +146,7 @@ impl File<ReadWrite> {
             .open(file_path)
     }
 
-    pub fn open_rel<P: AsRef<Path<Rel>>>(
+    pub fn open_rel<P: Into<OwnedPath<Rel>>>(
         relative_to: &Directory,
         file_path: P
     ) -> Result<File<ReadWrite>, OpenError> {
@@ -154,7 +154,7 @@ impl File<ReadWrite> {
             .open_rel(relative_to, file_path)
     }
 
-    pub fn create_rel<P: AsRef<Path<Rel>>>(
+    pub fn create_rel<P: Into<OwnedPath<Rel>>>(
         relative_to: &Directory,
         file_path: P,
         file_mode: u16,
@@ -165,7 +165,7 @@ impl File<ReadWrite> {
             .open_rel(relative_to, file_path)
     }
 
-    pub fn open_or_create_rel<P: AsRef<Path<Rel>>>(
+    pub fn open_or_create_rel<P: Into<OwnedPath<Rel>>>(
         relative_to: &Directory,
         file_path: P,
         file_mode: u16,

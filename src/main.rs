@@ -136,7 +136,7 @@ fn main() {
 
     println!("{}, {}", full.display(), full.display().shrink_home());
 
-    let dir = Directory::open(&full).unwrap();
+    let dir = Directory::open(full.as_ref()).unwrap();
     for e in dir.read_entries() {
         dbg!(full.join(e.unwrap().path).metadata());
     }
@@ -150,7 +150,7 @@ fn main() {
 
     dbg!(File::create_temp().unwrap());
 
-    dbg!(File::options().create_temp().open(&tmp));
+    dbg!(File::options().create_temp().open(tmp));
 
     dbg!(File::options().create_temp().open_rel(&dir));
 

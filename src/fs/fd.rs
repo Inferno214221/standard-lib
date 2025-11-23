@@ -10,14 +10,14 @@ use libc::{EBADF, EDQUOT, EFAULT, EINTR, EIO, EMFILE, ENOMEM, ENOSPC, EOVERFLOW,
 use crate::fs::error::{FileCountError, IOError, InterruptError, MetadataOverflowError, IncorrectTypeError, OOMError, StorageExhaustedError};
 use crate::fs::file::{CloneError, CloseError, FileTypeError, MetadataError};
 use crate::fs::panic::{BadFdPanic, BadStackAddrPanic, Panic, UnexpectedErrorPanic};
-use crate::fs::{Abs, Directory, FileType, Metadata, Path, Rel};
+use crate::fs::{Abs, Directory, FileType, Metadata, OwnedPath, Rel};
 use crate::util;
 
 pub(crate) struct Fd(pub c_int);
 
 impl Fd {
-    pub fn open<P: AsRef<Path<Abs>>>(file_path: P, flags: c_int, mode: c_int) -> Result<Fd, RawOsError> {
-        let pathname = CString::from(file_path.as_ref().to_owned());
+    pub fn open<P: Into<OwnedPath<Abs>>>(file_path: P, flags: c_int, mode: c_int) -> Result<Fd, RawOsError> {
+        let pathname = CString::from(file_path.into());
         // TODO: Permission builder of some type?
 
         match unsafe { libc::open(pathname.as_ptr().cast(), flags, mode) } {
@@ -26,13 +26,13 @@ impl Fd {
         }
     }
 
-    pub fn open_rel<P: AsRef<Path<Rel>>>(
+    pub fn open_rel<P: Into<OwnedPath<Rel>>>(
         relative_to: &Directory,
         file_path: P,
         flags: c_int,
         mode: c_int
     ) -> Result<Fd, RawOsError> {
-        let pathname = CString::from(file_path.as_ref().to_owned());
+        let pathname = CString::from(file_path.into());
 
         match unsafe { libc::openat(
             *relative_to.fd,

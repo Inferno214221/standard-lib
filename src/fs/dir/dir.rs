@@ -7,7 +7,7 @@ use crate::collections::contiguous::Array;
 use crate::fs::dir::{DirEntries, DirEntry};
 #[doc(inline)]
 pub use crate::fs::file::{CloneError, CloseError, MetadataError, OpenError};
-use crate::fs::{Abs, Fd, FileType, Metadata, Path, Rel};
+use crate::fs::{Abs, Fd, FileType, Metadata, OwnedPath, Path, Rel};
 use crate::util;
 
 use super::BUFFER_SIZE;
@@ -31,7 +31,7 @@ pub struct Directory {
 
 impl Directory {
     // TODO: Fix dir_path, file_path naming scheme to path and parent_path
-    pub fn open<P: AsRef<Path<Abs>>>(dir_path: P) -> Result<Directory, OpenError> {
+    pub fn open<P: Into<OwnedPath<Abs>>>(dir_path: P) -> Result<Directory, OpenError> {
         match Fd::open(dir_path, O_DIRECTORY, DEF_DIR_MODE) {
             Ok(fd) => Ok(Directory {
                 fd: fd.assert_type(FileType::Directory)?,
@@ -40,7 +40,7 @@ impl Directory {
         }
     }
 
-    pub fn open_rel<P: AsRef<Path<Rel>>>(
+    pub fn open_rel<P: Into<OwnedPath<Rel>>>(
         &self,
         relative_to: &Directory,
         dir_path: P
@@ -54,7 +54,8 @@ impl Directory {
     }
 
     pub fn open_dir_entry(&self, dir_ent: &DirEntry) -> Result<Directory, OpenError> {
-        self.open_rel(dir_ent.parent, &dir_ent.path)
+        // TODO: This could take ownership of DirEntry instead of cloning?
+        self.open_rel(dir_ent.parent, dir_ent.path.clone())
     }
 
     pub fn create<P: AsRef<Path<Abs>>>(

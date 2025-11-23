@@ -2,8 +2,7 @@
 
 use std::io::{self, RawOsError};
 
-#[allow(unused_imports)]
-use libc::{c_char, c_int, c_ulong, c_ushort, c_void, ino64_t, off64_t};
+use libc::{c_int, c_void};
 
 pub fn err_no() -> RawOsError {
     // SAFETY: raw_os_error guarantees Some if constructed from last_os_error.
