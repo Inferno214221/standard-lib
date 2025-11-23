@@ -280,6 +280,10 @@ pub(crate) fn sanitize_os_str(value: &OsStr) -> OsString {
         }
     }
 
+    if last_seq.is_slash_dot() && valid.len() > 1 {
+        valid.pop();
+    }
+
     if last_seq.is_slash() && valid.len() > 1 {
         valid.pop();
     }
@@ -314,6 +318,10 @@ pub(crate) fn validate_os_str(value: &OsStr) -> Option<()> {
             },
             (_, Seq::Other) => (),
         }
+    }
+
+    if last_seq.is_slash_dot() {
+        None?
     }
 
     if last_seq.is_slash() && value.len() > 1 {

@@ -182,4 +182,8 @@ fn main() {
     dbg!(&p);
     dbg!(p.basename());
     dbg!(p.parent());
+
+    dbg!(Path::<Abs>::new("/usr/bin/."));
+    dbg!(Path::<Rel>::new("./."));
+    dbg!(Path::<Rel>::new("././."));
 }

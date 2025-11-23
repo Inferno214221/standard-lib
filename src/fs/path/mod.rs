@@ -22,7 +22,7 @@
 //! [`OsString`](std::ffi::OsString) is _valid_:
 //! - The string starts with `/`.
 //! - The string contains no repeated `/` characters or occurrences of `/./`.
-//! - The string contains no trailing `/`.
+//! - The string contains no trailing `/` or `.`.
 //! - The string contains no `\0`.
 //! 
 //! Although these invariants are relatively strict, constructing an `OwnedPath` from an `&OsStr` or
