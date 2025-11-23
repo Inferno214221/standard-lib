@@ -20,13 +20,13 @@ impl FromStr for DispatchedPath {
         match s.chars().next() {
             Some('/') => {
                 Ok(DispatchedPath::Abs(
-                    OwnedPath::from_os_str_sanitized(s.as_ref())
+                    OwnedPath::from(s)
                 ))
             },
             // TODO: Handle '~' more consistently.
             Some('~') => {
                 Ok(DispatchedPath::Abs(
-                    OwnedPath::from_os_str_sanitized(s[1..].as_ref())
+                    OwnedPath::from(&s[1..])
                         .resolve_home()
                         .ok_or(HomeResolutionError)?
                 ))
@@ -34,7 +34,7 @@ impl FromStr for DispatchedPath {
             // '.' is caught here, so "./" matches and is then sanitized to a relative "/".
             Some(_) => {
                 Ok(DispatchedPath::Rel(
-                    OwnedPath::from_os_str_sanitized(s.as_ref())
+                    OwnedPath::from(s)
                 ))
             },
             None => Err(EmptyStrError)?,

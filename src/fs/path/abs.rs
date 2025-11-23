@@ -1,5 +1,5 @@
 use std::env;
-use std::ffi::{CString, OsStr, OsString};
+use std::ffi::{CString, OsString};
 use std::io::RawOsError;
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
@@ -32,12 +32,16 @@ impl OwnedPath<Abs> {
     pub fn home() -> Option<OwnedPath<Abs>> {
         // TODO: This is a terrible implementation, it copies an owned PathBuf. Also, I'd like to
         // avoid env::home_dir().
-        env::home_dir().map(|dir| OwnedPath::<Abs>::from(dir.as_os_str()))
+        Some(OwnedPath::<Abs>::from(
+            env::home_dir()?.as_os_str()
+        ))
     }
 
     pub fn cwd() -> Option<OwnedPath<Abs>> {
         // libc::getcwd()
-        env::current_dir().ok().map(|dir| OwnedPath::<Abs>::from(dir.as_os_str()))
+        Some(OwnedPath::<Abs>::from(
+            env::current_dir().ok()?.as_os_str()
+        ))
     }
 }
 
@@ -47,11 +51,13 @@ impl Path<Abs> {
     }
 
     pub fn read_all_links(&self) -> Result<OwnedPath<Abs>, RawOsError> {
-        todo!("canonicalize with many readlink calls, needs to handle nonexistence")
+        // TODO: canonicalize with many readlink calls, needs to handle nonexistence
+        todo!()
     }
 
     pub fn normalize_lexically(&self) -> OwnedPath<Abs> {
-        todo!("use components iter and collect")
+        // TODO: use components iter and collect
+        todo!()
     }
 
     pub fn make_relative<P: AsRef<Path<Abs>>>(&self, from: P) -> OwnedPath<Rel> {
@@ -124,10 +130,4 @@ impl Path<Abs> {
     // access
 
     // set_cwd
-}
-
-impl<O: AsRef<OsStr>> From<O> for OwnedPath<Abs> {
-    fn from(value: O) -> Self {
-        Self::from_os_str_sanitized(value.as_ref())
-    }
 }

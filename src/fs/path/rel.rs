@@ -1,4 +1,4 @@
-use std::ffi::{CString, OsStr, OsString};
+use std::ffi::{CString, OsString};
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 
@@ -106,11 +106,5 @@ impl Path<Rel> {
 
     pub fn metadata_no_follow(&self, relative_to: Directory) -> Result<Metadata, PathOrMetadataError> {
         self.metadata_raw(relative_to, libc::AT_SYMLINK_NOFOLLOW)
-    }
-}
-
-impl<O: AsRef<OsStr>> From<O> for OwnedPath<Rel> {
-    fn from(value: O) -> Self {
-        Self::from_os_str_sanitized(value.as_ref())
     }
 }

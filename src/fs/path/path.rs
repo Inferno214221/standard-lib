@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cmp::Ordering;
 use std::ffi::{CString, OsStr, OsString};
 use std::fmt::{self, Debug, Formatter};
@@ -29,14 +29,16 @@ pub struct Path<State: PathState> {
     pub(crate) inner: OsStr,
 }
 
-impl<S: PathState> OwnedPath<S> {
-    pub(crate) fn from_os_str_sanitized(value: &OsStr) -> Self {
+impl<T: AsRef<OsStr>, S: PathState> From<T> for OwnedPath<S> {
+    fn from(value: T) -> Self {
         Self {
             _state: PhantomData,
-            inner: sanitize_os_str(value),
+            inner: sanitize_os_str(value.as_ref()),
         }
     }
+}
 
+impl<S: PathState> OwnedPath<S> {
     pub const unsafe fn from_unchecked(inner: OsString) -> Self {
         Self {
             _state: PhantomData,
@@ -86,6 +88,18 @@ impl<S: PathState> OwnedPath<S> {
 }
 
 impl<S: PathState> Path<S> {
+    pub fn new<'a, O: AsRef<OsStr> + ?Sized>(value: &'a O) -> Cow<'a, Path<S>> {
+        match validate_os_str(value.as_ref()) {
+            Some(_) => Cow::Borrowed(unsafe { Path::from_unchecked(value) }),
+            None    => Cow::Owned(OwnedPath::from(value)),
+        }
+    }
+
+    pub fn from_checked<O: AsRef<OsStr> + ?Sized>(value: &O) -> Option<&Path<S>> {
+        validate_os_str(value.as_ref())?;
+        Some(unsafe { Path::from_unchecked(value) })
+    }
+
     pub unsafe fn from_unchecked<O: AsRef<OsStr> + ?Sized>(value: &O) -> &Self {
         // SAFETY: Path<S> is `repr(transparent)`, so to it has the same layout as OsStr.
         unsafe { &*(value.as_ref() as *const OsStr as *const Self) }
@@ -140,10 +154,16 @@ impl<S: PathState> Path<S> {
     /// Returns the parent directory of this path (lexically speaking). The result is a Path with
     /// basename and the preceding slash removed, such that the following holds for any `path`.
     /// 
-    /// TODO
+    /// ```
+    /// # use standard_lib::fs::path::Path;
+    /// let owned = OwnedPath::<Abs>::from("/my/path");
+    /// let path: &Path<Abs> = &owned;
+    /// let new_path = path.parent().join(Path::new(path.basename()));
+    /// assert_eq!(path, new_path);
+    /// ```
     /// 
     /// Because this method is the counterpart of [`basename`](Path::basename) and `basename` won't
-    /// contain any `/`, the behavior when calling these methods on "/" is as follows:
+    /// contain any `/`, the behavior when calling these methods on `"/"` is as follows:
     /// 
     /// ```
     /// # use standard_lib::fs::path::Path;
@@ -151,8 +171,8 @@ impl<S: PathState> Path<S> {
     /// assert_eq!(Path::root().parent(), Path::root());
     /// ```
     ///
-    /// This behavior is also consistent with Unix defaults: the `..` entry in `/` refers to `/`
-    /// itself.
+    /// This behavior is also consistent with Unix defaults: the `..` entry in the root directory
+    /// refers to the root itself.
     // TODO: Write doctest once a public constructor exists for OwnedPath and Path.
     pub fn parent(&self) -> &Self {
         let bytes = self.as_bytes();
@@ -268,12 +288,46 @@ pub(crate) fn sanitize_os_str(value: &OsStr) -> OsString {
     OsString::from_vec(valid.into())
 }
 
+pub(crate) fn validate_os_str(value: &OsStr) -> Option<()> {
+    let mut last_seq = Seq::Other;
+    let mut bytes = value.as_bytes().iter();
+
+    if bytes.next() != Some(&b'/') {
+        None?
+    }
+
+    for ch in bytes {
+        match (ch, last_seq) {
+            (b'\0', _) => None?,
+            (b'/', Seq::Slash) => None?,
+            (b'/', Seq::SlashDot) => None?,
+            (b'/', Seq::Other) => {
+                last_seq = Seq::Slash;
+            },
+            (b'.', Seq::Slash) => {
+                last_seq = Seq::SlashDot;
+            },
+            (_, Seq::Slash) => {
+                last_seq = Seq::Other;
+            },
+            (_, Seq::SlashDot) => {
+                last_seq = Seq::Other;
+            },
+            (_, Seq::Other) => (),
+        }
+    }
+
+    if last_seq.is_slash() && value.len() > 1 {
+        None?
+    }
+
+    Some(())
+}
+
 impl<S: PathState> From<OwnedPath<S>> for CString {
     fn from(value: OwnedPath<S>) -> Self {
-        let mut bytes = value.inner.into_vec();
-        bytes.push(b'\0');
         // SAFETY: OsString already guarantees that the internal string contains no '\0'.
-        unsafe { CString::from_vec_with_nul_unchecked(bytes) }
+        unsafe { CString::from_vec_unchecked(value.inner.into_vec()) }
     }
 }
 

@@ -120,7 +120,7 @@ impl<'a> Iterator for DirEntries<'a> {
                 char_tail = unsafe { char_tail.add(1) };
             }
 
-            let name = unsafe { OwnedPath::<Rel>::from_os_str_sanitized(OsStr::from_bytes(
+            let name = unsafe { OwnedPath::<Rel>::from(OsStr::from_bytes(
                 slice::from_ptr_range(char_head.as_ptr()..char_tail.as_ptr())
             )) };
 
