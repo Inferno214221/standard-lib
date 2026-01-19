@@ -3,13 +3,11 @@ use std::cmp::Ordering;
 use std::ffi::{CString, OsStr, OsString};
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
-use std::mem;
 use std::num::NonZero;
 use std::ops::Deref;
-use std::os::unix::ffi::{OsStrExt, OsStringExt};
+use std::os::unix::ffi::OsStrExt;
 
 use super::{DisplayPath, Rel};
-use crate::collections::contiguous::Vector;
 use crate::fs::path::{Ancestors, Components, validity};
 use crate::util::error::CapacityOverflow;
 use crate::util::result::ResultExtension;
@@ -19,20 +17,20 @@ pub trait PathState: Sealed + Debug {}
 
 pub struct OwnedPath<State: PathState> {
     pub(crate) _state: PhantomData<fn() -> State>,
-    pub(crate) inner: OsString,
+    pub(crate) bytes: Vec<u8>,
 }
 
 #[repr(transparent)]
 pub struct Path<State: PathState> {
     pub(crate) _state: PhantomData<fn() -> State>,
-    pub(crate) inner: OsStr,
+    pub(crate) bytes: [u8],
 }
 
 impl<T: AsRef<OsStr>, S: PathState> From<T> for OwnedPath<S> {
     fn from(value: T) -> Self {
         Self {
             _state: PhantomData,
-            inner: validity::sanitize(value.as_ref()),
+            bytes: validity::sanitize(value.as_ref()),
         }
     }
 }
@@ -41,7 +39,14 @@ impl<S: PathState> OwnedPath<S> {
     pub unsafe fn from_unchecked<O: Into<OsString>>(inner: O) -> Self {
         Self {
             _state: PhantomData,
-            inner: inner.into(),
+            bytes: inner.into().into_encoded_bytes(),
+        }
+    }
+
+    pub unsafe fn from_unchecked_bytes(inner: Vec<u8>) -> Self {
+        Self {
+            _state: PhantomData,
+            bytes: inner,
         }
     }
 
@@ -59,63 +64,40 @@ impl<S: PathState> OwnedPath<S> {
             Some(_)                            => (),
         }
 
-        // OsString doesn't make guarantees about its layout as a Vec, so we have to take and
-        // convert it. Using mem::take replaces the value with an empty Vec, which avoids an
-        // allocation. However, "" is not a valid path, so if this function panic without putting
-        // the Vec back, we have an invalid state. It would be dumb to perform an allocation so that
-        // OsString's internal Vec can be taken and returned shortly after.
-        // BEGIN: Unwind safety analysis
-        let mut bytes = mem::take(&mut self.inner).into_vec();
-
         // We've already determined that this won't surpass size::MAX.
-        bytes.reserve(other_path.len().get());
+        self.bytes.reserve(other_path.len().get());
 
         // Path is designed in such a way that two valid Paths can't be concatenated to create an
         // invalid Path.
-        bytes.extend(other_path.inner.as_bytes());
-
-        drop(mem::replace(&mut self.inner, OsString::from_vec(bytes)));
-        // END: Unwind safety analysis
+        self.bytes.extend(other_path.bytes);
     }
 
     pub fn pop(&mut self) -> Option<OwnedPath<Rel>> {
-        // OsString doesn't make guarantees about its layout as a Vec, so we have to take and
-        // convert it. Using mem::take replaces the value with an empty Vec, which avoids an
-        // allocation. However, "" is not a valid path, so if this function panic without putting
-        // the Vec back, we have an invalid state. It would be dumb to perform an allocation so that
-        // OsString's internal Vec can be taken and returned shortly after.
-        // BEGIN: Unwind safety analysis
-        let mut bytes = mem::take(&mut self.inner).into_vec();
-
-        if bytes.len() == 1 {
+        if self.bytes.len() == 1 {
             // If a Path has length 1, it only contains b'/', and nothing can be popped from it.
-            drop(mem::replace(&mut self.inner, OsString::from_vec(bytes)));
             return None;
         }
 
         // A Path has at least one character, so subtracting 1 from the length can't be less than 0.
-        let mut index = bytes.len() - 1;
+        let mut index = self.bytes.len() - 1;
 
-        while let Some(ch) = bytes.get(index) && *ch != b'/' {
+        while let Some(ch) = self.bytes.get(index) && *ch != b'/' {
             // A Path has to start with a b'/', so entering this loop already confirms that there is
             // another character preceding this one.
             index -= 1;
         }
 
         // The index is guaranteed to be less than the length of bytes, so this can't panic.
-        let split = bytes.split_off(index);
+        let split = self.bytes.split_off(index);
 
-        if bytes.is_empty() {
+        if self.bytes.is_empty() {
             // We've literally just checked that bytes is empty, to a single push can't panic.
-            bytes.push(b'/');
+            self.bytes.push(b'/');
         }
-
-        drop(mem::replace(&mut self.inner, OsString::from_vec(bytes)));
-        // END: Unwind safety analysis
 
         Some(OwnedPath::<Rel> {
             _state: PhantomData,
-            inner: OsString::from_vec(split),
+            bytes: split,
         })
     }
 }
@@ -143,6 +125,11 @@ impl<S: PathState> Path<S> {
         unsafe { &mut *(value.as_mut() as *mut OsStr as *mut Self) }
     }
 
+    pub unsafe fn from_unchecked_bytes(value: &[u8]) -> &Self {
+        // SAFETY: Path<S> is `repr(transparent)`, so to it has the same layout as &[u8].
+        unsafe { &*(value.as_ref() as *const [u8] as *const Self) }
+    }
+
     pub const fn display<'a>(&'a self) -> DisplayPath<'a, S> {
         DisplayPath::<S> {
             _phantom: PhantomData,
@@ -151,19 +138,19 @@ impl<S: PathState> Path<S> {
     }
 
     pub fn len(&self) -> NonZero<usize> {
-        unsafe { NonZero::new(self.inner.len()).unwrap_unchecked() }
+        unsafe { NonZero::new(self.bytes.len()).unwrap_unchecked() }
     }
 
-    pub const fn as_os_str(&self) -> &OsStr {
-        &self.inner
+    pub fn as_os_str(&self) -> &OsStr {
+        OsStr::from_bytes(&self.bytes)
     }
 
     pub fn as_os_str_no_lead(&self) -> &OsStr {
         OsStr::from_bytes(&self.as_bytes()[1..])
     }
 
-    pub fn as_bytes(&self) -> &[u8] {
-        self.inner.as_bytes()
+    pub const fn as_bytes(&self) -> &[u8] {
+        &self.bytes
     }
 
     // TODO: no_lead methods
@@ -225,10 +212,11 @@ impl<S: PathState> Path<S> {
     }
 
     pub fn join<P: AsRef<Path<Rel>>>(&self, other: P) -> OwnedPath<S> {
+        let mut bytes = Vec::with_capacity(self.bytes.len() + other.as_ref().bytes.len());
+        bytes.extend(&self.bytes);
+        bytes.extend(&other.as_ref().bytes);
         unsafe {
-            OwnedPath::<S>::from_unchecked(
-                [self.as_os_str(), other.as_ref().as_os_str()].into_iter().collect::<OsString>()
-            )
+            OwnedPath::<S>::from_unchecked_bytes(bytes)
         }
     }
 
@@ -237,14 +225,14 @@ impl<S: PathState> Path<S> {
         // constant being that they are delimited by b'/'. Because of this, we don't have to
         // consider encoding, and splitting by b"/" is always entirely valid because thats what
         // Linux does, even if b'/' is a later part of a variable-length character.
-        match self.inner.as_bytes().strip_prefix(other.inner.as_bytes()) {
+        match self.bytes.strip_prefix(&other.bytes) {
             None => None,
             // If there is no leading slash, strip_prefix matched only part of a component so
             // treat it as a fail.
             Some(replaced) if !replaced.starts_with(b"/") => None,
             // SAFETY: If the relative path starts with a b"/", then it is still a valid Path.
             Some(replaced) => unsafe {
-                Some(Path::<Rel>::from_unchecked(OsStr::from_bytes(replaced)))
+                Some(Path::<Rel>::from_unchecked_bytes(replaced))
             },
         }
     }
@@ -274,7 +262,7 @@ impl<S: PathState> Path<S> {
 impl<S: PathState> From<OwnedPath<S>> for CString {
     fn from(value: OwnedPath<S>) -> Self {
         // SAFETY: OsString already guarantees that the internal string contains no '\0'.
-        unsafe { CString::from_vec_unchecked(value.inner.into_vec()) }
+        unsafe { CString::from_vec_unchecked(value.bytes) }
     }
 }
 
@@ -283,7 +271,7 @@ impl<S: PathState> Deref for OwnedPath<S> {
 
     fn deref(&self) -> &Self::Target {
         // SAFETY: OwnedPath upholds the same invariants as Path.
-        unsafe { Path::<S>::from_unchecked(&self.inner) }
+        unsafe { Path::<S>::from_unchecked(OsStr::from_bytes(&self.bytes)) }
     }
 }
 
@@ -327,7 +315,7 @@ impl<S: PathState> ToOwned for Path<S> {
     fn to_owned(&self) -> Self::Owned {
         OwnedPath::<S> {
             _state: PhantomData,
-            inner: self.as_os_str().to_owned(),
+            bytes: self.bytes.to_vec(),
         }
     }
 }
@@ -336,32 +324,32 @@ impl<S: PathState> Clone for OwnedPath<S> {
     fn clone(&self) -> Self {
         Self {
             _state: PhantomData,
-            inner: self.inner.clone()
+            bytes: self.bytes.clone()
         }
     }
 }
 
 impl<S: PathState> PartialEq for OwnedPath<S> {
     fn eq(&self, other: &Self) -> bool {
-        self.as_ref().inner == other.as_ref().inner
+        self.as_ref().bytes == other.as_ref().bytes
     }
 }
 
 impl<S: PathState> PartialEq for Path<S> {
     fn eq(&self, other: &Self) -> bool {
-        self.inner == other.inner
+        self.bytes == other.bytes
     }
 }
 
 impl<S: PathState> PartialEq<Path<S>> for OwnedPath<S> {
     fn eq(&self, other: &Path<S>) -> bool {
-        self.as_ref().inner == other.inner
+        self.as_ref().bytes == other.bytes
     }
 }
 
 impl<S: PathState> PartialEq<OwnedPath<S>> for Path<S> {
     fn eq(&self, other: &OwnedPath<S>) -> bool {
-        self.inner == other.as_ref().inner
+        self.bytes == other.as_ref().bytes
     }
 }
 
@@ -377,7 +365,7 @@ impl<S: PathState> PartialOrd for OwnedPath<S> {
 
 impl<S: PathState> Ord for OwnedPath<S> {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.as_ref().inner.cmp(&other.as_ref().inner)
+        self.as_ref().bytes.cmp(&other.as_ref().bytes)
     }
 }
 
@@ -389,7 +377,7 @@ impl<S: PathState> PartialOrd for Path<S> {
 
 impl<S: PathState> Ord for Path<S> {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.inner.cmp(&other.inner)
+        self.bytes.cmp(&other.bytes)
     }
 }
 
@@ -409,7 +397,7 @@ impl<S: PathState> Debug for OwnedPath<S> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("OwnedPath")
             .field("<state>", &util::fmt::raw_type_name::<S>())
-            .field("value", &self.inner)
+            .field("value", &OsStr::from_bytes(&self.bytes))
             .finish()
     }
 }
@@ -418,7 +406,7 @@ impl<S: PathState> Debug for Path<S> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Path")
             .field("<state>", &util::fmt::raw_type_name::<S>())
-            .field("value", &&self.inner)
+            .field("value", &OsStr::from_bytes(&self.bytes))
             .finish()
     }
 }

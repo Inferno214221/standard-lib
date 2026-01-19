@@ -1,9 +1,7 @@
-use std::ffi::{OsStr, OsString};
-use std::os::unix::ffi::{OsStrExt, OsStringExt};
+use std::ffi::OsStr;
+use std::os::unix::ffi::OsStrExt;
 
 use derive_more::IsVariant;
-
-use crate::collections::contiguous::Vector;
 
 #[derive(Debug, Clone, Copy, IsVariant)]
 enum Seq {
@@ -14,9 +12,9 @@ enum Seq {
 
 // Unfortunately, I think it's cheaper to copy all values one by one that constantly move all bytes
 // back and forward with insertions and removals. O(n) as opposed to O(n^2).
-pub fn sanitize(value: &OsStr) -> OsString {
+pub fn sanitize(value: &OsStr) -> Vec<u8> {
     let mut last_seq = Seq::Other;
-    let mut valid = Vector::with_cap(value.len() + 1);
+    let mut valid = Vec::with_capacity(value.len() + 1);
 
     for ch in b"/".iter().chain(value.as_bytes().iter()).cloned() {
         match (ch, last_seq) {
@@ -55,7 +53,7 @@ pub fn sanitize(value: &OsStr) -> OsString {
         };
     }
 
-    OsString::from_vec(valid.into())
+    valid
 }
 
 pub fn validate(value: &OsStr) -> Option<()> {

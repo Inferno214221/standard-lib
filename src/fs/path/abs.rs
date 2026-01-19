@@ -1,5 +1,5 @@
 use std::env;
-use std::ffi::{CString, OsString};
+use std::ffi::CString;
 use std::io::RawOsError;
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
@@ -25,7 +25,7 @@ impl OwnedPath<Abs> {
     pub fn root() -> OwnedPath<Abs> {
         OwnedPath::<Abs> {
             _state: PhantomData,
-            inner: OsString::from("/"),
+            bytes: b"/".into(),
         }
     }
 

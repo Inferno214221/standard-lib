@@ -1,4 +1,4 @@
-use std::ffi::{CString, OsString};
+use std::ffi::CString;
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 
@@ -24,30 +24,30 @@ impl OwnedPath<Rel> {
     pub(crate) unsafe fn dot_slash_dot() -> OwnedPath<Rel> {
         OwnedPath::<Rel> {
             _state: PhantomData,
-            inner: OsString::from("/."),
+            bytes: b"/.".into(),
         }
     }
 
     pub fn dot() -> OwnedPath<Rel> {
         OwnedPath::<Rel> {
             _state: PhantomData,
-            inner: OsString::from("/"),
+            bytes: b"/".into(),
         }
     }
 
     pub fn resolve_root(self) -> OwnedPath<Abs> {
-        let OwnedPath { _state, inner } = self;
+        let OwnedPath { bytes, .. } = self;
         OwnedPath {
             _state: PhantomData,
-            inner
+            bytes
         }
     }
 }
 
 impl Path<Rel> {
-    pub fn dot_slash() -> &'static Path<Rel> {
-        unsafe { Path::from_unchecked("/") }
-    }
+    // pub fn dot_slash() -> &'static Path<Rel> {
+    //     unsafe { Path::from_unchecked("/") }
+    // }
 
     pub fn resolve(&self, mut target: OwnedPath<Abs>) -> OwnedPath<Abs> {
         target.push(self);
