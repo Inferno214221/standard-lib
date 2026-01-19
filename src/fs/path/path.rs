@@ -11,6 +11,8 @@ use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use super::{DisplayPath, Rel};
 use crate::collections::contiguous::Vector;
 use crate::fs::path::{Ancestors, Components, validity};
+use crate::util::error::CapacityOverflow;
+use crate::util::result::ResultExtension;
 use crate::util::{self, sealed::Sealed};
 
 pub trait PathState: Sealed + Debug {}
@@ -47,35 +49,69 @@ impl<S: PathState> OwnedPath<S> {
         self
     }
 
-    pub fn push<P: AsRef<Path<Rel>>>(&mut self, other: P) {
-        let other_path = other.as_ref();
-        let mut vec: Vector<u8> = mem::take(&mut self.inner).into_vec().into();
-        vec.reserve(other_path.len().get());
-        vec.extend(other_path.inner.as_bytes().iter().cloned());
-        let _ = mem::replace(
-            &mut self.inner,
-            OsString::from_vec(vec.into())
-        );
+    pub fn push<P: Into<OwnedPath<Rel>>>(&mut self, other: P) {
+        let other_path = other.into();
+
+        match self.len().get().checked_add(other_path.len().get()) {
+            // TODO: Standardize crate panic method.
+            Some(l) if l > isize::MAX as usize => Err(CapacityOverflow).throw(),
+            None                               => Err(CapacityOverflow).throw(),
+            Some(_)                            => (),
+        }
+
+        // OsString doesn't make guarantees about its layout as a Vec, so we have to take and
+        // convert it. Using mem::take replaces the value with an empty Vec, which avoids an
+        // allocation. However, "" is not a valid path, so if this function panic without putting
+        // the Vec back, we have an invalid state. It would be dumb to perform an allocation so that
+        // OsString's internal Vec can be taken and returned shortly after.
+        // BEGIN: Unwind safety analysis
+        let mut bytes = mem::take(&mut self.inner).into_vec();
+
+        // We've already determined that this won't surpass size::MAX.
+        bytes.reserve(other_path.len().get());
+
+        // Path is designed in such a way that two valid Paths can't be concatenated to create an
+        // invalid Path.
+        bytes.extend(other_path.inner.as_bytes());
+
+        drop(mem::replace(&mut self.inner, OsString::from_vec(bytes)));
+        // END: Unwind safety analysis
     }
 
     pub fn pop(&mut self) -> Option<OwnedPath<Rel>> {
         // OsString doesn't make guarantees about its layout as a Vec, so we have to take and
         // convert it. Using mem::take replaces the value with an empty Vec, which avoids an
-        // allocation. However, "" is not a valid path, so this function isn't currently unwind
-        // safe. It would be dumb to perform an allocation so that OsString's internal Vec can be
-        // taken and returned shortly after.
-        // TODO: Make this unwind safe.
+        // allocation. However, "" is not a valid path, so if this function panic without putting
+        // the Vec back, we have an invalid state. It would be dumb to perform an allocation so that
+        // OsString's internal Vec can be taken and returned shortly after.
+        // BEGIN: Unwind safety analysis
         let mut bytes = mem::take(&mut self.inner).into_vec();
 
-        let mut index = bytes.len().checked_sub(1)?;
-
-        while let Some(ch) = bytes.get(index) && *ch != b'/' {
-            index = index.checked_sub(1)?;
+        if bytes.len() == 1 {
+            // If a Path has length 1, it only contains b'/', and nothing can be popped from it.
+            drop(mem::replace(&mut self.inner, OsString::from_vec(bytes)));
+            return None;
         }
 
+        // A Path has at least one character, so subtracting 1 from the length can't be less than 0.
+        let mut index = bytes.len() - 1;
+
+        while let Some(ch) = bytes.get(index) && *ch != b'/' {
+            // A Path has to start with a b'/', so entering this loop already confirms that there is
+            // another character preceding this one.
+            index -= 1;
+        }
+
+        // The index is guaranteed to be less than the length of bytes, so this can't panic.
         let split = bytes.split_off(index);
 
+        if bytes.is_empty() {
+            // We've literally just checked that bytes is empty, to a single push can't panic.
+            bytes.push(b'/');
+        }
+
         drop(mem::replace(&mut self.inner, OsString::from_vec(bytes)));
+        // END: Unwind safety analysis
 
         Some(OwnedPath::<Rel> {
             _state: PhantomData,

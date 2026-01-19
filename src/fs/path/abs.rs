@@ -30,17 +30,15 @@ impl OwnedPath<Abs> {
     }
 
     pub fn home() -> Option<OwnedPath<Abs>> {
-        // TODO: This is a terrible implementation, it copies an owned PathBuf. Also, I'd like to
-        // avoid env::home_dir().
         Some(OwnedPath::<Abs>::from(
-            env::home_dir()?.as_os_str()
+            env::home_dir()?.into_os_string()
         ))
     }
 
     pub fn cwd() -> Option<OwnedPath<Abs>> {
         // libc::getcwd()
         Some(OwnedPath::<Abs>::from(
-            env::current_dir().ok()?.as_os_str()
+            env::current_dir().ok()?.into_os_string()
         ))
     }
 }
@@ -84,8 +82,8 @@ impl Path<Abs> {
         }
     }
 
+    // TODO: Move to OwnedPath and redirect?
     pub fn metadata(&self) -> Result<Metadata, PathOrMetadataError> {
-        // FIXME: Copy here feels bad.
         let pathname = CString::from(self.to_owned());
 
         let mut raw_meta: MaybeUninit<Stat> = MaybeUninit::uninit();

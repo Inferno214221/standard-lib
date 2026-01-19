@@ -172,6 +172,8 @@ fn main() {
     dbg!(p.pop());
     dbg!(p.pop());
     dbg!(p.pop());
+    dbg!(&p);
+    dbg!(p.pop());
 
     let p = OwnedPath::<Abs>::from("/new.txt");
     dbg!(&p);
