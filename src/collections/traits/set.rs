@@ -1,4 +1,6 @@
+use core::panic;
 use std::borrow::Borrow;
+use std::hint::unreachable_unchecked;
 use std::iter::{Chain, FusedIterator};
 use std::marker::PhantomData;
 use std::mem;
@@ -49,7 +51,7 @@ pub trait SetIterator<T>: IntoIterator<Item = T> + SetInterface<T, T> + Sized {
         IntoSymmetricDifference {
             state: IterAndSet {
                 iterator_a: self.into_iter(),
-                set_b: Some(other),
+                set_b: other,
                 _phantom: PhantomData,
             },
         }
@@ -88,7 +90,7 @@ pub trait SetIterator<T>: IntoIterator<Item = T> + SetInterface<T, T> + Sized {
         IntoUnion {
             state: IterAndSet {
                 iterator_a: self.into_iter(),
-                set_b: Some(other),
+                set_b: other,
                 _phantom: PhantomData,
             },
         }
@@ -125,16 +127,45 @@ pub(crate) enum SetIterToggle<S: SetIterator<T>, T> {
         // switching states. The value can be assumed to always be Some.
         // We're using Option rather than MaybeUninit so that it drops correctly and because it
         // implements Default.
-        set_b: Option<S>,
+        set_b: S,
         _phantom: PhantomData<T>,
     },
     OtherSet {
         iterator_b: S::IntoIter,
         _phantom: PhantomData<T>,
     },
+    Poisoned,
 }
 
 use SetIterToggle::*;
+
+impl<S: SetIterator<T>, T> SetIterToggle<S, T> {
+    /// Replaces this `SetIterToggle`'s inner IterAndSet with an OtherSet.
+    /// 
+    /// # Safety
+    /// This method may only be called when it is known that self.0 is an IterAndSet. If called with
+    /// an OtherSet instead, this method will call undefined behavior.
+    pub unsafe fn replace_inner(&mut self) {
+        // BEGIN: Unwind safety analysis
+        let IterAndSet {
+            set_b,
+            ..
+        } = mem::replace(self, Poisoned) else {
+            // SAFETY: This undefined behavior is the responsibility of the caller.
+            unsafe { unreachable_unchecked() }
+        };
+
+        // This method could panic, but if it does, the current state is poisoned
+        // and all values are dropped normally.
+        let iterator_b = set_b.into_iter();
+
+        *self = OtherSet {
+            iterator_b,
+            _phantom: PhantomData,
+        };
+        // END: Unwind safety analysis
+    }
+}
 
 pub struct IntoDifference<S: SetIterator<T>, T> {
     pub(crate) inner: S::IntoIter,
@@ -199,37 +230,22 @@ impl<S: SetIterator<T>, T> Iterator for IntoSymmetricDifference<S, T> {
         match &mut self.state {
             IterAndSet { iterator_a, set_b, .. } => {
                 let mut next = iterator_a.next();
-                while let Some(item) = &next
-                    // SAFETY: set_b is Some unless otherwise stated.
-                    && unsafe {
-                        set_b.as_mut()
-                            .unwrap_unchecked()
-                            .remove(item)
-                            .is_some()
-                    }
-                {
+                while let Some(item) = &next && set_b.remove(item).is_some() {
                     next = iterator_a.next();
                 }
                 match next {
                     Some(val) => Some(val),
                     None => {
-                        // SAFETY: set_b is always Some, except for the duration of this block where
-                        // its value is moved.
-                        let iterator_b = unsafe {
-                            mem::take(set_b)
-                                .unwrap_unchecked()
-                                .into_iter()
-                        };
-                        self.state = OtherSet {
-                            iterator_b,
-                            _phantom: PhantomData,
-                        };
+                        // SAFETY: We've already matched self.state as an IterAndSet.
+                        unsafe { self.state.replace_inner() };
+
                         // Call next once the state is valid.
                         self.next()
                     },
                 }
             },
             OtherSet { iterator_b, .. } => iterator_b.next(),
+            Poisoned => panic!("Iterator poisoned due to previous panic!"),
         }
     }
 
@@ -320,32 +336,22 @@ impl<S: SetIterator<T>, T> Iterator for IntoUnion<S, T> {
         match &mut self.state {
             IterAndSet { iterator_a, set_b, .. } => {
                 let mut next = iterator_a.next();
-                while let Some(item) = &next
-                    // SAFETY: set_b is Some unless otherwise stated.
-                    && unsafe { set_b.as_ref().unwrap_unchecked().contains(item) }
-                {
+                while let Some(item) = &next && set_b.contains(item) {
                     next = iterator_a.next();
                 }
                 match next {
                     Some(val) => Some(val),
                     None => {
-                        // SAFETY: set_b is always Some, except for the duration of this block where
-                        // its value is moved.
-                        let iterator_b = unsafe {
-                            mem::take(set_b)
-                                .unwrap_unchecked()
-                                .into_iter()
-                        };
-                        self.state = OtherSet {
-                            iterator_b,
-                            _phantom: PhantomData,
-                        };
+                        // SAFETY: We've already matched self.state as an IterAndSet.
+                        unsafe { self.state.replace_inner() };
+
                         // Call next once the state is valid.
                         self.next()
                     },
                 }
             },
             OtherSet { iterator_b, .. } => iterator_b.next(),
+            Poisoned => panic!("Iterator poisoned due to previous panic!"),
         }
     }
 
