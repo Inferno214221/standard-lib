@@ -128,6 +128,10 @@ fn main() {
         dbg!(c);
     }
 
+    for c in full.clone().into_components() {
+        dbg!(c);
+    }
+
     dbg!("Break");
 
     for c in full.ancestors() {

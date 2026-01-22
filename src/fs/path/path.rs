@@ -7,7 +7,7 @@ use std::num::NonZero;
 use std::ops::Deref;
 use std::os::unix::ffi::OsStrExt;
 
-use super::{DisplayPath, Rel};
+use super::{DisplayPath, IntoComponents, Rel};
 use crate::fs::path::{Ancestors, Components, validity};
 use crate::util::error::CapacityOverflow;
 use crate::util::result::ResultExtension;
@@ -52,6 +52,10 @@ impl<S: PathState> OwnedPath<S> {
 
     pub fn as_path(&self) -> &Path<S> {
         self
+    }
+
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.bytes
     }
 
     pub fn push<P: Into<OwnedPath<Rel>>>(&mut self, other: P) {
@@ -100,6 +104,17 @@ impl<S: PathState> OwnedPath<S> {
             bytes: split,
         })
     }
+
+
+
+    /// Creates an owned [`Iterator`] over the components of an `OwnedPath`. This iterator produces
+    /// `OwnedPath<Rel>` representing each `/`-separated string in the Path, from left to right.
+    pub fn into_components(self) -> IntoComponents<S> {
+        IntoComponents {
+            _state: PhantomData,
+            path: self.into_bytes(),
+        }
+    }
 }
 
 impl<S: PathState> Path<S> {
@@ -137,7 +152,7 @@ impl<S: PathState> Path<S> {
         }
     }
 
-    pub fn len(&self) -> NonZero<usize> {
+    pub const fn len(&self) -> NonZero<usize> {
         unsafe { NonZero::new(self.bytes.len()).unwrap_unchecked() }
     }
 
@@ -208,7 +223,7 @@ impl<S: PathState> Path<S> {
             index = 1;
         }
 
-        unsafe { Path::from_unchecked(OsStr::from_bytes(&bytes[..index])) }
+        unsafe { Path::from_unchecked_bytes(&bytes[..index]) }
     }
 
     pub fn join<P: AsRef<Path<Rel>>>(&self, other: P) -> OwnedPath<S> {
@@ -271,7 +286,7 @@ impl<S: PathState> Deref for OwnedPath<S> {
 
     fn deref(&self) -> &Self::Target {
         // SAFETY: OwnedPath upholds the same invariants as Path.
-        unsafe { Path::<S>::from_unchecked(OsStr::from_bytes(&self.bytes)) }
+        unsafe { Path::<S>::from_unchecked_bytes(&self.bytes) }
     }
 }
 

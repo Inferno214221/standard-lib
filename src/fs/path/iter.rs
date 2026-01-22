@@ -1,10 +1,38 @@
-use std::{ffi::OsStr, iter::FusedIterator};
+use std::iter::FusedIterator;
 use std::marker::PhantomData;
-use std::os::unix::ffi::OsStrExt;
+use std::mem;
 
+use crate::fs::OwnedPath;
 use crate::fs::path::{Path, PathState, Rel};
 
 // TODO: OwnedComponents?
+pub struct IntoComponents<State: PathState> {
+    pub(crate) _state: PhantomData<fn() -> State>,
+    pub(crate) path: Vec<u8>,
+}
+
+impl<S: PathState> Iterator for IntoComponents<S> {
+    type Item = OwnedPath<Rel>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.path.is_empty() {
+            None?
+        }
+        let mut tail = 1;
+
+        while let Some(ch) = self.path.get(tail) && *ch != b'/' {
+            tail += 1;
+        }
+
+        let remainder = self.path.split_off(tail);
+
+        Some(unsafe { OwnedPath::from_unchecked_bytes(
+            mem::replace(&mut self.path, remainder)
+        ) })
+    }
+}
+
+impl<S: PathState> FusedIterator for IntoComponents<S> {}
 
 pub struct Components<'a, State: PathState> {
     pub(crate) _state: PhantomData<fn() -> State>,
@@ -29,7 +57,7 @@ impl<'a, S: PathState> Iterator for Components<'a, S> {
         self.head = tail;
 
         unsafe {
-            Some(Path::from_unchecked(OsStr::from_bytes(res)))
+            Some(Path::from_unchecked_bytes(res))
         }
     }
 }
@@ -56,9 +84,9 @@ impl<'a, S: PathState> Iterator for Ancestors<'a, S> {
         }
 
         unsafe {
-            Some(Path::from_unchecked(OsStr::from_bytes(
+            Some(Path::from_unchecked_bytes(
                 &self.path[..self.index]
-            )))
+            ))
         }
     }
 }
