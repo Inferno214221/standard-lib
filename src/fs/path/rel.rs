@@ -73,6 +73,18 @@ impl Path<Rel> {
         let pathname = CString::from(self.to_owned());
 
         let mut raw_meta: MaybeUninit<Stat> = MaybeUninit::uninit();
+        // SAFETY:
+        // - *relative_to.fd is a valid, open directory file descriptor (guaranteed by Directory's
+        //   ownership of Fd).
+        // - pathname.as_ptr().add(1) is safe because Path<Rel> guarantees at least 1 byte (the
+        //   leading '/'), and CString adds a null terminator, so .add(1) points to either the next
+        //   path component or the null terminator. This skips the leading '/' so fstatat treats the
+        //   path as relative to the directory fd.
+        // - The resulting pointer is still valid, null-terminated, and has no interior null bytes.
+        // - raw_meta.as_mut_ptr() points to valid, properly aligned stack memory allocated for a
+        //   Stat structure. MaybeUninit allows passing uninitialized memory to fstatat, which will
+        //   initialize it.
+        // - flags is validated by the caller to be a valid combination of fstatat flags.
         if unsafe { libc::fstatat(
             *relative_to.fd,
             // Skip the leading '/' so that the path is considered relative.
@@ -94,7 +106,7 @@ impl Path<Rel> {
                 e            => UnexpectedErrorPanic(e).panic(),
             }
         }
-        // SAFETY: stat either initializes raw_meta or returns an error and diverges.
+        // SAFETY: fstatat either initializes raw_meta or returns an error and diverges.
         let raw = unsafe { raw_meta.assume_init() };
 
         Ok(Metadata::from_stat(raw))

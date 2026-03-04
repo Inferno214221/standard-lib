@@ -43,7 +43,9 @@ impl<A: AccessMode> File<A> {
     }
 
     pub fn sync(&self) -> Result<(), SyncError> {
-        // SAFETY: There is no memory management here and any returned errors are handled.
+        // SAFETY: *self.fd is a valid, open file descriptor (guaranteed by File's ownership of Fd,
+        // which maintains the invariant). fsync synchronizes the file's in-core state with storage
+        // and returns -1 on error.
         if unsafe { libc::fsync(*self.fd) } == -1 {
             match util::fs::err_no() {
                 EBADF           => BadFdPanic.panic(),
@@ -69,6 +71,9 @@ impl<A: AccessMode> File<A> {
     }
 
     pub(crate) fn flock_raw(&self, flags: c_int) -> Result<(), LockError> {
+        // SAFETY: *self.fd is a valid, open file descriptor (guaranteed by File's ownership of Fd).
+        // The flags parameter is validated by the caller to be one of the valid flock operations
+        // (LOCK_EX, LOCK_SH, LOCK_UN).
         if unsafe { libc::flock(*self.fd, flags) } == -1 {
             match util::fs::err_no() {
                 EBADF  => BadFdPanic.panic(),
@@ -91,6 +96,9 @@ impl<A: AccessMode> File<A> {
     }
 
     pub(crate) fn try_flock_raw(&self, flags: c_int) -> Result<(), TryLockError> {
+        // SAFETY: *self.fd is a valid, open file descriptor (guaranteed by File's ownership of Fd).
+        // The flags parameter combined with LOCK_NB is validated by the caller to be one of the
+        // valid non-blocking flock operations.
         if unsafe { libc::flock(*self.fd, flags | libc::LOCK_NB) } == -1 {
             match util::fs::err_no() {
                 EBADF       => BadFdPanic.panic(),
@@ -186,6 +194,11 @@ impl File<ReadWrite> {
 
 impl<A: Read> File<A> {
     pub(crate) fn read_raw(&self, buf: *mut c_void, size: usize) -> Result<usize, RawOsError> {
+        // SAFETY:
+        // - *self.fd is a valid, open file descriptor (guaranteed by File's ownership of Fd).
+        // - buf must point to valid, writable memory of at least `size` bytes. This is the caller's
+        //   responsibility to ensure.
+        // - size must not exceed the buffer's actual capacity. This is the caller's responsibility.
         match unsafe { libc::read(*self.fd, buf, size) } {
             -1 => Err(util::fs::err_no()),
             count => Ok(count as usize),
@@ -219,6 +232,11 @@ impl<A: Read> File<A> {
 
 impl<A: Write> File<A> {
     pub(crate) fn write_raw(&self, buf: *const c_void, size: usize) -> Result<usize, RawOsError> {
+        // SAFETY:
+        // - *self.fd is a valid, open file descriptor (guaranteed by File's ownership of Fd).
+        // - buf must point to valid, readable memory of at least `size` bytes. This is the caller's
+        //   responsibility to ensure.
+        // - size must not exceed the buffer's actual length. This is the caller's responsibility.
         match unsafe { libc::write(*self.fd, buf, size) } {
             -1 => Err(util::fs::err_no()),
             count => Ok(count as usize),

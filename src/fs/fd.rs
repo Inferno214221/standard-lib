@@ -20,6 +20,9 @@ impl Fd {
         let pathname = CString::from(file_path.into());
         // TODO: Permission builder of some type?
 
+        // SAFETY: The pointer obtained from CString::as_ptr() is valid for the lifetime of `pathname`.
+        // CString guarantees the data is null-terminated and contains no interior null bytes, which
+        // satisfies libc::open's requirements for a valid C string pathname.
         match unsafe { libc::open(pathname.as_ptr().cast(), flags, mode) } {
             -1 => Err(util::fs::err_no()),
             fd => Ok(Fd(fd)),
@@ -34,6 +37,14 @@ impl Fd {
     ) -> Result<Fd, RawOsError> {
         let pathname = CString::from(file_path.into());
 
+        // SAFETY:
+        // - The directory file descriptor (*relative_to.fd) is guaranteed valid because Directory
+        //   maintains ownership of a valid, open file descriptor.
+        // - pathname.as_ptr().add(1) is safe because Path<Rel> guarantees at least 1 byte (the
+        //   leading '/'), and CString adds a null terminator, so .add(1) points to either the next
+        //   path component or the null terminator. This skips the leading '/' so openat treats the
+        //   path as relative to the directory fd.
+        // - The resulting pointer is still valid, null-terminated, and has no interior null bytes.
         match unsafe { libc::openat(
             *relative_to.fd,
             // Skip the leading '/' so that the path is considered relative by the OS.
@@ -57,6 +68,11 @@ impl Fd {
 
     pub fn metadata(&self) -> Result<Metadata, MetadataError> {
         let mut raw_meta: MaybeUninit<Stat> = MaybeUninit::uninit();
+        // SAFETY:
+        // - self.0 is a valid, open file descriptor (guaranteed by Fd's ownership and invariants).
+        // - raw_meta.as_mut_ptr() points to valid, properly aligned stack memory allocated for a
+        //   Stat structure. MaybeUninit allows passing uninitialized memory to fstat, which will
+        //   initialize it.
         if unsafe { libc::fstat(self.0, raw_meta.as_mut_ptr()) } == -1 {
             match util::fs::err_no() {
                 EBADF =>     BadFdPanic.panic(),
@@ -73,8 +89,10 @@ impl Fd {
     }
     
     pub fn close(self) -> Result<(), CloseError> {
-        // SAFETY: close invalidates the provided file descriptor regardless of the outcome, so this
-        // method takes ownership of self.
+        // SAFETY:
+        // - self.0 is a valid, open file descriptor (guaranteed by Fd's ownership and invariants).
+        // - close invalidates the provided file descriptor regardless of the outcome, so this
+        //   method takes ownership of self, ensuring the fd cannot be used after this call.
         if unsafe { libc::close(self.0) } == -1 {
             match util::fs::err_no() {
                 EBADF =>           BadFdPanic.panic(),
@@ -88,6 +106,9 @@ impl Fd {
     }
 
     pub fn try_clone(&self) -> Result<Fd, CloneError> {
+        // SAFETY: self.0 is a valid, open file descriptor (guaranteed by Fd's ownership and
+        // invariants). dup creates a new file descriptor that refers to the same open file
+        // description, or returns -1 on error.
         let new_fd = unsafe { libc::dup(self.0) };
         if new_fd == -1 {
             match util::fs::err_no() {
@@ -111,8 +132,10 @@ impl Deref for Fd {
 
 impl Drop for Fd {
     fn drop(&mut self) {
-        // SAFETY: After this, the file descriptor is invalidated but we are dropping self so it
-        // doesn't matter.
+        // SAFETY:
+        // - self.0 is a valid, open file descriptor (guaranteed by Fd's ownership and invariants).
+        // - After this call, the file descriptor is invalidated, but we are dropping self so it
+        //   cannot be used again.
         if unsafe { libc::close(self.0) } == -1
             // Panic only if we aren't already, to prevent aborting an existing unwind.
             && !thread::panicking()

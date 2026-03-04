@@ -64,6 +64,9 @@ impl Directory {
     ) -> Result<Directory, RawOsError> {
         let pathname = CString::from(dir_path.as_ref().to_owned());
 
+        // SAFETY: pathname.as_ptr() is a valid pointer to a null-terminated C string for the
+        // lifetime of `pathname`. CString guarantees no interior null bytes. file_mode is cast to
+        // the appropriate type for the mode parameter.
         match unsafe { libc::mkdir(pathname.as_ptr().cast(), file_mode as mode_t) } {
             -1 => Err(util::fs::err_no()), // TODO: interpret raw error
             fd => Ok(Directory {

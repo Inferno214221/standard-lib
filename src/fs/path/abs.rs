@@ -87,6 +87,12 @@ impl Path<Abs> {
         let pathname = CString::from(self.to_owned());
 
         let mut raw_meta: MaybeUninit<Stat> = MaybeUninit::uninit();
+        // SAFETY:
+        // - pathname.as_ptr() is a valid pointer to a null-terminated C string for the lifetime of
+        //   `pathname`. CString guarantees no interior null bytes.
+        // - raw_meta.as_mut_ptr() points to valid, properly aligned stack memory allocated for a
+        //   Stat structure. MaybeUninit allows passing uninitialized memory to stat, which will
+        //   initialize it.
         if unsafe { libc::stat(pathname.as_ptr().cast(), raw_meta.as_mut_ptr()) } == -1 {
             Self::match_metadata_error()?
         }
@@ -100,10 +106,17 @@ impl Path<Abs> {
         let pathname = CString::from(self.to_owned());
 
         let mut raw_meta: MaybeUninit<Stat> = MaybeUninit::uninit();
+        // SAFETY:
+        // - pathname.as_ptr() is a valid pointer to a null-terminated C string for the lifetime of
+        //   `pathname`. CString guarantees no interior null bytes.
+        // - raw_meta.as_mut_ptr() points to valid, properly aligned stack memory allocated for a
+        //   Stat structure. MaybeUninit allows passing uninitialized memory to lstat, which will
+        //   initialize it.
+        // - lstat is like stat but doesn't follow symbolic links.
         if unsafe { libc::lstat(pathname.as_ptr().cast(), raw_meta.as_mut_ptr()) } == -1 {
             Self::match_metadata_error()?
         }
-        // SAFETY: stat either initializes raw_meta or returns an error and diverges.
+        // SAFETY: lstat either initializes raw_meta or returns an error and diverges.
         let raw = unsafe { raw_meta.assume_init() };
 
         Ok(Metadata::from_stat(raw))

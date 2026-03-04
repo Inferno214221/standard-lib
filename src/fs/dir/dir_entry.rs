@@ -82,6 +82,14 @@ impl<'a> Iterator for DirEntries<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.rem == 0 {
             loop {
+                // SAFETY:
+                // - *self.dir.fd is a valid, open directory file descriptor (guaranteed by Directory's
+                //   ownership of Fd).
+                // - self.buf.as_ptr() points to a valid, writable buffer allocated by Array with size
+                //   self.buf.size().
+                // - The buffer is properly aligned for MaybeUninit<u8>, which is compatible with the
+                //   linux_dirent64 structure that getdents64 writes.
+                // - The buffer remains valid for the duration of the syscall (owned by self).
                 match unsafe { util::fs::getdents(
                     *self.dir.fd,
                     self.buf.as_ptr().cast_mut().cast(),
