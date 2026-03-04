@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{ffi::OsStr, num::NonZero, str::FromStr};
 
 use crate::fs::error::{EmptyStrError, HomeResolutionError};
 
@@ -7,7 +7,6 @@ use super::{Abs, OwnedPath, Path, PathParseError, Rel};
 /// An OwnedPath with a statically dispatched state. TODO
 // TODO: More docs here.
 pub enum DispatchedPath {
-    // No niche optimization for some reason? I thought OsString would have a null niche.
     Abs(OwnedPath<Abs>),
     Rel(OwnedPath<Rel>),
 }
@@ -42,6 +41,15 @@ impl FromStr for DispatchedPath {
     }
 }
 
+macro_rules! dispatch_ref {
+    ($this:ident.$name:ident) => {
+        match $this {
+            DispatchedPath::Abs(abs) => abs.$name(),
+            DispatchedPath::Rel(rel) => rel.$name(),
+        }
+    };
+}
+
 impl DispatchedPath {
     pub fn abs_or_resolve(self, target: OwnedPath<Abs>) -> OwnedPath<Abs> {
         match self {
@@ -55,6 +63,38 @@ impl DispatchedPath {
             DispatchedPath::Abs(abs) => abs.make_relative(target),
             DispatchedPath::Rel(rel) => rel,
         }
+    }
+
+    pub fn len(&self) -> NonZero<usize> {
+        dispatch_ref!(self.len)
+    }
+
+    pub fn as_os_str(&self) -> &OsStr {
+        dispatch_ref!(self.as_os_str)
+    }
+
+    pub fn as_os_str_no_lead(&self) -> &OsStr {
+        dispatch_ref!(self.as_os_str_no_lead)
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        dispatch_ref!(self.as_bytes)
+    }
+
+    pub fn basename(&self) -> &OsStr {
+        dispatch_ref!(self.basename)
+    }
+}
+
+impl From<OwnedPath<Abs>> for DispatchedPath {
+    fn from(value: OwnedPath<Abs>) -> Self {
+        DispatchedPath::Abs(value)
+    }
+}
+
+impl From<OwnedPath<Rel>> for DispatchedPath {
+    fn from(value: OwnedPath<Rel>) -> Self {
+        DispatchedPath::Rel(value)
     }
 }
 

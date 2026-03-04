@@ -111,7 +111,6 @@ impl<A: AccessMode> File<A> {
     pub fn try_lock_shared(&self) -> Result<(), TryLockError> {
         self.try_flock_raw(LOCK_SH)
     }
-    
 
     pub fn unlock(&self) -> Result<(), LockError> {
         self.flock_raw(LOCK_UN)

@@ -649,7 +649,7 @@ impl<T: Debug> Display for LinkedList<T> {
             self.iter()
                 .map(|i| format!("{i:?}"))
                 .collect::<Vector<String>>()
-                .join(") -> (")
+                .join(")->(")
         )
     }
 }

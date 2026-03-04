@@ -140,9 +140,9 @@ impl<S: PathState> Path<S> {
         unsafe { &mut *(value.as_mut() as *mut OsStr as *mut Self) }
     }
 
-    pub unsafe fn from_unchecked_bytes(value: &[u8]) -> &Self {
+    pub const unsafe fn from_unchecked_bytes(value: &[u8]) -> &Self {
         // SAFETY: Path<S> is `repr(transparent)`, so to it has the same layout as &[u8].
-        unsafe { &*(value.as_ref() as *const [u8] as *const Self) }
+        unsafe { &*(value as *const [u8] as *const Self) }
     }
 
     pub const fn display<'a>(&'a self) -> DisplayPath<'a, S> {
