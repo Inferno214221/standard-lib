@@ -9,6 +9,7 @@
 //! saves me from writing some of the more repetitive functionality.
 
 // pub mod binary_tree;
+pub mod cons;
 pub mod contiguous;
 pub mod hash;
 pub mod linked;

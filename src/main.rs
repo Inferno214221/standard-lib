@@ -2,6 +2,7 @@ use std::{ffi::OsStr, ptr};
 
 use standard_lib::{collections::*, fs::*};
 
+use cons::ConsTree;
 use contiguous::{Array, Vector};
 use hash::{HashMap, HashSet};
 use linked::LinkedList;
@@ -192,4 +193,27 @@ fn main() {
     dbg!(Path::<Abs>::new("/usr/bin/."));
     dbg!(Path::<Rel>::new("/."));
     dbg!(Path::<Rel>::new("././."));
+
+    let mut list_a = ConsTree::new();
+    list_a.push("D");
+    list_a.push("C");
+
+    let mut list_b = list_a.clone();
+    list_b.push("T");
+
+    list_a.push("B");
+    list_a.push("A");
+
+    let mut rem = list_a.keep_unique();
+
+    dbg!(&list_a);
+    dbg!(&rem);
+    dbg!(&list_b);
+    assert!(list_a.is_unqiue());
+    assert!(!rem.is_unqiue());
+    assert!(!list_b.is_unqiue());
+    assert!(rem.keep_unique().is_empty());
+    dbg!(&rem);
+    drop(rem);
+    assert!(list_b.is_unqiue());
 }
