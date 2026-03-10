@@ -1,13 +1,13 @@
-use std::{mem, ops::Deref, rc::Rc};
+use std::{fmt::{self, Debug}, mem, ops::Deref, rc::Rc};
 
 use super::{Iter, OwnedIter, RcIter, UniqueIter};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ConsTree<T> {
     pub(crate) inner: Option<Rc<ConsTreeNode<T>>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ConsTreeNode<T> {
     pub value: T,
     pub(crate) next: ConsTree<T>,
@@ -32,25 +32,9 @@ impl<T> ConsTree<T> {
     }
 }
 
-impl<T: Clone> ConsTree<T> {
+impl<T> ConsTree<T> {
     pub const fn is_empty(&self) -> bool {
         self.inner.is_none()
-    }
-
-    pub fn pop_to_owned(&mut self) -> Option<T> {
-        let inner = mem::take(&mut self.inner);
-
-        match inner {
-            Some(node) => {
-                let ConsTreeNode { value, next } = Rc::unwrap_or_clone(node);
-                self.inner = next.inner;
-                Some(value)
-            },
-            None => {
-                self.inner = inner;
-                None
-            },
-        }
     }
 
     pub fn iter(&self) -> Iter<'_, T> {
@@ -59,19 +43,13 @@ impl<T: Clone> ConsTree<T> {
         }
     }
 
-    pub const fn iter_to_owned(self) -> OwnedIter<T> {
-        OwnedIter {
-            inner: self,
-        }
-    }
-
-    pub const fn iter_rc(self) -> RcIter<T> {
+    pub const fn into_iter_rc(self) -> RcIter<T> {
         RcIter {
             inner: self,
         }
     }
 
-    pub const fn iter_unique(self) -> UniqueIter<T> {
+    pub const fn into_iter_unique(self) -> UniqueIter<T> {
         UniqueIter {
             inner: self,
         }
@@ -130,6 +108,30 @@ impl<T: Clone> ConsTree<T> {
     }
 }
 
+impl<T: Clone> ConsTree<T> {
+    pub fn pop_to_owned(&mut self) -> Option<T> {
+        let inner = mem::take(&mut self.inner);
+
+        match inner {
+            Some(node) => {
+                let ConsTreeNode { value, next } = Rc::unwrap_or_clone(node);
+                self.inner = next.inner;
+                Some(value)
+            },
+            None => {
+                self.inner = inner;
+                None
+            },
+        }
+    }
+
+    pub const fn into_iter_owned(self) -> OwnedIter<T> {
+        OwnedIter {
+            inner: self,
+        }
+    }
+}
+
 fn is_unqiue<T>(value: &Rc<T>) -> bool {
     Rc::strong_count(value) == 1
 }
@@ -155,5 +157,23 @@ impl<T> Deref for ConsTreeNode<T> {
 
     fn deref(&self) -> &Self::Target {
         &self.value
+    }
+}
+
+impl<T: Debug> Debug for ConsTree<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.inner {
+            Some(node) => write!(f, "{:?}", node),
+            None => write!(f, "()"),
+        }
+    }
+}
+
+impl<T: Debug> Debug for ConsTreeNode<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.next.inner {
+            Some(node) => write!(f, "({:?}->{:?})", self.value, node),
+            None => write!(f, "({:?})", self.value),
+        }
     }
 }
