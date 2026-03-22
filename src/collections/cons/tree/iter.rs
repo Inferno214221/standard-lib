@@ -2,7 +2,7 @@ use std::{mem, rc::Rc};
 
 use super::{ConsTree, ConsTreeNode};
 
-#[derive(Clone)]
+/// See [`ConsTree::iter`].
 pub struct Iter<'a, T> {
     pub(crate) inner: Option<&'a ConsTreeNode<T>>,
 }
@@ -17,6 +17,15 @@ impl<'a, T> Iterator for Iter<'a, T> {
     }
 }
 
+impl<'a, T> Clone for Iter<'a, T> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+/// See [`ConsTree::into_iter_owned`].
 pub struct OwnedIter<T: Clone> {
     pub(crate) inner: ConsTree<T>,
 }
@@ -36,6 +45,7 @@ impl<T: Clone> Iterator for OwnedIter<T> {
     }
 }
 
+/// See [`ConsTree::into_iter_unique`].
 pub struct UniqueIter<T> {
     pub(crate) inner: ConsTree<T>,
 }
@@ -57,6 +67,7 @@ impl<T> Iterator for UniqueIter<T> {
     }
 }
 
+/// See [`ConsTree::into_iter_rc`].
 pub struct RcIter<T> {
     pub(crate) inner: ConsTree<T>,
 }
@@ -76,7 +87,7 @@ impl<T> Iterator for RcIter<T> {
 
         match inner {
             Some(rc) => {
-                self.inner.inner = rc.next.inner.clone();
+                self.inner = rc.next.clone();
                 Some(rc)
             },
             None => {

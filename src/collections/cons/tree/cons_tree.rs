@@ -2,21 +2,30 @@ use std::{fmt::{self, Debug}, mem, ops::Deref, rc::Rc};
 
 use super::{Iter, OwnedIter, RcIter, UniqueIter};
 
-/// A references counted, linked list, implemented similar to a cons list. This type is useful as an
-/// immutable list with cheap, shallow cloning, that can share nodes with other instances.
+/// A references counted, linked list implemented similar to a cons list. This type is useful as an
+/// list of immutable items with cheap, shallow cloning, that can share nodes with other instances.
 ///
 /// When cloned, only the 'head' of the tree is cloned (just an Rc), with all of the elements
 /// included in both list. As a result, the data structure is only mutable from the head, where
 /// elements can be [`push`](Self::push)ed or [`pop`](Self::pop_to_owned)ped. This cheap cloning is
 /// helpful for implementing procedures such that include rollbacks or branching.
-#[derive(Clone)]
 pub struct ConsTree<T> {
     pub(crate) inner: Option<Rc<ConsTreeNode<T>>>,
 }
 
+/// Largely intended as an internal type, these nodes are returned by [`ConsTree::into_iter_rc`]
+/// because the interior of the [`Rc`] can't be unwrapped in place.
+///
+/// To help using these nodes, a couple of useful traits have been implemented:
+/// - [`Deref<Target = T> for ConsTreeNode<T>`](Deref) for accessing the contained value.
+/// - [`Into<ConsTree> for Rc<ConsTreeNode<T>>`](Into) for creating a new [`ConsTree`] from an
+/// [`Rc`].
+///
+/// Note that cloning a `ConsTreeNode` directly is _not_ cheap as it is with [`ConsTree`] because
+/// the node contains the value (of type `T`) itself.
 #[derive(Clone)]
 pub struct ConsTreeNode<T> {
-    pub value: T,
+    pub(crate) value: T,
     pub(crate) next: ConsTree<T>,
 }
 
@@ -48,17 +57,25 @@ impl<T> ConsTree<T> {
         self.inner.is_none()
     }
 
-    /// Produces a borrowed iterator over all elements in this list, both unique and shared.
+    /// Produces a borrowed [`Iterator<Item = &T>`](Iter) over all elements in this list, both
+    /// unique and shared.
     pub fn iter(&self) -> Iter<'_, T> {
         Iter {
             inner: self.inner.as_deref(),
         }
     }
 
-    /// Produces an iterator over all of the underlying [`Rc`] instances in this list.
-    pub const fn into_iter_rc(self) -> RcIter<T> {
+    /// Produces an [`Iterator<Item = Rc<ConsTreeNode<T>>>`](RcIter) over all of the underlying
+    /// [`Rc`] instances in this list.
+    ///
+    /// Each referenced element is considered 'shared' for the lifetime of the [`Rc`] produced by
+    /// this iterator. To return a `ConsTree` to being unique, this iterator and all produced
+    /// [`Rc`]s need to be dropped.
+    pub fn into_iter_rc(&self) -> RcIter<T> {
         RcIter {
-            inner: self,
+            // We clone here because we are also cloning every step, there is no point taking an
+            // owned self.
+            inner: self.clone(),
         }
     }
 
@@ -87,25 +104,20 @@ impl<T> ConsTree<T> {
 
     /// Pops the head element of this list, if it is unique. Otherwise, `self` remains unchanged.
     pub fn pop_if_unique(&mut self) -> Option<T> {
-        let inner = mem::take(&mut self.inner);
-
-        match inner {
-            Some(rc) => {
-                // If this returns here, self.inner.inner has been replaced with a None.
-                let ConsTreeNode { value, next } = Rc::into_inner(rc)?;
-                self.inner = next.inner;
-                Some(value)
-            },
-            None => {
-                self.inner = inner;
-                None
-            },
+        if Rc::get_mut(self.inner.as_mut()?).is_none() {
+            return None;
         }
+
+        // We've just confirmed that self.inner is Some and that it is unique.
+        let inner = mem::take(&mut self.inner).unwrap();
+        let ConsTreeNode { value, next } = Rc::into_inner(inner).unwrap();
+        self.inner = next.inner;
+
+        Some(value)
     }
 
-    /// Removes all shared items from this list and returns them as another `ConsTree`. After
-    /// calling this method, `self` is guaranteed to be unique.
-    pub fn keep_unique(&mut self) -> ConsTree<T> {
+    /// Removes all unique items from this list and returns them as another `ConsTree`.
+    pub fn split_off_unique(&mut self) -> ConsTree<T> {
         let mut node = match &mut self.inner {
             Some(inner) => inner,
             // The list is empty.
@@ -127,9 +139,12 @@ impl<T> ConsTree<T> {
                 node = node_mut.next.inner.as_mut().unwrap();
             } else {
                 // node_mut.next.inner is either None or a non unique node. For both cases, we take
-                // it and return it as the non_unique component.
+                // it as the shared head of the tree and replace it with a None.
+                let shared_head = mem::take(&mut node_mut.next.inner);
+                // We then replace the inner value with it, leaving self as entirely shared and
+                // returning the head of the unique portion.
                 return ConsTree {
-                    inner: mem::take(&mut node_mut.next.inner)
+                    inner: mem::replace(&mut self.inner, shared_head),
                 };
             }
 
@@ -139,9 +154,10 @@ impl<T> ConsTree<T> {
         }
     }
 
-    /// Produces an iterator over all of the elements in this list, until a shared element is found.
+    /// Produces an [`Iterator<Item = T>`](UniqueIter) over the elements in this list, producing
+    /// owned values until a shared element is found.
     ///
-    /// This iterator does no cloning and produces owned items, by completely ignoring any items
+    /// This iterator does no cloning and produces owned items by completely ignoring any elements
     /// that are shared by other lists.
     ///
     /// If called on every clone of a single initial `ConsTree`, every element of the tree will be
@@ -172,8 +188,8 @@ impl<T: Clone> ConsTree<T> {
         }
     }
 
-    /// Produces an iterator over all elements in this list, returning owned items by cloning any
-    /// shared elements.
+    /// Produces an [`Iterator<Item = T>`](OwnedIter) over all elements in this list, returning
+    /// owned items by cloning any shared elements.
     pub const fn into_iter_owned(self) -> OwnedIter<T> {
         OwnedIter {
             inner: self,
@@ -189,6 +205,17 @@ impl<T: Clone> ConsTree<T> {
             .rev()
             .cloned()
             .collect()
+    }
+}
+
+impl<T> Clone for ConsTree<T> {
+    /// Creates a cheap (shallow) clone of this `ConsTree`, with all the same underlying elements.
+    /// After cloning, all elements of the list are considered 'shared' between the original list and
+    /// the clone.
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone()
+        }
     }
 }
 
@@ -209,6 +236,14 @@ impl<T> FromIterator<T> for ConsTree<T> {
             res.push(item);
         }
         res
+    }
+}
+
+impl<T> From<Rc<ConsTreeNode<T>>> for ConsTree<T> {
+    fn from(value: Rc<ConsTreeNode<T>>) -> Self {
+        ConsTree {
+            inner: Some(value),
+        }
     }
 }
 

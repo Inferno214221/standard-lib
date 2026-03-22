@@ -1,4 +1,4 @@
-use std::{ffi::OsStr, ptr};
+use std::{ffi::OsStr, mem, ptr};
 
 use standard_lib::{collections::*, fs::*};
 
@@ -204,7 +204,8 @@ fn main() {
     list_a.push("B");
     list_a.push("A");
 
-    let mut rem = list_a.keep_unique();
+    let mut rem = list_a.split_off_unique();
+    mem::swap(&mut list_a, &mut rem);
 
     dbg!(&list_a);
     dbg!(&rem);
@@ -212,7 +213,7 @@ fn main() {
     assert!(list_a.is_unique());
     assert!(!rem.is_unique());
     assert!(!list_b.is_unique());
-    assert!(rem.keep_unique().is_empty());
+    assert!(rem.split_off_unique().is_empty());
     dbg!(&rem);
     drop(rem);
     assert!(list_b.is_unique());
