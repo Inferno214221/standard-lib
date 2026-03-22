@@ -209,11 +209,11 @@ fn main() {
     dbg!(&list_a);
     dbg!(&rem);
     dbg!(&list_b);
-    assert!(list_a.is_unqiue());
-    assert!(!rem.is_unqiue());
-    assert!(!list_b.is_unqiue());
+    assert!(list_a.is_unique());
+    assert!(!rem.is_unique());
+    assert!(!list_b.is_unique());
     assert!(rem.keep_unique().is_empty());
     dbg!(&rem);
     drop(rem);
-    assert!(list_b.is_unqiue());
+    assert!(list_b.is_unique());
 }
