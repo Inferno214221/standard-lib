@@ -1,5 +1,6 @@
 //! Collections based on the [`Hash`](std::hash::Hash) trait, including [`HashMap`] and [`HashSet`]
 //! for storing unique values or key-value pairs.
+#![cfg(feature = "contiguous")]
 #![warn(missing_docs)]
 
 pub mod map;

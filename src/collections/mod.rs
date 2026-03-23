@@ -7,6 +7,7 @@
 //! # Method
 //! Applicable types here implement [`Deref<Target = [T]>`](std::ops::Deref) (and DerefMut), which
 //! saves me from writing some of the more repetitive functionality.
+#![cfg(feature = "collections")]
 
 // pub mod binary_tree;
 pub mod cons;

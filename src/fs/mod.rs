@@ -24,8 +24,9 @@
 //!   Among other things, this prevents unexpected behavior such as absolute paths replacing each
 //!   other when joined (as they do in [`std`]).
 //! - Statically dispatched error types for more explicit error handling.
+#![cfg(feature = "fs")]
 #![cfg(target_os = "linux")]
-#![doc(cfg(Linux))]
+#![doc(cfg(all(Linux, feature = "fs")))]
 
 pub mod dir;
 pub mod error;

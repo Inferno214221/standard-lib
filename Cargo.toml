@@ -5,4 +5,17 @@ edition = "2024"
 
 [dependencies]
 derive_more = { version = "2.0.1", features = [ "display", "error", "from", "try_into", "is_variant" ] }
-libc = "0.2.174"
+libc = { version = "0.2.174", optional = true }
+
+[features]
+default = ["collections-all", "fs"]
+
+collections = []
+collections-all = ["cons", "contiguous", "hash", "linked", "traits"]
+cons = ["collections"]
+contiguous = ["collections"]
+hash = ["collections", "traits"]
+linked = ["collections"]
+traits = ["collections"]
+
+fs = ["dep:libc"]

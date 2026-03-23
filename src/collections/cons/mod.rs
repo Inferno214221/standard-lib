@@ -1,3 +1,5 @@
+#![cfg(feature = "cons")]
+
 pub mod tree;
 
 #[doc(inline)]

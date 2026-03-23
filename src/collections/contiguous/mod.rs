@@ -1,5 +1,6 @@
 //! Contiguous collection types. Namely [`Array`] and [`Vector`] for contiguous collections that
 //! vary in size at runtime.
+#![cfg(feature = "contiguous")]
 #![warn(missing_docs)]
 
 pub mod array;
