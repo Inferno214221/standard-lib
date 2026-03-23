@@ -9,8 +9,8 @@ use super::{Iter, OwnedIter, RcIter, UniqueIter};
 /// included in both list. As a result, the data structure is only mutable from the head, where
 /// elements can be [`push`](Self::push)ed or [`pop`](Self::pop_to_owned)ped. This cheap cloning is
 /// helpful for implementing procedures such that include rollbacks or branching.
-pub struct ConsTree<T> {
-    pub(crate) inner: Option<Rc<ConsTreeNode<T>>>,
+pub struct ConsBranch<T> {
+    pub(crate) inner: Option<Rc<ConsNode<T>>>,
 }
 
 /// Largely intended as an internal type, these nodes are returned by [`ConsTree::into_iter_rc`]
@@ -24,15 +24,15 @@ pub struct ConsTree<T> {
 /// Note that cloning a `ConsTreeNode` directly is _not_ cheap as it is with [`ConsTree`] because
 /// the node contains the value (of type `T`) itself.
 #[derive(Clone)]
-pub struct ConsTreeNode<T> {
+pub struct ConsNode<T> {
     pub(crate) value: T,
-    pub(crate) next: ConsTree<T>,
+    pub(crate) next: ConsBranch<T>,
 }
 
-impl<T> ConsTree<T> {
+impl<T> ConsBranch<T> {
     /// Creates a new, empty `ConsTree`.
-    pub const fn new() -> ConsTree<T> {
-        ConsTree {
+    pub const fn new() -> ConsBranch<T> {
+        ConsBranch {
             inner: None
         }
     }
@@ -42,16 +42,16 @@ impl<T> ConsTree<T> {
     pub fn push(&mut self, value: T) {
         let old = mem::take(&mut self.inner);
 
-        self.inner = Some(Rc::new(ConsTreeNode {
+        self.inner = Some(Rc::new(ConsNode {
             value,
-            next: ConsTree {
+            next: ConsBranch {
                 inner: old
             },
         }))
     }
 }
 
-impl<T> ConsTree<T> {
+impl<T> ConsBranch<T> {
     /// Returns `true` if this `ConsTree` contains no elements.
     pub const fn is_empty(&self) -> bool {
         self.inner.is_none()
@@ -110,24 +110,24 @@ impl<T> ConsTree<T> {
 
         // We've just confirmed that self.inner is Some and that it is unique.
         let inner = mem::take(&mut self.inner).unwrap();
-        let ConsTreeNode { value, next } = Rc::into_inner(inner).unwrap();
+        let ConsNode { value, next } = Rc::into_inner(inner).unwrap();
         self.inner = next.inner;
 
         Some(value)
     }
 
     /// Removes all unique items from this list and returns them as another `ConsTree`.
-    pub fn split_off_unique(&mut self) -> ConsTree<T> {
+    pub fn split_off_unique(&mut self) -> ConsBranch<T> {
         let mut node = match &mut self.inner {
             Some(inner) => inner,
             // The list is empty.
-            None => return ConsTree::new(),
+            None => return ConsBranch::new(),
         };
 
         let mut node_mut = match Rc::get_mut(node) {
             Some(node_mut) => node_mut,
             // The list contains items, but none are uniquely referenced.
-            None => return ConsTree::new(),
+            None => return ConsBranch::new(),
         };
 
         loop {
@@ -143,7 +143,7 @@ impl<T> ConsTree<T> {
                 let shared_head = mem::take(&mut node_mut.next.inner);
                 // We then replace the inner value with it, leaving self as entirely shared and
                 // returning the head of the unique portion.
-                return ConsTree {
+                return ConsBranch {
                     inner: mem::replace(&mut self.inner, shared_head),
                 };
             }
@@ -169,7 +169,7 @@ impl<T> ConsTree<T> {
     }
 }
 
-impl<T: Clone> ConsTree<T> {
+impl<T: Clone> ConsBranch<T> {
     /// Pops the head element from this list, cloning if it is shared by another `ConsTree`.
     /// Regardless of if a clone is required, the head of this list will be updated.
     pub fn pop_to_owned(&mut self) -> Option<T> {
@@ -177,7 +177,7 @@ impl<T: Clone> ConsTree<T> {
 
         match inner {
             Some(node) => {
-                let ConsTreeNode { value, next } = Rc::unwrap_or_clone(node);
+                let ConsNode { value, next } = Rc::unwrap_or_clone(node);
                 self.inner = next.inner;
                 Some(value)
             },
@@ -198,7 +198,7 @@ impl<T: Clone> ConsTree<T> {
 
     /// Produces a deep clone of this `ConsTree`. The result has a clone of every element in this
     /// list, without sharing any. The result is unique.
-    pub fn deep_clone(&self) -> ConsTree<T> {
+    pub fn deep_clone(&self) -> ConsBranch<T> {
         let refs: Vec<_> = self.iter().collect();
 
         refs.into_iter()
@@ -208,7 +208,7 @@ impl<T: Clone> ConsTree<T> {
     }
 }
 
-impl<T> Clone for ConsTree<T> {
+impl<T> Clone for ConsBranch<T> {
     /// Creates a cheap (shallow) clone of this `ConsTree`, with all the same underlying elements.
     /// After cloning, all elements of the list are considered 'shared' between the original list and
     /// the clone.
@@ -223,15 +223,15 @@ fn is_unqiue<T>(value: &Rc<T>) -> bool {
     Rc::strong_count(value) == 1
 }
 
-impl<T> Default for ConsTree<T> {
+impl<T> Default for ConsBranch<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> FromIterator<T> for ConsTree<T> {
+impl<T> FromIterator<T> for ConsBranch<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut res = ConsTree::new();
+        let mut res = ConsBranch::new();
         for item in iter {
             res.push(item);
         }
@@ -239,15 +239,15 @@ impl<T> FromIterator<T> for ConsTree<T> {
     }
 }
 
-impl<T> From<Rc<ConsTreeNode<T>>> for ConsTree<T> {
-    fn from(value: Rc<ConsTreeNode<T>>) -> Self {
-        ConsTree {
+impl<T> From<Rc<ConsNode<T>>> for ConsBranch<T> {
+    fn from(value: Rc<ConsNode<T>>) -> Self {
+        ConsBranch {
             inner: Some(value),
         }
     }
 }
 
-impl<T> Deref for ConsTreeNode<T> {
+impl<T> Deref for ConsNode<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -255,7 +255,7 @@ impl<T> Deref for ConsTreeNode<T> {
     }
 }
 
-impl<T: Debug> Debug for ConsTree<T> {
+impl<T: Debug> Debug for ConsBranch<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.inner {
             Some(node) => write!(f, "{:?}", node),
@@ -264,7 +264,7 @@ impl<T: Debug> Debug for ConsTree<T> {
     }
 }
 
-impl<T: Debug> Debug for ConsTreeNode<T> {
+impl<T: Debug> Debug for ConsNode<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.next.inner {
             Some(node) => write!(f, "({:?}->{:?})", self.value, node),

@@ -2,7 +2,7 @@ use std::{ffi::OsStr, mem, ptr};
 
 use standard_lib::{collections::*, fs::*};
 
-use cons::ConsTree;
+use cons::ConsBranch;
 use contiguous::{Array, Vector};
 use hash::{HashMap, HashSet};
 use linked::LinkedList;
@@ -194,7 +194,7 @@ fn main() {
     dbg!(Path::<Rel>::new("/."));
     dbg!(Path::<Rel>::new("././."));
 
-    let mut list_a = ConsTree::new();
+    let mut list_a = ConsBranch::new();
     list_a.push("D");
     list_a.push("C");
 

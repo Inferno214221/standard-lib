@@ -1,7 +1,7 @@
-mod cons_tree;
+mod branch;
 mod iter;
 
-pub use cons_tree::*;
+pub use branch::*;
 pub use iter::*;
 
 #[cfg(test)]

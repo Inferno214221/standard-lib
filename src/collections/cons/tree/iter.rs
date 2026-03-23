@@ -1,17 +1,17 @@
 use std::{mem, rc::Rc};
 
-use super::{ConsTree, ConsTreeNode};
+use super::{ConsBranch, ConsNode};
 
 /// See [`ConsTree::iter`].
 pub struct Iter<'a, T> {
-    pub(crate) inner: Option<&'a ConsTreeNode<T>>,
+    pub(crate) inner: Option<&'a ConsNode<T>>,
 }
 
 impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let ConsTreeNode { value, next } = self.inner?;
+        let ConsNode { value, next } = self.inner?;
         self.inner = next.inner.as_deref();
         Some(value)
     }
@@ -27,12 +27,12 @@ impl<'a, T> Clone for Iter<'a, T> {
 
 /// See [`ConsTree::into_iter_owned`].
 pub struct OwnedIter<T: Clone> {
-    pub(crate) inner: ConsTree<T>,
+    pub(crate) inner: ConsBranch<T>,
 }
 
 impl<T: Clone> OwnedIter<T> {
     /// Returns all remaining elements of this iterator, as a `ConsTree`.
-    pub fn remainder(self) -> ConsTree<T> {
+    pub fn remainder(self) -> ConsBranch<T> {
         self.inner
     }
 }
@@ -47,14 +47,14 @@ impl<T: Clone> Iterator for OwnedIter<T> {
 
 /// See [`ConsTree::into_iter_unique`].
 pub struct UniqueIter<T> {
-    pub(crate) inner: ConsTree<T>,
+    pub(crate) inner: ConsBranch<T>,
 }
 
 impl<T> UniqueIter<T> {
     /// Returns all remaining elements of this iterator, as a [`ConsTree`]. When used on an
     /// exhausted `UniqueIter`, the list returned will contain all the shared items (of which there
     /// may be none).
-    pub fn remainder(self) -> ConsTree<T> {
+    pub fn remainder(self) -> ConsBranch<T> {
         self.inner
     }
 }
@@ -69,18 +69,18 @@ impl<T> Iterator for UniqueIter<T> {
 
 /// See [`ConsTree::into_iter_rc`].
 pub struct RcIter<T> {
-    pub(crate) inner: ConsTree<T>,
+    pub(crate) inner: ConsBranch<T>,
 }
 
 impl<T> RcIter<T> {
     /// Returns all remaining elements of this iterator, as a `ConsTree`.
-    pub fn remainder(self) -> ConsTree<T> {
+    pub fn remainder(self) -> ConsBranch<T> {
         self.inner
     }
 }
 
 impl<T> Iterator for RcIter<T> {
-    type Item = Rc<ConsTreeNode<T>>;
+    type Item = Rc<ConsNode<T>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let inner = mem::take(&mut self.inner.inner);
