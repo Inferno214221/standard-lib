@@ -49,9 +49,12 @@ impl<T> ConsBranch<T> {
             },
         }))
     }
-}
 
-impl<T> ConsBranch<T> {
+    /// Returns a reference to the element contained within the head node.
+    pub fn get_head(&self) -> Option<&T> {
+        self.inner.as_deref().map(ConsNode::deref)
+    }
+
     /// Returns `true` if this `ConsTree` contains no elements.
     pub const fn is_empty(&self) -> bool {
         self.inner.is_none()
@@ -252,6 +255,12 @@ impl<T> Deref for ConsNode<T> {
 
     fn deref(&self) -> &Self::Target {
         &self.value
+    }
+}
+
+impl<T> AsRef<T> for ConsNode<T> {
+    fn as_ref(&self) -> &T {
+        self.deref()
     }
 }
 
