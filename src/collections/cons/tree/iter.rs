@@ -2,7 +2,7 @@ use std::{mem, rc::Rc};
 
 use super::{ConsBranch, ConsNode};
 
-/// See [`ConsTree::iter`].
+/// See [`ConsBranch::iter`].
 pub struct Iter<'a, T> {
     pub(crate) inner: Option<&'a ConsNode<T>>,
 }
@@ -25,13 +25,13 @@ impl<'a, T> Clone for Iter<'a, T> {
     }
 }
 
-/// See [`ConsTree::into_iter_owned`].
+/// See [`ConsBranch::into_iter_owned`].
 pub struct OwnedIter<T: Clone> {
     pub(crate) inner: ConsBranch<T>,
 }
 
 impl<T: Clone> OwnedIter<T> {
-    /// Returns all remaining elements of this iterator, as a `ConsTree`.
+    /// Returns all remaining elements of this iterator, as a [`ConsBranch`].
     pub fn remainder(self) -> ConsBranch<T> {
         self.inner
     }
@@ -45,13 +45,13 @@ impl<T: Clone> Iterator for OwnedIter<T> {
     }
 }
 
-/// See [`ConsTree::into_iter_unique`].
+/// See [`ConsBranch::into_iter_unique`].
 pub struct UniqueIter<T> {
     pub(crate) inner: ConsBranch<T>,
 }
 
 impl<T> UniqueIter<T> {
-    /// Returns all remaining elements of this iterator, as a [`ConsTree`]. When used on an
+    /// Returns all remaining elements of this iterator, as a [`ConsBranch`]. When used on an
     /// exhausted `UniqueIter`, the list returned will contain all the shared items (of which there
     /// may be none).
     pub fn remainder(self) -> ConsBranch<T> {
@@ -67,13 +67,13 @@ impl<T> Iterator for UniqueIter<T> {
     }
 }
 
-/// See [`ConsTree::into_iter_rc`].
+/// See [`ConsBranch::into_iter_rc`].
 pub struct RcIter<T> {
     pub(crate) inner: ConsBranch<T>,
 }
 
 impl<T> RcIter<T> {
-    /// Returns all remaining elements of this iterator, as a `ConsTree`.
+    /// Returns all remaining elements of this iterator, as a [`ConsBranch`].
     pub fn remainder(self) -> ConsBranch<T> {
         self.inner
     }

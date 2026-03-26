@@ -13,15 +13,15 @@ pub struct ConsBranch<T> {
     pub(crate) inner: Option<Rc<ConsNode<T>>>,
 }
 
-/// Largely intended as an internal type, these nodes are returned by [`ConsTree::into_iter_rc`]
+/// Largely intended as an internal type, these nodes are returned by [`ConsBranch::into_iter_rc`]
 /// because the interior of the [`Rc`] can't be unwrapped in place.
 ///
 /// To help using these nodes, a couple of useful traits have been implemented:
-/// - [`Deref<Target = T> for ConsTreeNode<T>`](Deref) for accessing the contained value.
-/// - [`Into<ConsTree> for Rc<ConsTreeNode<T>>`](Into) for creating a new [`ConsTree`] from an
+/// - [`Deref<Target = T> for ConsNode<T>`](Deref) for accessing the contained value.
+/// - [`Into<ConsBranch> for Rc<ConsNode<T>>`](Into) for creating a new [`ConsBranch`] from an
 /// [`Rc`].
 ///
-/// Note that cloning a `ConsTreeNode` directly is _not_ cheap as it is with [`ConsTree`] because
+/// Note that cloning a `ConsNode` directly is _not_ cheap as it is with [`ConsBranch`] because
 /// the node contains the value (of type `T`) itself.
 #[derive(Clone)]
 pub struct ConsNode<T> {
@@ -30,14 +30,14 @@ pub struct ConsNode<T> {
 }
 
 impl<T> ConsBranch<T> {
-    /// Creates a new, empty `ConsTree`.
+    /// Creates a new, empty `ConsBranch`.
     pub const fn new() -> ConsBranch<T> {
         ConsBranch {
             inner: None
         }
     }
 
-    /// Pushes a new element onto the start of this `ConsTree`, updating this list's head without
+    /// Pushes a new element onto the start of this `ConsBranch`, updating this list's head without
     /// affecting any overlapping lists (shallow clones).
     pub fn push(&mut self, value: T) {
         let old = mem::take(&mut self.inner);
@@ -55,7 +55,7 @@ impl<T> ConsBranch<T> {
         self.inner.as_deref().map(ConsNode::deref)
     }
 
-    /// Returns `true` if this `ConsTree` contains no elements.
+    /// Returns `true` if this `ConsBranch` contains no elements.
     pub const fn is_empty(&self) -> bool {
         self.inner.is_none()
     }
@@ -68,11 +68,11 @@ impl<T> ConsBranch<T> {
         }
     }
 
-    /// Produces an [`Iterator<Item = Rc<ConsTreeNode<T>>>`](RcIter) over all of the underlying
-    /// [`Rc`] instances in this list.
+    /// Produces an [`Iterator<Item = Rc<ConsNode<T>>>`](RcIter) over all of the underlying [`Rc`]
+    /// instances in this list.
     ///
     /// Each referenced element is considered 'shared' for the lifetime of the [`Rc`] produced by
-    /// this iterator. To return a `ConsTree` to being unique, this iterator and all produced
+    /// this iterator. To return a `ConsBranch` to being unique, this iterator and all produced
     /// [`Rc`]s need to be dropped.
     pub fn into_iter_rc(&self) -> RcIter<T> {
         RcIter {
@@ -119,7 +119,7 @@ impl<T> ConsBranch<T> {
         Some(value)
     }
 
-    /// Removes all unique items from this list and returns them as another `ConsTree`.
+    /// Removes all unique items from this list and returns them as another `ConsBranch`.
     pub fn split_off_unique(&mut self) -> ConsBranch<T> {
         let mut node = match &mut self.inner {
             Some(inner) => inner,
@@ -163,7 +163,7 @@ impl<T> ConsBranch<T> {
     /// This iterator does no cloning and produces owned items by completely ignoring any elements
     /// that are shared by other lists.
     ///
-    /// If called on every clone of a single initial `ConsTree`, every element of the tree will be
+    /// If called on every clone of a single initial `ConsBranch`, every element of the tree will be
     /// returned by an iterator only once.
     pub const fn into_iter_unique(self) -> UniqueIter<T> {
         UniqueIter {
@@ -173,7 +173,7 @@ impl<T> ConsBranch<T> {
 }
 
 impl<T: Clone> ConsBranch<T> {
-    /// Pops the head element from this list, cloning if it is shared by another `ConsTree`.
+    /// Pops the head element from this list, cloning if it is shared by another `ConsBranch`.
     /// Regardless of if a clone is required, the head of this list will be updated.
     pub fn pop_to_owned(&mut self) -> Option<T> {
         let inner = mem::take(&mut self.inner);
@@ -199,7 +199,7 @@ impl<T: Clone> ConsBranch<T> {
         }
     }
 
-    /// Produces a deep clone of this `ConsTree`. The result has a clone of every element in this
+    /// Produces a deep clone of this `ConsBranch`. The result has a clone of every element in this
     /// list, without sharing any. The result is unique.
     pub fn deep_clone(&self) -> ConsBranch<T> {
         let refs: Vec<_> = self.iter().collect();
@@ -212,9 +212,9 @@ impl<T: Clone> ConsBranch<T> {
 }
 
 impl<T> Clone for ConsBranch<T> {
-    /// Creates a cheap (shallow) clone of this `ConsTree`, with all the same underlying elements.
-    /// After cloning, all elements of the list are considered 'shared' between the original list and
-    /// the clone.
+    /// Creates a cheap (shallow) clone of this `ConsBranch`, with all the same underlying elements.
+    /// After cloning, all elements of the list are considered 'shared' between the original list
+    /// and the clone.
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone()
