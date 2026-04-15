@@ -5,10 +5,11 @@ use super::{Iter, OwnedIter, RcIter, UniqueIter};
 /// A references counted, linked list implemented similar to a cons list. This type is useful as an
 /// list of immutable items with cheap, shallow cloning, that can share nodes with other instances.
 ///
-/// When cloned, only the 'head' of the tree is cloned (just an Rc), with all of the elements
+/// When cloned, only the 'head' of the tree is cloned (just an `Rc`), with all of the elements
 /// included in both list. As a result, the data structure is only mutable from the head, where
 /// elements can be [`push`](Self::push)ed or [`pop`](Self::pop_to_owned)ped. This cheap cloning is
 /// helpful for implementing procedures such that include rollbacks or branching.
+#[derive(PartialEq, Eq)]
 pub struct ConsBranch<T> {
     pub(crate) inner: Option<Rc<ConsNode<T>>>,
 }
@@ -23,7 +24,7 @@ pub struct ConsBranch<T> {
 ///
 /// Note that cloning a `ConsNode` directly is _not_ cheap as it is with [`ConsBranch`] because
 /// the node contains the value (of type `T`) itself.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ConsNode<T> {
     pub(crate) value: T,
     pub(crate) next: ConsBranch<T>,
