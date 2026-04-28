@@ -4,7 +4,7 @@
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-25.05";
     flake-utils.url = "github:numtide/flake-utils";
-    
+
     fenix = {
       url = "github:nix-community/fenix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -25,7 +25,7 @@
         };
         toolchain = fenix.packages.${system}.fromToolchainFile {
           file = ./rust-toolchain.toml;
-          sha256 = "sha256-P39FCgpfDT04989+ZTNEdM/k/AE869JKSB4qjatYTSs=";
+          sha256 = "sha256-HXxOXXSJyM8MPsupW5qxwJnc7Qzlqsjxivr03QFZehY=";
         };
         naersk = pkgs.callPackage naersk-pkg {
           cargo = toolchain;
@@ -39,7 +39,7 @@
           cargo-expand
           cargo-public-api
           man-pages
-          rust-analyzer-nightly
+          # rust-analyzer-nightly
         ] ++ buildInputs;
       in with pkgs; rec
       {
