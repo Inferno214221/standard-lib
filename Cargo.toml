@@ -11,7 +11,8 @@ libc = { version = "0.2.174", optional = true }
 default = ["collections-all", "fs"]
 
 collections = []
-collections-all = ["cons", "contiguous", "hash", "linked", "traits"]
+collections-all = ["circ", "cons", "contiguous", "hash", "linked", "traits"]
+circ = ["collections"]
 cons = ["collections"]
 contiguous = ["collections"]
 hash = ["collections", "traits"]

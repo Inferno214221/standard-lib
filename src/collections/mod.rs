@@ -10,6 +10,7 @@
 #![cfg(feature = "collections")]
 
 // pub mod binary_tree;
+pub mod circular;
 pub mod cons;
 pub mod contiguous;
 pub mod hash;

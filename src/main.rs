@@ -1,6 +1,6 @@
 use std::{ffi::OsStr, mem, ptr};
 
-use standard_lib::{collections::*, fs::*};
+use standard_lib::{collections::{circular::CircStack, *}, fs::*};
 
 use cons::ConsBranch;
 use contiguous::{Array, Vector};
@@ -217,4 +217,6 @@ fn main() {
     dbg!(&rem);
     drop(rem);
     assert!(list_b.is_unique());
+
+    let _ = CircStack::<(), { isize::MAX as usize + 1 }>::new_uninit();
 }

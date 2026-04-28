@@ -62,6 +62,9 @@
 #![feature(doc_cfg)]
 #![feature(slice_from_ptr_range)]
 #![feature(type_changing_struct_update)]
+#![feature(option_array_transpose)]
+#![feature(maybe_uninit_uninit_array_transpose)]
+#![feature(fn_traits)]
 
 // #![warn(missing_docs)]
 #![warn(clippy::missing_safety_doc)]
