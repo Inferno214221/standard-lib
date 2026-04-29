@@ -9,7 +9,7 @@ use super::{Iter, OwnedIter, RcIter, UniqueIter};
 /// included in both list. As a result, the data structure is only mutable from the head, where
 /// elements can be [`push`](Self::push)ed or [`pop`](Self::pop_to_owned)ped. This cheap cloning is
 /// helpful for implementing procedures such that include rollbacks or branching.
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Hash)]
 pub struct ConsBranch<T> {
     pub(crate) inner: Option<Rc<ConsNode<T>>>,
 }
@@ -24,7 +24,7 @@ pub struct ConsBranch<T> {
 ///
 /// Note that cloning a `ConsNode` directly is _not_ cheap as it is with [`ConsBranch`] because
 /// the node contains the value (of type `T`) itself.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct ConsNode<T> {
     pub(crate) value: T,
     pub(crate) next: ConsBranch<T>,
