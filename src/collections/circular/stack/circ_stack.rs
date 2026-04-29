@@ -43,6 +43,8 @@ impl<T, const N: usize> CircStack<T, N> {
     }
 
     pub const fn new(buffer: [T; N], index: usize) -> CircStack<T, N> {
+        const { check_size(N) };
+
         CircStack {
             buffer,
             last: index
@@ -50,7 +52,7 @@ impl<T, const N: usize> CircStack<T, N> {
     }
 
     pub const fn new_uninit() -> CircStack<MaybeUninit<T>, N> {
-        check_size(N);
+        const { check_size(N) };
 
         CircStack {
             buffer: [const { MaybeUninit::uninit() }; N],
@@ -98,7 +100,7 @@ impl<T, const N: usize> CircStack<T, N> {
 
 impl<T: Copy, const N: usize> CircStack<T, N> {
     pub const fn repeat_item(item: T) -> CircStack<T, N> {
-        check_size(N);
+        const { check_size(N) };
 
         CircStack {
             buffer: [item; N],
@@ -164,7 +166,7 @@ impl<T, const N: usize> CircStack<Option<T>, N> {
 
 impl<T: Default, const N: usize> Default for CircStack<T, N> {
     fn default() -> CircStack<T, N> {
-        check_size(N);
+        const { check_size(N) };
 
         CircStack {
             buffer: [(); N].map(|_| T::default()),
@@ -177,7 +179,7 @@ impl<T: Copy, const N: usize> TryFrom<&[T]> for CircStack<T, N> {
     type Error = TryFromSliceError;
 
     fn try_from(value: &[T]) -> Result<Self, Self::Error> {
-        check_size(N);
+        const { check_size(N) };
 
         Ok(CircStack {
             buffer: <[T; N]>::try_from(value)?,
@@ -188,6 +190,8 @@ impl<T: Copy, const N: usize> TryFrom<&[T]> for CircStack<T, N> {
 
 impl<T, const N: usize> From<[T; N]> for CircStack<T, N> {
     fn from(buffer: [T; N]) -> Self {
+        const { check_size(N) };
+
         CircStack {
             buffer,
             last: 0,
