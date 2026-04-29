@@ -49,6 +49,21 @@ impl<T, const N: usize> Iterator for IntoIter<T, N> {
     }
 }
 
+impl<'a, T, const N: usize> IntoIterator for &'a mut CircStack<T, N> {
+    type Item = &'a mut T;
+
+    type IntoIter = IterMut<'a, T, N>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let CircStack { buffer, last } = self;
+        IterMut {
+            buffer,
+            last: *last,
+            index: *last,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct IterMut<'a, T, const N: usize> {
     // pub(crate) inner: &'a mut CircStack<T, N>,
@@ -92,6 +107,19 @@ impl<'a, T, const N: usize> Iterator for IterMut<'a, T, N> {
         }
 
         Some(unsafe { ptr.as_mut() })
+    }
+}
+
+impl<'a, T, const N: usize> IntoIterator for &'a CircStack<T, N> {
+    type Item = &'a T;
+
+    type IntoIter = Iter<'a, T, N>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Iter {
+            inner: self,
+            index: 0,
+        }
     }
 }
 

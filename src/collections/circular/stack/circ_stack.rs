@@ -1,5 +1,7 @@
 use std::{array::TryFromSliceError, mem::{self, MaybeUninit}, ops::{Index, IndexMut}};
 
+use super::{Iter, IterMut};
+
 const MAX_SIZE: usize = isize::MAX as usize;
 
 const fn check_size(n: usize) {
@@ -95,6 +97,14 @@ impl<T, const N: usize> CircStack<T, N> {
         }
 
         self.last = (self.last as isize + offset).rem_euclid(N as isize) as usize;
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<'_, T, N> {
+        self.into_iter()
+    }
+
+    pub fn iter(&self) -> Iter<'_, T, N> {
+        self.into_iter()
     }
 }
 
