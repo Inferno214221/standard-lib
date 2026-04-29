@@ -1,4 +1,4 @@
-use std::{mem::{self, MaybeUninit}, ops::IndexMut, ptr::NonNull};
+use std::{mem::{self, MaybeUninit}, ptr::NonNull};
 
 use crate::collections::circular::CircStack;
 

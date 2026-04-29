@@ -12,12 +12,12 @@ pub struct CircStack<T, const N: usize> {
     pub(crate) last: usize,
 }
 
-pub(crate) fn increment<const N: usize>(index: usize) -> usize {
+pub(crate) const fn increment<const N: usize>(index: usize) -> usize {
     // index + 1 <= MAX_SIZE because index < N <= MAX_SIZE. Can't overflow.
     (index + 1) % N
 }
 
-pub(crate) fn sub_wrapping<const N: usize>(index: usize, diff: usize) -> usize {
+pub(crate) const fn sub_wrapping<const N: usize>(index: usize, diff: usize) -> usize {
     if index >= N {
         panic!("TODO")
     }
@@ -30,19 +30,26 @@ pub(crate) fn sub_wrapping<const N: usize>(index: usize, diff: usize) -> usize {
 }
 
 impl<T, const N: usize> CircStack<T, N> {
-    pub(crate) fn increment(&mut self) {
+    pub(crate) const fn increment(&mut self) {
         self.last = increment::<N>(self.last)
     }
 
-    pub(crate) fn decrement(&mut self) {
+    pub(crate) const fn decrement(&mut self) {
         self.last = sub_wrapping::<N>(self.last, 1);
     }
 
-    pub(crate) fn index_reverse(&self, index: usize) -> usize {
+    pub(crate) const fn translate_index(&self, index: usize) -> usize {
         sub_wrapping::<N>(self.last, index)
     }
 
-    pub fn new_uninit() -> CircStack<MaybeUninit<T>, N> {
+    pub const fn new(buffer: [T; N], index: usize) -> CircStack<T, N> {
+        CircStack {
+            buffer,
+            last: index
+        }
+    }
+
+    pub const fn new_uninit() -> CircStack<MaybeUninit<T>, N> {
         check_size(N);
 
         CircStack {
@@ -56,17 +63,17 @@ impl<T, const N: usize> CircStack<T, N> {
         self.buffer[self.last] = value;
     }
 
-    pub fn pop_with_replacement(&mut self, replacement: T) -> T {
+    pub const fn pop_with_replacement(&mut self, replacement: T) -> T {
         let value = mem::replace(&mut self.buffer[self.last], replacement);
         self.decrement();
         value
     }
 
-    pub fn as_array(&self) -> &[T; N] {
+    pub const fn as_array(&self) -> &[T; N] {
         &self.buffer
     }
 
-    pub fn as_array_mut(&mut self) -> &mut [T; N] {
+    pub const fn as_array_mut(&mut self) -> &mut [T; N] {
         &mut self.buffer
     }
 
@@ -78,10 +85,19 @@ impl<T, const N: usize> CircStack<T, N> {
             last
         }
     }
+
+    // TODO: Verify this does what it should
+    pub const fn rotate(&mut self, offset: isize) {
+        if offset >= N as isize || offset <= -(N as isize) {
+            panic!("TODO")
+        }
+
+        self.last = (self.last as isize + offset).rem_euclid(N as isize) as usize;
+    }
 }
 
 impl<T: Copy, const N: usize> CircStack<T, N> {
-    pub fn repeat_item(item: T) -> CircStack<T, N> {
+    pub const fn repeat_item(item: T) -> CircStack<T, N> {
         check_size(N);
 
         CircStack {
@@ -90,42 +106,48 @@ impl<T: Copy, const N: usize> CircStack<T, N> {
         }
     }
 
-    pub fn pop_copy(&mut self) -> T {
+    pub const fn pop_copy(&mut self) -> T {
         let value = self.buffer[self.last];
         self.decrement();
         value
     }
 
-    pub fn last(&self) {
-        self.buffer[self.last];
+    pub const fn last(&self) -> &T {
+        &self.buffer[self.last]
+    }
+}
+
+impl<T: Default, const N: usize> CircStack<T, N> {
+    pub fn pop_with_default(&mut self) -> T {
+        self.pop_with_replacement(T::default())
     }
 }
 
 impl<T, const N: usize> CircStack<MaybeUninit<T>, N> {
-    pub fn transpose(self) -> MaybeUninit<CircStack<T, N>> {
+    pub const fn transpose(self) -> MaybeUninit<CircStack<T, N>> {
         // Unfortunately, due to the variable size of the input and output, we have to copy here,
         // and avoid calling drop on the original.
 
         unsafe { mem::transmute_copy(&MaybeUninit::new(self)) }
     }
 
-    pub fn transpose_mut(&mut self) -> &mut MaybeUninit<CircStack<T, N>> {
+    pub const fn transpose_mut(&mut self) -> &mut MaybeUninit<CircStack<T, N>> {
         unsafe { mem::transmute(self) }
     }
 
-    pub fn transpose_ref(&self) -> &MaybeUninit<CircStack<T, N>> {
+    pub const fn transpose_ref(&self) -> &MaybeUninit<CircStack<T, N>> {
         unsafe { mem::transmute(self) }
     }
 
-    pub unsafe fn assume_init(self) -> CircStack<T, N> {
+    pub const unsafe fn assume_init(self) -> CircStack<T, N> {
         unsafe { self.transpose().assume_init() }
     }
 
-    pub unsafe fn assume_init_mut(&mut self) -> &mut CircStack<T, N> {
+    pub const unsafe fn assume_init_mut(&mut self) -> &mut CircStack<T, N> {
         unsafe { self.transpose_mut().assume_init_mut() }
     }
 
-    pub unsafe fn assume_init_ref(&self) -> &CircStack<T, N> {
+    pub const unsafe fn assume_init_ref(&self) -> &CircStack<T, N> {
         unsafe { self.transpose_ref().assume_init_ref() }
     }
 }
@@ -151,8 +173,6 @@ impl<T: Default, const N: usize> Default for CircStack<T, N> {
     }
 }
 
-// TODO: Lifetime version of the same thing.
-
 impl<T: Copy, const N: usize> TryFrom<&[T]> for CircStack<T, N> {
     type Error = TryFromSliceError;
 
@@ -166,16 +186,25 @@ impl<T: Copy, const N: usize> TryFrom<&[T]> for CircStack<T, N> {
     }
 }
 
+impl<T, const N: usize> From<[T; N]> for CircStack<T, N> {
+    fn from(buffer: [T; N]) -> Self {
+        CircStack {
+            buffer,
+            last: 0,
+        }
+    }
+}
+
 impl<T, const N: usize> Index<usize> for CircStack<T, N> {
     type Output = T;
 
     fn index(&self, index: usize) -> &Self::Output {
-        &self.buffer[self.index_reverse(index)]
+        &self.buffer[self.translate_index(index)]
     }
 }
 
 impl<T, const N: usize> IndexMut<usize> for CircStack<T, N> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.buffer[self.index_reverse(index)]
+        &mut self.buffer[self.translate_index(index)]
     }
 }
