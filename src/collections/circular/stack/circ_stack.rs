@@ -11,7 +11,7 @@ const fn check_size(n: usize) {
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CircStack<T, const N: usize> {
     pub(crate) buffer: [T; N],
-    pub(crate) last: usize,
+    pub(crate) tail: usize,
 }
 
 pub(crate) const fn increment<const N: usize>(index: usize) -> usize {
@@ -33,42 +33,40 @@ pub(crate) const fn sub_wrapping<const N: usize>(index: usize, diff: usize) -> u
 
 impl<T, const N: usize> CircStack<T, N> {
     pub(crate) const fn increment(&mut self) {
-        self.last = increment::<N>(self.last)
+        self.tail = increment::<N>(self.tail)
     }
 
     pub(crate) const fn decrement(&mut self) {
-        self.last = sub_wrapping::<N>(self.last, 1);
+        self.tail = sub_wrapping::<N>(self.tail, 1);
     }
 
     pub(crate) const fn translate_index(&self, index: usize) -> usize {
-        sub_wrapping::<N>(self.last, index)
+        sub_wrapping::<N>(self.tail, index)
     }
 
-    pub const fn new(buffer: [T; N], index: usize) -> CircStack<T, N> {
+    pub const fn new(buffer: [T; N], tail: usize) -> CircStack<T, N> {
         const { check_size(N) };
 
         CircStack {
             buffer,
-            last: index
+            tail
         }
     }
 
     pub const fn new_uninit() -> CircStack<MaybeUninit<T>, N> {
-        const { check_size(N) };
-
-        CircStack {
-            buffer: [const { MaybeUninit::uninit() }; N],
-            last: 0
-        }
+        CircStack::new(
+            [const { MaybeUninit::uninit() }; N],
+            0
+        )
     }
 
     pub fn push(&mut self, value: T) {
         self.increment();
-        self.buffer[self.last] = value;
+        self.buffer[self.tail] = value;
     }
 
     pub const fn pop_with_replacement(&mut self, replacement: T) -> T {
-        let value = mem::replace(&mut self.buffer[self.last], replacement);
+        let value = mem::replace(&mut self.buffer[self.tail], replacement);
         self.decrement();
         value
     }
@@ -82,11 +80,11 @@ impl<T, const N: usize> CircStack<T, N> {
     }
 
     pub fn forget_init(self) -> CircStack<MaybeUninit<T>, N> {
-        let CircStack { buffer, last } = self;
+        let CircStack { buffer, tail } = self;
 
         CircStack {
             buffer: buffer.map(MaybeUninit::new),
-            last
+            tail
         }
     }
 
@@ -96,7 +94,7 @@ impl<T, const N: usize> CircStack<T, N> {
             panic!("TODO")
         }
 
-        self.last = (self.last as isize + offset).rem_euclid(N as isize) as usize;
+        self.tail = (self.tail as isize + offset).rem_euclid(N as isize) as usize;
     }
 
     pub fn iter_mut(&mut self) -> IterMut<'_, T, N> {
@@ -110,22 +108,20 @@ impl<T, const N: usize> CircStack<T, N> {
 
 impl<T: Copy, const N: usize> CircStack<T, N> {
     pub const fn repeat_item(item: T) -> CircStack<T, N> {
-        const { check_size(N) };
-
-        CircStack {
-            buffer: [item; N],
-            last: 0,
-        }
+        CircStack::new(
+            [item; N],
+            0
+        )
     }
 
     pub const fn pop_copy(&mut self) -> T {
-        let value = self.buffer[self.last];
+        let value = self.buffer[self.tail];
         self.decrement();
         value
     }
 
     pub const fn last(&self) -> &T {
-        &self.buffer[self.last]
+        &self.buffer[self.tail]
     }
 }
 
@@ -166,22 +162,21 @@ impl<T, const N: usize> CircStack<MaybeUninit<T>, N> {
 
 impl<T, const N: usize> CircStack<Option<T>, N> {
     pub fn transpose(self) -> Option<CircStack<T, N>> {
-        let CircStack { buffer, last: index } = self;
+        let CircStack { buffer, tail } = self;
+
         Some(CircStack {
             buffer: buffer.transpose()?,
-            last: index,
+            tail,
         })
     }
 }
 
 impl<T: Default, const N: usize> Default for CircStack<T, N> {
     fn default() -> CircStack<T, N> {
-        const { check_size(N) };
-
-        CircStack {
-            buffer: [(); N].map(|_| T::default()),
-            last: 0,
-        }
+        CircStack::new(
+            [(); N].map(|_| T::default()),
+            0
+        )
     }
 }
 
@@ -189,25 +184,20 @@ impl<T: Copy, const N: usize> TryFrom<&[T]> for CircStack<T, N> {
     type Error = TryFromSliceError;
 
     fn try_from(value: &[T]) -> Result<Self, Self::Error> {
-        const { check_size(N) };
-
-        Ok(CircStack {
-            buffer: <[T; N]>::try_from(value)?,
-            last: 0,
-        })
+        Ok(CircStack::new(
+            <[T; N]>::try_from(value)?,
+            0
+        ))
     }
 }
 
 impl<T, const N: usize> From<[T; N]> for CircStack<T, N> {
     fn from(buffer: [T; N]) -> Self {
-        const { check_size(N) };
-
-        CircStack {
-            buffer,
-            last: 0,
-        }
+        CircStack::new(buffer, 0)
     }
 }
+
+// TODO: Could impl Index<isize>, but is it already getting too confusing?
 
 impl<T, const N: usize> Index<usize> for CircStack<T, N> {
     type Output = T;

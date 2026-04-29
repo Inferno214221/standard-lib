@@ -55,11 +55,12 @@ impl<'a, T, const N: usize> IntoIterator for &'a mut CircStack<T, N> {
     type IntoIter = IterMut<'a, T, N>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let CircStack { buffer, last } = self;
+        let CircStack { buffer, tail } = self;
+
         IterMut {
             buffer,
-            last: *last,
-            index: *last,
+            tail: *tail,
+            index: *tail,
         }
     }
 }
@@ -68,7 +69,7 @@ impl<'a, T, const N: usize> IntoIterator for &'a mut CircStack<T, N> {
 pub struct IterMut<'a, T, const N: usize> {
     // pub(crate) inner: &'a mut CircStack<T, N>,
     pub(crate) buffer: &'a mut [T; N],
-    pub(crate) last: usize,
+    pub(crate) tail: usize,
     // Index here refers to the next index to retrieve a value from, or N if exhausted.
     pub(crate) index: usize,
 }
@@ -102,7 +103,7 @@ impl<'a, T, const N: usize> Iterator for IterMut<'a, T, N> {
         // Iterate backwards, stopping if we hit the point where we started.
         self.index = super::sub_wrapping::<N>(self.index, 1);
 
-        if self.index == self.last {
+        if self.index == self.tail {
             self.index = N;
         }
 
