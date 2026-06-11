@@ -1,11 +1,13 @@
 use std::{array::TryFromSliceError, mem::{self, MaybeUninit}, ops::{Index, IndexMut}};
 
+use crate::util::error::IndexOutOfBounds;
+
 use super::{Iter, IterMut};
 
 const MAX_SIZE: usize = isize::MAX as usize;
 
 const fn check_size(n: usize) {
-    assert!(n <= MAX_SIZE, "N exceeds maximum size!");
+    assert!(n <= MAX_SIZE, "N exceeds maximum size");
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -20,12 +22,12 @@ pub(crate) const fn increment<const N: usize>(index: usize) -> usize {
 }
 
 pub(crate) const fn sub_wrapping<const N: usize>(index: usize, diff: usize) -> usize {
-    if index >= N {
-        panic!("TODO")
+    if diff >= N {
+        panic!("offset to subtract exceeds N")
     }
 
     unsafe {
-        // SAFETY: index < N <= isize::MAX implies that self.index - index can't be less than
+        // SAFETY: diff < N <= isize::MAX implies that self.index - diff can't be less than
         // -isize::MAX, which is greater than isize::MIN.
         index.checked_signed_diff(diff).unwrap_unchecked()
     }.rem_euclid(N as isize) as usize
@@ -90,8 +92,10 @@ impl<T, const N: usize> CircStack<T, N> {
 
     // TODO: Verify this does what it should
     pub const fn rotate(&mut self, offset: isize) {
+        // Should this even panic? Maybe only on an overflow?
+
         if offset >= N as isize || offset <= -(N as isize) {
-            panic!("TODO")
+            panic!("offset exceeds N")
         }
 
         self.tail = (self.tail as isize + offset).rem_euclid(N as isize) as usize;
