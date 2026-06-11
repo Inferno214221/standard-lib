@@ -58,8 +58,8 @@ impl<S: PathState> OwnedPath<S> {
         self.bytes
     }
 
-    pub fn push<P: Into<OwnedPath<Rel>>>(&mut self, other: P) {
-        let other_path = other.into();
+    pub fn push<P: AsRef<Path<Rel>>>(&mut self, other: P) {
+        let other_path = other.as_ref();
 
         match self.len().get().checked_add(other_path.len().get()) {
             // TODO: Standardize crate panic method.
@@ -73,7 +73,7 @@ impl<S: PathState> OwnedPath<S> {
 
         // Path is designed in such a way that two valid Paths can't be concatenated to create an
         // invalid Path.
-        self.bytes.extend(other_path.bytes);
+        self.bytes.extend(&other_path.bytes);
     }
 
     pub fn pop(&mut self) -> Option<OwnedPath<Rel>> {
@@ -172,7 +172,7 @@ impl<S: PathState> Path<S> {
 
     /// Returns the basename of this path (the OsStr following the last `/` in the path). This OsStr
     /// won't contain any instances of `/`.
-    /// 
+    ///
     /// See [`parent()`](Path::parent) for more info.
     pub fn basename(&self) -> &OsStr {
         let bytes = self.as_bytes();
@@ -188,7 +188,7 @@ impl<S: PathState> Path<S> {
 
     /// Returns the parent directory of this path (lexically speaking). The result is a Path with
     /// basename and the preceding slash removed, such that the following holds for any `path`.
-    /// 
+    ///
     /// ```
     /// # use standard_lib::fs::path::Path;
     /// let owned = OwnedPath::<Abs>::from("/my/path");
@@ -196,10 +196,10 @@ impl<S: PathState> Path<S> {
     /// let new_path = path.parent().join(Path::new(path.basename()));
     /// assert_eq!(path, new_path);
     /// ```
-    /// 
+    ///
     /// Because this method is the counterpart of [`basename`](Path::basename) and `basename` won't
     /// contain any `/`, the behavior when calling these methods on `"/"` is as follows:
-    /// 
+    ///
     /// ```
     /// # use standard_lib::fs::path::Path;
     /// assert_eq!(Path::root().basename(), "");
@@ -216,7 +216,7 @@ impl<S: PathState> Path<S> {
         while let Some(ch) = bytes.get(index) && *ch != b'/' {
             index -= 1;
         }
-        
+
         // If we would return an empty string, instead include the first slash representing the
         // absolute or relative root.
         if index == 0 {
@@ -276,6 +276,7 @@ impl<S: PathState> Path<S> {
 
 impl<S: PathState> From<OwnedPath<S>> for CString {
     fn from(value: OwnedPath<S>) -> Self {
+        // FIXME: No it doesn't!!! But we aren't using OsString anyway...
         // SAFETY: OsString already guarantees that the internal string contains no '\0'.
         unsafe { CString::from_vec_unchecked(value.bytes) }
     }
