@@ -1,6 +1,6 @@
 use std::ffi::CString;
 use std::marker::PhantomData;
-use std::mem::MaybeUninit;
+use std::mem::{self, MaybeUninit};
 
 use libc::{EACCES, EBADF, EFAULT, EINVAL, ELOOP, ENAMETOOLONG, ENOENT, ENOMEM, ENOTDIR, EOVERFLOW, c_int, stat as Stat};
 
@@ -29,10 +29,7 @@ impl OwnedPath<Rel> {
     }
 
     pub fn dot() -> OwnedPath<Rel> {
-        OwnedPath::<Rel> {
-            _state: PhantomData,
-            bytes: b"/".into(),
-        }
+        Path::DOT.to_owned()
     }
 
     pub fn resolve_root(self) -> OwnedPath<Abs> {
@@ -45,17 +42,15 @@ impl OwnedPath<Rel> {
 }
 
 impl Path<Rel> {
-    // pub fn dot_slash() -> &'static Path<Rel> {
-    //     unsafe { Path::from_unchecked("/") }
-    // }
+    pub const DOT: &'static Path<Rel> = unsafe { Path::from_unchecked_bytes(b"/") };
 
     pub fn resolve(&self, mut target: OwnedPath<Abs>) -> OwnedPath<Abs> {
         target.push(self);
         target
     }
 
-    pub fn resolve_root(&self) -> OwnedPath<Abs> {
-        self.resolve(OwnedPath::root())
+    pub fn resolve_root(&self) -> &Path<Abs> {
+        unsafe { mem::transmute(self) }
     }
 
     pub fn resolve_home(&self) -> Option<OwnedPath<Abs>> {

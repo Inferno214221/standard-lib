@@ -1,4 +1,6 @@
-use std::{ffi::OsStr, mem, ptr};
+#![allow(unused_must_use)]
+
+use std::mem;
 
 use standard_lib::{collections::{circular::CircStack, *}, fs::*};
 

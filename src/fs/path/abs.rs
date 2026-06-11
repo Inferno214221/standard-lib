@@ -23,10 +23,7 @@ impl PathState for Abs {}
 
 impl OwnedPath<Abs> {
     pub fn root() -> OwnedPath<Abs> {
-        OwnedPath::<Abs> {
-            _state: PhantomData,
-            bytes: b"/".into(),
-        }
+        Path::ROOT.to_owned()
     }
 
     pub fn home() -> Option<OwnedPath<Abs>> {
@@ -44,9 +41,7 @@ impl OwnedPath<Abs> {
 }
 
 impl Path<Abs> {
-    pub fn root() -> &'static Path<Abs> {
-        unsafe { Path::from_unchecked("/") }
-    }
+    pub const ROOT: &'static Path<Abs> = unsafe { Path::from_unchecked_bytes(b"/") };
 
     pub fn read_all_links(&self) -> Result<OwnedPath<Abs>, RawOsError> {
         // TODO: canonicalize with many readlink calls, needs to handle nonexistence
