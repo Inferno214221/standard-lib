@@ -10,6 +10,8 @@ pub trait Backend: Debug + Clone + Copy + PartialEq + Eq + PartialOrd + Ord + De
 
     fn into_inner<T>(this: Self::Inner<T>) -> Option<T>;
 
+    fn unwrap_or_clone<T: Clone>(this: Self::Inner<T>) -> T;
+
     fn get_mut<T: ?Sized>(this: &mut Self::Inner<T>) -> Option<&mut T>;
 
     fn strong_count<T: ?Sized>(this: &Self::Inner<T>) -> usize;
@@ -54,10 +56,6 @@ impl<T, B: Backend> Brc<T, B> {
     pub fn into_inner(this: Self) -> Option<T> {
         B::into_inner(this.inner)
     }
-
-    pub fn unwrap_or_clone(this: Self) -> T {
-        todo!()
-    }
 }
 
 impl<T: ?Sized, B: Backend> Brc<T, B> {
@@ -75,6 +73,12 @@ impl<T: ?Sized, B: Backend> Brc<T, B> {
 
     pub fn ptr_eq(this: &Self, other: Self) -> bool {
         B::ptr_eq(&this.inner, &other.inner)
+    }
+}
+
+impl<T: Clone, B: Backend> Brc<T, B> {
+    pub fn unwrap_or_clone(this: Self) -> T {
+        B::unwrap_or_clone(this.inner)
     }
 }
 
@@ -161,6 +165,10 @@ macro_rules! impl_backend {
 
             fn into_inner<T>(this: Self::Inner<T>) -> Option<T> {
                 $rc_type::into_inner(this)
+            }
+
+            fn unwrap_or_clone<T: Clone>(this: Self::Inner<T>) -> T {
+                $rc_type::unwrap_or_clone(this)
             }
 
             fn get_mut<T: ?Sized>(this: &mut Self::Inner<T>) -> Option<&mut T> {

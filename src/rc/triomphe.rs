@@ -22,6 +22,10 @@ impl Backend for UseTArc {
         Some(UniqueArc::into_inner(Arc::into_unique(this)?))
     }
 
+    fn unwrap_or_clone<T: Clone>(this: Self::Inner<T>) -> T {
+        Arc::unwrap_or_clone(this)
+    }
+
     fn get_mut<T: ?Sized>(this: &mut Self::Inner<T>) -> Option<&mut T> {
         Arc::get_mut(this)
     }
