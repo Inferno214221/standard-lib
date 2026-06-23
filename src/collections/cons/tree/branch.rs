@@ -125,44 +125,6 @@ impl<T, B: Backend> ConsBranch<T, B> {
         }
     }
 
-    /// Removes all unique items from this list and returns them as another `ConsBranch`.
-    pub fn split_off_unique(&mut self) -> ConsBranch<T, B> {
-        let mut node = match &mut self.inner {
-            Some(inner) => inner,
-            // The list is empty.
-            None => return ConsBranch::new(),
-        };
-
-        let mut node_mut = match Brc::get_mut(node) {
-            Some(node_mut) => node_mut,
-            // The list contains items, but none are uniquely referenced.
-            None => return ConsBranch::new(),
-        };
-
-        loop {
-            // We need to borrow the next node once once as a reference and then conditionally, as a
-            // mutable reference.
-            if let Some(true) = node_mut.next.inner.as_ref().map(Brc::is_unique) {
-                // We know that node_mut.next.inner is Some, but we couldn't borrow it as a
-                // mutable reference until we knew it was unique.
-                node = node_mut.next.inner.as_mut().unwrap();
-            } else {
-                // node_mut.next.inner is either None or a non unique node. For both cases, we take
-                // it as the shared head of the tree and replace it with a None.
-                let shared_head = mem::take(&mut node_mut.next.inner);
-                // We then replace the inner value with it, leaving self as entirely shared and
-                // returning the head of the unique portion.
-                return ConsBranch {
-                    inner: mem::replace(&mut self.inner, shared_head),
-                };
-            }
-
-            // We've already checked that the node is unqiue, and diverged otherwise.
-            // Rc is !Sync, so we don't have to worry about TOCTOU.
-            node_mut = Brc::get_mut(node).unwrap();
-        }
-    }
-
     /// Produces an [`Iterator<Item = T>`](UniqueIter) over the elements in this list, producing
     /// owned values until a shared element is found.
     ///
