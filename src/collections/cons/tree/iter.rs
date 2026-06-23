@@ -1,11 +1,13 @@
-use std::{mem, rc::Rc};
+use std::mem;
+
+use crate::rc::brc::{Backend, Brc};
 
 use super::{ConsBranch, ConsNode};
 
-impl<'a, T> IntoIterator for &'a ConsBranch<T> {
+impl<'a, T, B: Backend> IntoIterator for &'a ConsBranch<T, B> {
     type Item = &'a T;
 
-    type IntoIter = Iter<'a, T>;
+    type IntoIter = Iter<'a, T, B>;
 
     fn into_iter(self) -> Self::IntoIter {
         Iter {
@@ -15,11 +17,11 @@ impl<'a, T> IntoIterator for &'a ConsBranch<T> {
 }
 
 /// See [`ConsBranch::iter`].
-pub struct Iter<'a, T> {
-    pub(crate) inner: Option<&'a ConsNode<T>>,
+pub struct Iter<'a, T, B: Backend> {
+    pub(crate) inner: Option<&'a ConsNode<T, B>>,
 }
 
-impl<'a, T> Iterator for Iter<'a, T> {
+impl<'a, T, B: Backend> Iterator for Iter<'a, T, B> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -29,27 +31,27 @@ impl<'a, T> Iterator for Iter<'a, T> {
     }
 }
 
-impl<'a, T> Clone for Iter<'a, T> {
+impl<'a, T, B: Backend> Clone for Iter<'a, T, B> {
     fn clone(&self) -> Self {
         Self {
-            inner: self.inner.clone(),
+            inner: self.inner,
         }
     }
 }
 
 /// See [`ConsBranch::into_iter_owned`].
-pub struct OwnedIter<T: Clone> {
-    pub(crate) inner: ConsBranch<T>,
+pub struct OwnedIter<T: Clone, B: Backend> {
+    pub(crate) inner: ConsBranch<T, B>,
 }
 
-impl<T: Clone> OwnedIter<T> {
+impl<T: Clone, B: Backend> OwnedIter<T, B> {
     /// Returns all remaining elements of this iterator, as a [`ConsBranch`].
-    pub fn remainder(self) -> ConsBranch<T> {
+    pub fn remainder(self) -> ConsBranch<T, B> {
         self.inner
     }
 }
 
-impl<T: Clone> Iterator for OwnedIter<T> {
+impl<T: Clone, B: Backend> Iterator for OwnedIter<T, B> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -58,20 +60,20 @@ impl<T: Clone> Iterator for OwnedIter<T> {
 }
 
 /// See [`ConsBranch::into_iter_unique`].
-pub struct UniqueIter<T> {
-    pub(crate) inner: ConsBranch<T>,
+pub struct UniqueIter<T, B: Backend> {
+    pub(crate) inner: ConsBranch<T, B>,
 }
 
-impl<T> UniqueIter<T> {
+impl<T, B: Backend> UniqueIter<T, B> {
     /// Returns all remaining elements of this iterator, as a [`ConsBranch`]. When used on an
     /// exhausted `UniqueIter`, the list returned will contain all the shared items (of which there
     /// may be none).
-    pub fn remainder(self) -> ConsBranch<T> {
+    pub fn remainder(self) -> ConsBranch<T, B> {
         self.inner
     }
 }
 
-impl<T> Iterator for UniqueIter<T> {
+impl<T, B: Backend> Iterator for UniqueIter<T, B> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -80,19 +82,19 @@ impl<T> Iterator for UniqueIter<T> {
 }
 
 /// See [`ConsBranch::into_iter_rc`].
-pub struct RcIter<T> {
-    pub(crate) inner: ConsBranch<T>,
+pub struct BrcIter<T, B: Backend> {
+    pub(crate) inner: ConsBranch<T, B>,
 }
 
-impl<T> RcIter<T> {
+impl<T, B: Backend> BrcIter<T, B> {
     /// Returns all remaining elements of this iterator, as a [`ConsBranch`].
-    pub fn remainder(self) -> ConsBranch<T> {
+    pub fn remainder(self) -> ConsBranch<T, B> {
         self.inner
     }
 }
 
-impl<T> Iterator for RcIter<T> {
-    type Item = Rc<ConsNode<T>>;
+impl<T, B: Backend> Iterator for BrcIter<T, B> {
+    type Item = Brc<ConsNode<T, B>, B>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let inner = mem::take(&mut self.inner.inner);
