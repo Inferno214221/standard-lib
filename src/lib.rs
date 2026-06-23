@@ -73,5 +73,6 @@
 
 pub mod collections;
 pub mod fs;
+pub mod rc;
 
 pub(crate) mod util;
