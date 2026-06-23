@@ -2,6 +2,18 @@ use std::{mem, rc::Rc};
 
 use super::{ConsBranch, ConsNode};
 
+impl<'a, T> IntoIterator for &'a ConsBranch<T> {
+    type Item = &'a T;
+
+    type IntoIter = Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Iter {
+            inner: self.inner.as_deref(),
+        }
+    }
+}
+
 /// See [`ConsBranch::iter`].
 pub struct Iter<'a, T> {
     pub(crate) inner: Option<&'a ConsNode<T>>,

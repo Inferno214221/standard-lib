@@ -64,9 +64,7 @@ impl<T> ConsBranch<T> {
     /// Produces a borrowed [`Iterator<Item = &T>`](Iter) over all elements in this list, both
     /// unique and shared.
     pub fn iter(&self) -> Iter<'_, T> {
-        Iter {
-            inner: self.inner.as_deref(),
-        }
+        self.into_iter()
     }
 
     /// Produces an [`Iterator<Item = Rc<ConsNode<T>>>`](RcIter) over all of the underlying [`Rc`]
