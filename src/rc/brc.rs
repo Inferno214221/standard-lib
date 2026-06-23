@@ -1,8 +1,7 @@
-use std::{borrow::Borrow, cmp::Ordering, ops::Deref, rc::Rc, sync::Arc};
+use std::{borrow::Borrow, cmp::Ordering, fmt::{self, Debug, Display, Formatter}, hash::{Hash, Hasher}, ops::Deref, rc::Rc, sync::Arc};
 
-use derive_more::Display;
-
-pub trait Backend {
+// Trait bounds are for the ZST backend itself so that it doesn't interfere with derive bounds.
+pub trait Backend: Debug + Clone + Copy + PartialEq + Eq + PartialOrd + Ord + Default {
     type Inner<T: ?Sized>;
 
     fn new<T>(value: T) -> Self::Inner<T>;
@@ -19,7 +18,10 @@ pub trait Backend {
 
     fn eq<T: ?Sized + PartialEq>(this: &Self::Inner<T>, other: &Self::Inner<T>) -> bool;
 
-    fn partial_cmp<T: ?Sized + PartialOrd>(this: &Self::Inner<T>, other: &Self::Inner<T>) -> Option<Ordering>;
+    fn partial_cmp<T: ?Sized + PartialOrd>(
+        this: &Self::Inner<T>,
+        other: &Self::Inner<T>
+    ) -> Option<Ordering>;
 
     fn cmp<T: ?Sized + Ord>(this: &Self::Inner<T>, other: &Self::Inner<T>) -> Ordering;
 
@@ -29,7 +31,6 @@ pub trait Backend {
 }
 
 /// A generic reference counted allocation, backed by the [`Backend`], `B`.
-#[derive(Debug, Display)]
 pub struct Brc<T: ?Sized, B: Backend> {
     pub inner: B::Inner<T>,
 }
@@ -53,6 +54,10 @@ impl<T, B: Backend> Brc<T, B> {
     pub fn into_inner(this: Self) -> Option<T> {
         B::into_inner(this.inner)
     }
+
+    pub fn unwrap_or_clone(this: Self) -> T {
+        todo!()
+    }
 }
 
 impl<T: ?Sized, B: Backend> Brc<T, B> {
@@ -62,6 +67,10 @@ impl<T: ?Sized, B: Backend> Brc<T, B> {
 
     pub fn strong_count(this: &Self) -> usize {
         B::strong_count(&this.inner)
+    }
+
+    pub fn is_unique(this: &Self) -> bool {
+        Self::strong_count(this) == 0
     }
 
     pub fn ptr_eq(this: &Self, other: Self) -> bool {
@@ -92,14 +101,14 @@ impl<T: ?Sized, B: Backend> Borrow<T> for Brc<T, B> {
 impl<T: ?Sized, B: Backend> Clone for Brc<T, B> {
     fn clone(&self) -> Self {
         Brc {
-            inner: B::clone(&self.inner),
+            inner: <B as Backend>::clone(&self.inner),
         }
     }
 }
 
 impl<T: ?Sized + PartialEq, B: Backend> PartialEq for Brc<T, B> {
     fn eq(&self, other: &Self) -> bool {
-        B::eq(&self.inner, &other.inner)
+        <B as Backend>::eq(&self.inner, &other.inner)
     }
 }
 
@@ -107,13 +116,33 @@ impl<T: ?Sized + Eq, B: Backend> Eq for Brc<T, B> {}
 
 impl<T: ?Sized + PartialOrd, B: Backend> PartialOrd for Brc<T, B> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        B::partial_cmp(&self.inner, &other.inner)
+        <B as Backend>::partial_cmp(&self.inner, &other.inner)
     }
 }
 
 impl<T: ?Sized + Ord, B: Backend> Ord for Brc<T, B> {
     fn cmp(&self, other: &Self) -> Ordering {
-        B::cmp(&self.inner, &other.inner)
+        <B as Backend>::cmp(&self.inner, &other.inner)
+    }
+}
+
+impl<T: ?Sized + Hash, B: Backend> Hash for Brc<T, B> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        (**self).hash(state);
+    }
+}
+
+impl<T: ?Sized + Debug, B: Backend> Debug for Brc<T, B> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Brc")
+            .field("inner", &&**self)
+            .finish()
+    }
+}
+
+impl<T: ?Sized + Display, B: Backend> Display for Brc<T, B> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", &&**self)
     }
 }
 
@@ -169,8 +198,10 @@ macro_rules! impl_backend {
     };
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct UseRc;
 impl_backend!(Rc, UseRc);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct UseArc;
 impl_backend!(Arc, UseArc);

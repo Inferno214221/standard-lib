@@ -4,6 +4,7 @@ use triomphe::{Arc, UniqueArc};
 
 use crate::rc::brc::Backend;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct UseTArc;
 
 impl Backend for UseTArc {
