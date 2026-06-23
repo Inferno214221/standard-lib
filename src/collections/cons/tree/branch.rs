@@ -108,14 +108,21 @@ impl<T, B: Backend> ConsBranch<T, B> {
 
     /// Pops the head element of this list, if it is unique. Otherwise, `self` remains unchanged.
     pub fn pop_if_unique(&mut self) -> Option<T> {
-        Brc::get_mut(self.inner.as_mut()?)?;
+        // If the inner value is none, we don't need to return it because it has been replaced with
+        // an equivalent None.
+        let inner = self.inner.take()?;
 
-        // We've just confirmed that self.inner is Some and that it is unique.
-        let inner = mem::take(&mut self.inner).unwrap();
-        let ConsNode { value, next } = Brc::into_inner(inner).unwrap();
-        self.inner = next.inner;
-
-        Some(value)
+        match Brc::try_unwrap(inner) {
+            Ok(ConsNode { value, next }) => {
+                self.inner = next.inner;
+                Some(value)
+            },
+            Err(inner) => {
+                // Restore the state of self.inner.
+                self.inner.replace(inner);
+                None
+            },
+        }
     }
 
     /// Removes all unique items from this list and returns them as another `ConsBranch`.
