@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, cmp::Ordering, fmt::{self, Debug, Display, Formatter}, hash::{Hash, Hasher}, ops::Deref, rc::Rc, sync::Arc};
+use std::{borrow::Borrow, cmp::Ordering, fmt::{self, Debug, Display, Formatter, Pointer}, hash::{Hash, Hasher}, ops::Deref, rc::Rc, sync::Arc};
 
 
 // Trait bounds are for the ZST backend itself so that it doesn't interfere with derive bounds.
@@ -150,14 +150,20 @@ impl<T: ?Sized + Hash, B: Backend> Hash for Brc<T, B> {
 impl<T: ?Sized + Debug, B: Backend> Debug for Brc<T, B> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Brc")
-            .field("inner", &&**self)
+            .field("inner", &self.deref())
             .finish()
     }
 }
 
 impl<T: ?Sized + Display, B: Backend> Display for Brc<T, B> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", &&**self)
+        Display::fmt(&&**self, f)
+    }
+}
+
+impl<T: ?Sized, B: Backend> Pointer for Brc<T, B> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Pointer::fmt(&&**self, f)
     }
 }
 
