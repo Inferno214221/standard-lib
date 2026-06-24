@@ -14,6 +14,10 @@ impl Backend for UseTArc {
         Arc::new(value)
     }
 
+    fn deref<T: ?Sized>(this: &Self::Inner<T>) -> &T {
+        Arc::deref(this)
+    }
+
     fn try_unwrap<T>(this: Self::Inner<T>) -> Result<T, Self::Inner<T>> {
         Arc::try_unwrap(this)
     }
@@ -22,16 +26,24 @@ impl Backend for UseTArc {
         Some(UniqueArc::into_inner(Arc::into_unique(this)?))
     }
 
-    fn unwrap_or_clone<T: Clone>(this: Self::Inner<T>) -> T {
-        Arc::unwrap_or_clone(this)
-    }
-
     fn get_mut<T: ?Sized>(this: &mut Self::Inner<T>) -> Option<&mut T> {
         Arc::get_mut(this)
     }
 
+    fn make_mut<T: Clone>(this: &mut Self::Inner<T>) -> &mut T {
+        Arc::make_mut(this)
+    }
+
     fn strong_count<T: ?Sized>(this: &Self::Inner<T>) -> usize {
         Arc::strong_count(this)
+    }
+
+    fn unwrap_or_clone<T: Clone>(this: Self::Inner<T>) -> T {
+        Arc::unwrap_or_clone(this)
+    }
+
+    fn clone<T: ?Sized>(this: &Self::Inner<T>) -> Self::Inner<T> {
+        Arc::clone(this)
     }
 
     fn ptr_eq<T: ?Sized>(this: &Self::Inner<T>, other: &Self::Inner<T>) -> bool {
@@ -50,11 +62,31 @@ impl Backend for UseTArc {
         Arc::cmp(this, other)
     }
 
-    fn deref<T: ?Sized>(this: &Self::Inner<T>) -> &T {
-        Arc::deref(this)
+    fn from_iter<T, I: IntoIterator<Item = T>>(iter: I) -> Self::Inner<[T]> {
+        Arc::<[T]>::from_iter(iter)
     }
 
-    fn clone<T: ?Sized>(this: &Self::Inner<T>) -> Self::Inner<T> {
-        Arc::clone(this)
+    fn from<T>(this: T) -> Self::Inner<T> {
+        Arc::<T>::from(this)
+    }
+
+    fn from_box<T>(this: Box<T>) -> Self::Inner<T> {
+        Arc::<T>::from(this)
+    }
+
+    fn from_slice<T: Copy>(this: &[T]) -> Self::Inner<[T]> {
+        Arc::<[T]>::from(this)
+    }
+
+    fn from_str(this: &str) -> Self::Inner<str> {
+        Arc::<str>::from(this)
+    }
+
+    fn from_vec<T>(this: Vec<T>) -> Self::Inner<[T]> {
+        Arc::<[T]>::from(this)
+    }
+
+    fn from_string(this: String) -> Self::Inner<str> {
+        Arc::<str>::from(this)
     }
 }

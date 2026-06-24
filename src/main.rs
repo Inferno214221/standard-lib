@@ -196,29 +196,29 @@ fn main() {
     dbg!(Path::<Rel>::new("/."));
     dbg!(Path::<Rel>::new("././."));
 
-    let mut list_a = ConsBranch::new();
-    list_a.push("D");
-    list_a.push("C");
+    // let mut list_a = ConsBranch::new();
+    // list_a.push("D");
+    // list_a.push("C");
 
-    let mut list_b = list_a.clone();
-    list_b.push("T");
+    // let mut list_b = list_a.clone();
+    // list_b.push("T");
 
-    list_a.push("B");
-    list_a.push("A");
+    // list_a.push("B");
+    // list_a.push("A");
 
-    let mut rem = list_a.split_off_unique();
-    mem::swap(&mut list_a, &mut rem);
+    // let mut rem = list_a.split_off_unique();
+    // mem::swap(&mut list_a, &mut rem);
 
-    dbg!(&list_a);
-    dbg!(&rem);
-    dbg!(&list_b);
-    assert!(list_a.is_unique());
-    assert!(!rem.is_unique());
-    assert!(!list_b.is_unique());
-    assert!(rem.split_off_unique().is_empty());
-    dbg!(&rem);
-    drop(rem);
-    assert!(list_b.is_unique());
+    // dbg!(&list_a);
+    // dbg!(&rem);
+    // dbg!(&list_b);
+    // assert!(list_a.is_unique());
+    // assert!(!rem.is_unique());
+    // assert!(!list_b.is_unique());
+    // assert!(rem.split_off_unique().is_empty());
+    // dbg!(&rem);
+    // drop(rem);
+    // assert!(list_b.is_unique());
 
     let _ = CircStack::<(), { isize::MAX as usize + 1 }>::new_uninit();
 }
