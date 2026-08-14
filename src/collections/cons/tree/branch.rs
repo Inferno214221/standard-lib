@@ -43,6 +43,7 @@ impl<T, B: Backend> ConsBranch<T, B> {
     /// Pushes a new element onto the start of this `ConsBranch`, updating this list's head without
     /// affecting any overlapping lists (shallow clones).
     pub fn push(&mut self, value: T) {
+        // Non-atomic but we hold an exclusive reference.
         let old = mem::take(&mut self.inner);
 
         self.inner = Some(Brc::new(ConsNode {
@@ -108,9 +109,10 @@ impl<T, B: Backend> ConsBranch<T, B> {
 
     /// Pops the head element of this list, if it is unique. Otherwise, `self` remains unchanged.
     pub fn pop_if_unique(&mut self) -> Option<T> {
+        // Non-atomic but we hold an exclusive reference.
+        let inner = self.inner.take()?;
         // If the inner value is none, we don't need to return it because it has been replaced with
         // an equivalent None.
-        let inner = self.inner.take()?;
 
         match Brc::try_unwrap(inner) {
             Ok(ConsNode { value, next }) => {
@@ -144,6 +146,7 @@ impl<T: Clone, B: Backend> ConsBranch<T, B> {
     /// Pops the head element from this list, cloning if it is shared by another `ConsBranch`.
     /// Regardless of if a clone is required, the head of this list will be updated.
     pub fn pop_to_owned(&mut self) -> Option<T> {
+        // Non-atomic but we hold an exclusive reference.
         let inner = mem::take(&mut self.inner);
 
         match inner {
